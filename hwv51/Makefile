@@ -3,11 +3,8 @@ MEM = Basm/Mastercode.mem Basm/Masterdata.mem Basm/Slavecode.mem Basm/Slavedata.
 
 nCores = $(shell grep "parameter nCores = " < RISCsrc/RISCtop.v | sed 's/.*nCores = \([0-9]*\).*/\1/')
 
-all: risc
+all: risc$(nCores).bit
 
-risc:
-	make risc$(nCores).bit
-	
 risc3.bit: RISC/RISCtop.bit $(MEM)
 	data2mem -bm mem/memX3a_bd.bmm -bt RISC/RISCtop.bit \
 	 -bd Basm/RISCtestcode.mem tag ram3 \

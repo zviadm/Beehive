@@ -200,7 +200,7 @@ assign selMsgr = ~aqe & aq[31] & (aq[2:0] == 4);
   .done(done[4]),
   .selMsgr(selMsgr),
   .whichCore(whichCore),
-  .copyCore(4'b0),
+  .copyCore(whichCore),
   .RingIn(RingIn),
   .SlotTypeIn(SlotTypeIn),
   .SrcDestIn(SrcDestIn),
