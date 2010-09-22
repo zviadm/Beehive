@@ -1,0 +1,43 @@
+NET "CLKBP" TNM_NET =  "CLKBP";
+TIMESPEC "TS_CLKBP" = PERIOD "CLKBP" 10.0 ns HIGH 50%;
+
+NET "CLKBN" TNM_NET =  "CLKBN";
+TIMESPEC "TS_CLKBN" = PERIOD "CLKBN" 10.0 ns HIGH 50%;
+
+INST "coreBlk<1>.riscN/dCacheN/instCache/ram" LOC = "RAMB36_X1Y18";
+INST "coreBlk<1>.riscN/dCacheN/dataCache/ram" LOC = "RAMB36_X2Y18";
+INST "coreBlk<2>.riscN/dCacheN/instCache/ram" LOC = "RAMB36_X1Y22";
+INST "coreBlk<2>.riscN/dCacheN/dataCache/ram" LOC = "RAMB36_X2Y22";
+INST "coreBlk<3>.riscN/dCacheN/instCache/ram" LOC = "RAMB36_X1Y26";
+INST "coreBlk<3>.riscN/dCacheN/dataCache/ram" LOC = "RAMB36_X2Y26";
+#INST "coreBlk<4>.riscN/instMem/rom" LOC = "RAMB36_X1Y30";
+#INST "coreBlk<4>.riscN/dCacheN/dataCache/ram" LOC = "RAMB36_X2Y30";
+#INST "coreBlk<5>.riscN/instMem/rom" LOC = "RAMB36_X3Y30";
+#INST "coreBlk<5>.riscN/dCacheN/dataCache/ram" LOC = "RAMB36_X4Y30";
+#INST "coreBlk<6>.riscN/instMem/rom" LOC = "RAMB36_X3Y26";
+#INST "coreBlk<6>.riscN/dCacheN/dataCache/ram" LOC = "RAMB36_X4Y26";
+#INST "coreBlk<7>.riscN/instMem/rom" LOC = "RAMB36_X3Y22";
+#INST "coreBlk<7>.riscN/dCacheN/dataCache/ram" LOC = "RAMB36_X4Y22";
+#INST "ethcon/controlRisc/instMem/rom" LOC = "RAMB36_X3Y15";
+#INST "ethcon/controlRisc/dCacheN/dataCache1/ram" LOC = "RAMB36_X3Y17";
+
+NET "CLKBP" IOSTANDARD = LVDS_25;
+NET "CLKBP" LOC = "AH15"; //100 MHz
+NET "CLKBN" IOSTANDARD = LVDS_25;
+NET "CLKBN" LOC = "AG15";
+
+#NET "globalReset" IOSTANDARD = LVCMOS25;
+#NET "globalReset" LOC = "AH14";
+NET "FPGAreset" IOSTANDARD = LVCMOS25;
+NET "FPGAreset" LOC = "AG22";
+#NET "OTPIN" IOSTANDARD = LVCMOS25;
+#NET "OTPIN" LOC = "AH22";
+NET "TxD" IOSTANDARD = LVCMOS33;
+NET "TxD" LOC = "H22";
+NET "RxD" IOSTANDARD = LVCMOS33;
+NET "RxD" LOC = "H23";
+NET "SCL" IOSTANDARD = LVCMOS33;
+NET "SDA" IOSTANDARD = LVCMOS33;
+NET "SCL" LOC = "AE12";
+NET "SDA" LOC = "AF23";
+

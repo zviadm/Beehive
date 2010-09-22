@@ -1,0 +1,427 @@
+  field aoff  22 0;  define the field offsets for rfref. These names must be defined and must not change.
+field boff  11 0;
+field woff  27 0;
+
+field instruction 0 0; name for instruction memmory
+field rf 1 0;          name for register file
+field data 2 0;        name for data memory
+
+field := 0 0; noise word
+field PC 0 0; noise word
+field nop 0 0; default instruction 
+
+field +  0  8;  
+field -  1  8; 
+field ++ 2  8; the "Rb + 1" function
+field -- 3  8; the "Rb - 1" function
+field &  4  8; the "and" function
+field |  5  8; the "or" function
+field ^  6  8; the "xor" function
+field &~ 7  8; the "and not" function 
+
+field rcy1  1  6;
+field rcy8  2  6;
+field rcy16 3  6;
+
+field skn 1  3; skip if ALU < 0
+field skz 2  3; skip if ALU = 0
+field ski 3  3; skip if InReady
+field skge 4 3; skip if ALU >= 0
+field sknz 5 3; skip if ALU != 0
+field skni 6 3; skip if ~InReady
+field skp  7 3; skip always
+
+field RbConst 1 0; Opcodes
+field IO      2 0;
+field Load    3 0;
+field Store   4 0;
+field Resvd   5 0; Reserved
+field Jump    6 0;
+field Call    6 0; same as Jump, but clarifies the intent.  Calls will specify an Rw for the Link.
+field Const   7 0;
+
+
+;RbConsts for IO operations.
+;Rb[0] = 0 is In, Rb[0] = 1 is Out
+field readRS232Rx  0 11;
+field readRS232Tx  2 11;
+field writeRS232Tx 3 11;
+field writeLEDs    5 11;
+field readTimer    6 11;
+field writeTimer   7 11;
+field writeTimerReload  9 11;
+field readCalFail      10 11;
+field writeMemValue    11 11;
+field writeRS232select 13 11;
+
+;RFb constants representing ASCII characters.
+field chCR    13 11;
+field chLF    10 11;
+field chPlus  43 11;
+field chMinus 45 11;
+field chSlash 47 11;
+field chZero  48 11;
+field chColon 58 11;
+field chQuest 63 11;
+field chW     87 11;        also 'a' - 10
+field cha     97 11;
+field che    101 11;   
+field chf    102 11;
+field chg    103 11;
+field chq    113 11;
+field chr    114 11;
+field chs    115 11;
+field cht    116 11;
+field chx    120 11;
+field chLarw  60 11;
+field chRarw  62 11;
+field chSP    32 11;
+
+;RFb constants for small integers
+field const4     4 11;
+field const8     8 11;
+field const10   10 11;
+field constxf   15 11;
+field const16   16 11;
+field const64   64 11;
+field const3f 0x3f 11;  last location in DM
+field refInterval 390 11;  refresh interval in cycles
+field dllDelay     50 11;
+
+; Registers
+rfref Trash      0; r0 used for both the trashcan and the source of zero 
+rfref Zero       0; 
+rfref Link       1; subroutine linkage register
+
+rfref DelayCount 2; count this register down to delay
+rfref Char       3;
+rfref Digit      4;
+rfref N          5;
+rfref Flags      6;
+
+field Nvalid   1 11;  flag bits
+field CellOpen 2 11;
+field calFail  4 11;
+
+rfref Count      7;
+rfref Temp       8;
+rfref Address    9;  address of open cell
+rfref Value     10;  open cell's value
+rfref Count1    11;
+rfref OutValue  12;
+rfref RefTemp   13;
+
+rfref MemOut     29;
+
+field startCal 1 11; RbConsts for the MemOut bits.
+field inhibit  2 11;
+field ddrCE    4 11;
+field resetDDR 8 11;
+field force 0x10 11;
+field rank  0x20 11;
+field bank1 0x40 11;
+field bank2 0x80 11;
+field bank3 0xc0 11;
+field calConst 0x32 11; inhibit | force | rank
+
+rfref Stkp      30; stack pointer
+rfref PC        31;
+
+;Consts for the DDR controller
+field pchAllCmd    0xe8400  3;  alt = nop, cmd = precharge
+field refCmd       0xe4000  3;  alt = nop, cmd = refresh
+field readCmd      0xf4000  3;  alt = nop, cmd = read
+field writeCmd     0x8c000  3;  alt = write, cmd = active
+
+field mrs0Cmd      0xe0000  3;  alt = nop, cmd = load mode
+field mrs1Cmd      0xe0742  3;
+field mrs2Cmd      0xe0642  3;
+field mrs3Cmd      0xe03d8  3;
+field mrs4Cmd      0xe0058  3;
+
+
+;--------------------- End of Declarations -----------------------------
+
+  
+mem instruction loc 1;  Set current memory to the instruction memory, location 1.
+
+
+start:  wStkp := RbConst const3f; last location in DM
+        wMemOut := aZero;
+        wMemOut := aMemOut | RbConst inhibit; inhibit until after the first refresh.
+        wDelayCount := Const 5000;   200 us delay
+        Call delay wLink;
+        wMemOut := aMemOut | RbConst resetDDR;
+        nop;
+        nop;
+        wMemOut := aMemOut &~ RbConst resetDDR;
+        nop;
+        nop;
+        wMemOut := aMemOut | RbConst ddrCE;
+        Call initMem wLink;  initialize the memory
+        Call calibrateMem wLink; calibrate the memory
+        wTemp := RbConst refInterval; start the refresh timer
+        IO aTemp writeTimerReload;
+        aFlags & RbConst calFail sknz;
+        wChar := RbConst chs skp;
+        wChar := RbConst chf;
+        Call printChar wLink; 
+
+
+shell:  Call printCRLF wLink;
+        wChar := RbConst chZero;
+        Call printChar wLink;
+        wChar := RbConst chRarw;
+        Call  printChar wLink;
+        wFlags := bZero;
+        wN := bZero;
+
+getChar: IO readTimer skni;
+        Call doRefresh wLink;
+        IO wChar := readRS232Rx ski;
+        Jump getChar;
+        aChar - RbConst chSlash sknz;
+        Jump openCell;
+        aChar - RbConst chRarw sknz;
+        Jump openPrevNext;
+        aChar - RbConst chLarw sknz;
+        Jump openPrevNext;
+        aChar - RbConst chCR sknz;
+        Jump closeCell;
+        aChar - RbConst chg  sknz;
+        Jump go;
+        aChar - RbConst chs  sknz;
+        Jump select;
+        aChar - RbConst chZero skge
+        Jump getChar;        Char < '0'. No echo, get another Char
+        aChar - RbConst chColon skge
+        Jump decDigit;       '0' <= Char < ':'. digit 0-9
+        aChar - RbConst cha skge
+        Jump getChar;        Char < 'a'
+        aChar - RbConst chg skn;
+        Jump getChar;
+hexDigit: wDigit := aChar - RbConst chW skp; Char - g < 0 => Char < g. Hex digit
+decDigit: wDigit := aChar - RbConst chZero;
+        wCount1 := aZero - RbConst const4;
+        Call cyc2431 wLink;  rcy 28 = lcy 4. N := N * 16
+        wN := aN + bDigit;
+        wFlags := aFlags | RbConst Nvalid;
+        Call printChar wLink;
+        Jump  getChar;
+
+select: aFlags & RbConst Nvalid skz;
+        IO aN writeRS232select;
+        Jump getChar;   
+
+printChar: Store aLink wStkp := bStkp -- ;
+printChar1: IO readTimer skni;
+           Call doRefresh wLink;
+           IO  readRS232Tx ski;
+           Jump printChar1;
+           IO  aChar writeRS232Tx;
+           Jump ret;
+
+printCRLF: Store aLink wStkp := bStkp -- ; non-leaf. Use stack
+           wChar := RbConst chCR;
+           Call printChar wLink;
+           wChar := RbConst chLF;
+           Call printChar wLink;
+ret:       wStkp := bStkp ++ ;
+           Load wPC bStkp;  
+
+printN:    Store aLink wStkp := bStkp -- ;
+           wCount := RbConst const8;
+printNloop: Call printHexDigit wLink;
+           wCount := bCount -- skz;
+           Jump printNloop;
+           Jump ret;
+
+printHexDigit: Store aLink wStkp := bStkp -- ;
+           wCount1 := aZero - RbConst const4;
+           Call cyc2431  wLink;  rcy 28
+           wDigit := aN & RbConst constxf;
+           aDigit - RbConst const10 skge;
+           wChar := aDigit + RbConst chZero skp;  0-9
+           wChar := aDigit + RbConst chW;          a-f
+           Call printChar wLink;
+           Jump ret;
+
+openCell:  aFlags & RbConst Nvalid sknz; Nvalid?
+           Jump shell;        no. Do nothing
+           wAddress := aN;
+openX:     Load wN bAddress;
+           wValue := aN;
+           Call printChar wLink;  echo the slash
+           wChar := RbConst chSP;
+           Call printChar wLink;
+           Call printN wLink;
+           wChar := RbConst chSP;
+           Call printChar wLink;
+           wFlags := RbConst CellOpen; set CellOpen, clear Nvalid
+           wN := bZero;    clear N
+           Jump getChar; 
+
+openPrevNext:  aFlags & RbConst CellOpen sknz;  open cell?
+           Jump shell;    no.
+           aFlags & RbConst Nvalid skz;  need to store value?
+           Store aN bAddress;            yes, store it
+           aChar - RbConst chRarw skz;   what was typed?
+           wAddress := bAddress -- skp;  left arrow
+           wAddress := bAddress ++ ;     right arrow
+           Call printChar wLink;         echo the character
+           Call printCRLF wLink;
+           wChar := RbConst chRarw;
+           Call printChar wLink;
+           wN := aAddress;
+           Call printN wLink;
+           wChar := RbConst chSlash;
+           Jump openX;
+
+closeCell: aFlags & RbConst CellOpen sknz; is there an open cell?
+           Jump shell;            no. Do nothing
+           aFlags & RbConst Nvalid sknz;  N valid?
+           Jump shell;
+           wValue := aN;
+           Store aValue bAddress; 
+           Jump shell;
+
+;routine to cycle N by 0-31.  Count contains 0..-7, and the
+;entry point used determines the result.
+
+cyc2431:   wN := aN rcy8;
+cyc1623:   wN := aN rcy16 skp;
+cyc815:    wN := aN rcy8;
+cyc07:     Jump aCount1 + cycRet;  count is a negative offset.
+           wN := aN rcy1;
+           wN := aN rcy1;
+           wN := aN rcy1;
+           wN := aN rcy1;
+           wN := aN rcy1;
+           wN := aN rcy1;
+           wN := aN rcy1;
+cycRet:    Jump aLink;
+
+go:        aFlags & RbConst Nvalid skz;
+           Call aN wLink;
+           Jump shell;
+
+
+blink:  Store aLink wStkp := bStkp -- ;
+blink1: wDelayCount := RbConst 0xffffff;
+        IO aDelayCount writeTimer;
+blink2: IO readTimer ski;
+        Jump blink2;         
+        IO writeLEDs aOutValue;
+        wOutValue := bOutValue ++;
+        IO wChar := readRS232Rx skni;
+        Jump ret;
+        Jump blink1;
+
+
+delay:  Store aLink wStkp := bStkp -- ;
+delay1: wDelayCount := bDelayCount -- skz;
+        Jump delay1;
+        Jump ret;
+
+initMem: Store aLink wStkp := bStkp -- ;
+        Call initRank wLink;
+        wMemOut := aMemOut ^ RbConst rank;
+        Call initRank wLink;
+        Jump ret;
+
+initRank: Store aLink wStkp := bStkp -- ;
+        wDelayCount := RbConst const10;  wait 400ns (20 cycles)
+        Call delay wLink;
+        wTemp := Const pchAllCmd;
+        IO aTemp writeMemValue;      issue precharge all
+        nop;
+        nop;
+        nop;
+        nop;
+        wMemOut := aMemOut | RbConst bank2;  load EMR2 (with zero)
+        wTemp := Const mrs0Cmd;
+        IO aTemp writeMemValue;
+        wMemOut := aMemOut | RbConst bank3;  load EMR3 (with zero)
+        IO aTemp writeMemValue;
+        wMemOut := aMemOut &~ RbConst bank3;
+        wMemOut := aMemOut | RbConst bank1;
+        IO aTemp writeMemValue;              load EMR (with zero)
+        wMemOut := aMemOut &~ RbConst bank1;
+        wTemp := Const mrs1Cmd;
+        IO aTemp writeMemValue;              load MR
+        wDelayCount := RbConst dllDelay;
+        Call delay wLink;       wait for DLL to lock
+        Call doRefresh1 wLink;
+        Call doRefresh1 wLink;
+        wTemp := Const mrs2Cmd;
+        IO aTemp writeMemValue;    load MR
+        wTemp := Const mrs3Cmd;
+        wMemOut := aMemOut | RbConst bank1;
+        IO aTemp writeMemValue;    load EMR
+        wTemp := Const mrs4Cmd;
+        IO aTemp writeMemValue;    load EMR
+        wMemOut := aMemOut &~ RbConst bank1;  reset bank
+        wDelayCount := RbConst const10; wait 400ns (20 cycles)
+        Call delay wLink;
+        wTemp := Const pchAllCmd;
+        IO aTemp writeMemValue;   issue precharge all
+        Jump ret;
+
+
+calibrateMem: Store aLink wStkp := bStkp -- ;
+        wMemOut := aMemOut | RbConst calConst; inhibit | force | rank
+        Call doRefresh1 wLink;  Refresh to close all banks
+        wTemp := Const writeCmd;  Activate, write
+        IO aTemp writeMemValue;
+        wMemOut := aMemOut | RbConst startCal; Toggle startCal
+        wMemOut := aMemOut &~ RbConst startCal;
+        wCount := RbConst const64;  Do 64 reads
+        wTemp := Const readCmd;
+calLoop: IO aTemp writeMemValue;
+        wCount := bCount -- skz;
+        Jump calLoop;
+        wDelayCount := RbConst const16;
+        Call delay wLink;
+        wMemOut := aMemOut &~ RbConst calConst;  Enable DDR
+        IO readCalFail ski;  Skip if fail
+        wFlags := aFlags &~ RbConst calFail skp; clear fail
+        wFlags := aFlags | RbConst calFail;      set fail
+        Jump ret;
+       
+doRefresh1: Store aLink wStkp := bStkp -- ;  use current rank, don't clear inhibit
+       wRefTemp := Const pchAllCmd; //don't need to drain pipeline (no commands pendine)
+       IO aRefTemp writeMemValue;
+       nop;
+       nop;
+       wRefTemp := Const refCmd;
+       IO aRefTemp writeMemValue;
+       wRefTemp := RbConst const4;
+trfcDelay1: wRefTemp := bRefTemp -- skz;
+       Jump trfcDelay;
+       Jump ret;
+
+doRefresh: wMemOut := aMemOut ^ RbConst rank; complement rank,
+       wMemOut := aMemOut | RbConst inhibit;  set inhibit
+       Store aLink wStkp := bStkp -- ;
+       nop;    drain pipeline
+       nop;
+       nop;
+       nop;
+       nop;
+       nop;
+       wRefTemp := Const pchAllCmd;
+       IO aRefTemp writeMemValue;
+       nop;
+       nop;
+       wRefTemp := Const refCmd;
+       IO aRefTemp writeMemValue;
+       wMemOut := aMemOut &~ RbConst inhibit;
+       wRefTemp := RbConst const4;
+trfcDelay: wRefTemp := bRefTemp -- skz;
+       Jump trfcDelay;
+       Jump ret;
+
+  
+end
+
+

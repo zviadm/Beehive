@@ -1,0 +1,24 @@
+SHAREDCFLAGS := -quiet -std=c99 -fno-builtin -msavertn -O2 $(INCLUDES)
+
+SHARED := shared/threads.c \
+	shared/xfer.as \
+	shared/intercore.as \
+	shared/mq.c \
+	shared/enet.c \
+	shared/network.c \
+	shared/tcp.c \
+	shared/tftp.c \
+	shared/mcLibc.c \
+	shared/mcMain.c
+
+SHAREDOBJS := $(SHARED)
+SHAREDOBJS := $(patsubst %.as, $(O)/%.o, $(SHAREDOBJS))
+SHAREDOBJS := $(patsubst %.c, $(O)/%.o, $(SHAREDOBJS))
+
+$(O)/shared/%.s: shared/%.c
+	@echo "CC       $@"
+	$(CC) $(SHAREDCFLAGS) -o $@ -MT $@ -MD $@.d $<
+
+$(O)/shared/%.o: shared/%.as
+	@echo "AS       $@"
+	$(AS) $(ASFLAGS) -lst $(O)/$<.lst -o $@ -x $<

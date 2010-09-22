@@ -1,0 +1,214 @@
+     	field aoff  22 0;  define the field offsets for rfref. These names must be defined and must not change.
+     	field boff  11 0;
+     	field woff  27 0;
+     	
+     	field instruction 0 0; name for instruction memmory
+     	field rf 1 0;          name for register file
+     	field data 2 0;        name for data memory
+     	
+     	field := 0 0; noise word
+     	
+     	field +  0  8; the �plus� function 
+     	field -  1  8; the �minus� function
+     	field ++ 2  8; the �Rb + 1� function
+     	field -- 3  8; the �Rb � 1� function
+     	field &  4  8; the �and� function
+     	field |  5  8; the �or� function
+     	field ^  6  8; the �xor� function
+     	field &~ 7  8; the "and not" function 
+     	
+     	field rcy1  1  6;
+     	field rcy8  2  6;
+     	field rcy16 3  6;
+     	
+     	field skn 1  3; skip if ALU < 0
+     	field skz 2  3; skip if ALU = 0
+     	field ski 3  3; skip if InReady
+     	field skge 4 3; skip if ALU >= 0
+     	field sknz 5 3; skip if ALU != 0
+     	field skni 6 3; skip if ~InReady
+     	field skp  7 3; skip always
+     	
+     	field RbConst 1 0; Opcodes
+     	field IO      2 0;
+     	field Load    3 0;
+     	field Store   4 0;
+     	field StoreIM 5 0;
+     	field Jump    6 0;
+     	field Call    6 0; same as Jump, but clarifies the intent.  Calls will specify an Rw for the Link.
+     	field Const   7 0;
+     	
+     	
+     	rfref Trash      0; r0 used for both the trashcan and the source of zero 
+     	rfref Zero       0; 
+     	rfref Link       1; subroutine linkage register
+     	rfref DelayCount 2; count this register down to delay
+     	rfref OutValue   3;
+     	rfref Data       4; I2C address, data
+     	rfref Temp       5;
+     	rfref Mask       6;
+     	rfref OutData    7;
+     	
+     	rfref Stkp      30; stack pointer 
+     	rfref PC        31;
+     	
+     	; Rb[0] = 0 is In, Rb[0] = 1 is Out
+     	field writeI2C     3 11;
+     	field writeLEDs    5 11;
+     	
+     	;RbConsts for small integers
+     	field halfBit      33 11; One I2C bit is 2600ns, 2600 / 40 = 65
+     	field quarterBit   17 11;
+     	field deviceAddr 0xec 11;  0x76 lsh 1
+     	
+     	;RbConsts for I2C SCL, SDA values
+     	field i00          3 11;  SCL 0, SDA 0
+     	field i0Z          2 11;  SCL 0, SDA Z
+     	field iZ0          1 11;  SCL Z, SDA 0
+     	field iZZ          0 11;  SCL Z, SDA Z. This is the default (reset) state.
+     	
+     	
+     	mem instruction loc 1;  Set current memory to the instruction memory, location 1.
+     	
+     	
+1:	start: wStkp := Const 0x3f; last location in DM
+     	
+2:	    Jump setupDC;
+     	
+3:	blink: wDelayCount := Const 0xffffff; 
+4:	       Call delay  wLink;  subroutine call
+5:	       IO writeLEDs aOutValue;
+6:	       wOutValue := bOutValue ++;
+7:	       Jump blink;
+     	
+     	
+8:	delay:     Store aLink wStkp := bStkp -- ;
+9:	delay1:    wDelayCount := bDelayCount -- skz;
+10:	           Jump delay1;
+11:	ret:       wStkp := bStkp ++ ;
+12:	           Load wPC := bStkp;
+     	
+     	;Set up the registers in the Chrontel
+13:	setupDC:  wData := Const 0x9c00;  Clock mode register := 0
+14:	     Call sendByte wLink;
+15:	     wData := Const 0x9d48;  Input clock sample delay := 0x48
+16:	     Call sendByte wLink;
+17:	     wData := Const 0x9ec0;  GPIO control := 0xb0
+18:	     Call sendByte wLink;
+19:	     wData := Const 0x9f80;  Input data format := 0x80
+20:	     Call sendByte wLink;
+21:	     wData := Const 0xa000;  Connection detect := 0
+22:	     Call sendByte wLink;
+23:	     wData := Const 0xa100;  DAC control := 0 (assumes bit 3 = 0 enables the output)
+24:	     Call sendByte wLink;
+25:	     wData := Const 0xa300;  Hot plug detect := 0
+26:	     Call sendByte wLink;
+27:	     wData := Const 0xb180;  DVI control := 0x80
+28:	     Call sendByte wLink;
+29:	     wData := Const 0xb306;  DVI charge pump (Table 10) := 06
+30:	     Call sendByte wLink;
+31:	     wData := Const 0xb426;  DVI PLL divider (Table 10) := 0x26
+32:	     Call sendByte wLink;
+33:	     wData := Const 0xb530;  DVI PLL supply := 0x30
+34:	     Call sendByte wLink;
+35:	     wData := Const 0xb6a0;  DVI pll filter := 0xa0
+36:	     Call sendByte wLink;
+37:	     wData := Const 0xb700;  DVI clock Test := 0
+38:	     Call sendByte wLink;
+39:	     wData := Const 0xc818;  Test Pattern (none)
+40:	     Call sendByte wLink;
+41:	     wData := Const 0xc9c0;  Power Management (DVI normal)
+42:	     Call sendByte wLink;
+43:	     wData := Const 0xd600;  Embedded Sync Polarity := 0
+44:	     Call sendByte wLink;
+45:	stop:  wDelayCount := Const 0xffffff;  Wait
+46:	     Call delay wLink;
+47:	     Jump setupDC;  Do setup again
+     	
+     	;A start condition is SDA falling while SCL is high (normally, SDA cnanges only when SCL = 0)
+     	;On entry, SCL = Z, SDA = Z
+     	;On exit,  SCL = 0, SDA = Z
+48:	sendStart: Store aLink wStkp := bStkp -- ;
+49:	     wOutValue := Const 2;  SCL 0, SDA Z
+50:	     IO writeI2C aOutValue;
+51:	     wDelayCount := RbConst halfBit;
+52:	     Call delay wLink;
+53:	     wOutValue := RbConst iZZ;  SCL Z, SDA Z
+54:	     IO writeI2C aOutValue;
+55:	     wDelayCount := RbConst quarterBit;
+56:	     Call delay wLink;
+57:	     wOutValue := RbConst iZ0;  SCL Z, SDA 0
+58:	     IO writeI2C aOutValue;
+59:	     wDelayCount := RbConst quarterBit;
+60:	     Call delay wLink;
+61:	     wOutValue := RbConst i0Z;  SCL 0, SDA Z
+62:	     IO writeI2C aOutValue;
+63:	     Jump ret;
+     	
+     	;A stop condition is SDA rising while SCL is high (normally, SDA cnanges only when SCL = 0)
+     	;On entry, SCL = 0, SDA = Z
+     	;On exit,  SCL = Z, SDA = Z
+64:	sendStop:  Store aLink wStkp := bStkp -- ;
+65:	     wOutValue := RbConst i00;  SCL 0, SDA 0
+66:	     IO writeI2C aOutValue;
+67:	     wDelayCount := RbConst halfBit;
+68:	     Call delay wLink;
+69:	     wOutValue := RbConst iZ0;  SCL Z, SDA 0
+70:	     IO writeI2C aOutValue;
+71:	     wDelayCount := RbConst quarterBit;
+72:	     Call delay wLink;
+73:	     wOutValue := RbConst iZZ;    SCL Z, SDA Z
+74:	     IO writeI2C aOutValue;
+75:	     wDelayCount := RbConst quarterBit;
+76:	     Call delay wLink;
+77:	     Jump ret;
+     	
+     	;sendByte first sends byte 1 as the register address, then sends byte 0 as data.      
+78:	sendByte: Store aLink wStkp := bStkp -- ;
+79:	     Call sendStart wLink;
+80:	     wOutData := RbConst deviceAddr;
+81:	     Call sendB1 wLink;
+82:	     wOutData := aData rcy8;
+83:	     Call sendB1 wLink;
+84:	     wOutData := aData;
+85:	     Call sendB1 wLink;
+86:	     Call sendStop wLink;
+87:	     Jump ret;
+     	
+88:	sendB1: Store aLink wStkp := bStkp -- ;
+89:	     wMask := Const 256;
+90:	sendB1loop: wMask := aMask rcy1 skge; done?
+91:	     Jump getAck;
+92:	     aOutData & bMask skz;
+93:	     wTemp := RbConst i0Z skp; bit was 1: SCL 0, SDA Z 
+94:	     wTemp := RbConst i00;     bit was 0: SCL 0, SDA 0
+95:	     wDelayCount := RbConst quarterBit;
+96:	     Call delay wLink;
+97:	     IO writeI2C aTemp;
+98:	     wDelayCount := RbConst quarterBit;
+99:	     Call delay wLink;
+100:	     wTemp := aTemp & RbConst iZ0;  SCL Z, SDA unchanged
+101:	     IO writeI2C aTemp;
+102:	     wDelayCount := RbConst halfBit;
+103:	     Call delay wLink;
+104:	     wTemp := RbConst i0Z; SCL 0, SDA Z
+105:	     IO writeI2C aTemp;
+106:	     Jump sendB1loop;
+     	
+107:	getAck:  wDelayCount := RbConst halfBit;
+108:	     Call delay wLink;
+109:	     wTemp := RbConst iZZ; SCL Z, SDA Z;
+110:	     IO writeI2C aTemp;
+111:	     wDelayCount := RbConst halfBit;
+112:	     Call delay wLink;
+113:	     wTemp := RbConst i0Z; SCL 0, SDA Z
+114:	     IO writeI2C aTemp;
+115:	     Jump ret;      
+     	   
+     	end
+     	
+     	
+Memory 0: 115 location(s) initialized
+Memory 1: 0 location(s) initialized
+Memory 2: 0 location(s) initialized
+0 Errors.

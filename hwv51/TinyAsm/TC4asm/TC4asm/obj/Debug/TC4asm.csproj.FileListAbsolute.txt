@@ -1,0 +1,10 @@
+C:\XUPv5RingFork\TinyAsm\TC4asm\TC4asm\obj\Debug\TC4asm.exe
+C:\XUPv5RingFork\TinyAsm\TC4asm\TC4asm\obj\Debug\TC4asm.pdb
+C:\XUPv5RingFork\TinyAsm\TC4asm\TC4asm\bin\Debug\TC4asm.exe
+C:\XUPv5RingFork\TinyAsm\TC4asm\TC4asm\bin\Debug\TC4asm.pdb
+C:\XUPv5RingFork\TinyAsm\TC4asm\TC4asm\obj\Debug\ResolveAssemblyReference.cache
+C:\Tiny\TinyAsm\TC4asm\TC4asm\obj\Debug\TC4asm.exe
+C:\Tiny\TinyAsm\TC4asm\TC4asm\obj\Debug\TC4asm.pdb
+C:\Tiny\TinyAsm\TC4asm\TC4asm\bin\Debug\TC4asm.exe
+C:\Tiny\TinyAsm\TC4asm\TC4asm\bin\Debug\TC4asm.pdb
+C:\Tiny\TinyAsm\TC4asm\TC4asm\obj\Debug\ResolveAssemblyReference.cache

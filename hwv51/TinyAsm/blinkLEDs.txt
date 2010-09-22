@@ -1,0 +1,77 @@
+field aoff  22 0;  define the field offsets for rfref. These names must be defined and must not change.
+field boff  11 0;
+field woff  27 0;
+
+field instruction 0 0; name for instruction memmory
+field rf 1 0;          name for register file
+field data 2 0;        name for data memory
+
+field := 0 0; noise word
+
+field +  0  8; the “plus” function 
+field -  1  8; the “minus” function
+field ++ 2  8; the “Rb + 1” function
+field -- 3  8; the “Rb – 1” function
+field &  4  8; the “and” function
+field |  5  8; the “or” function
+field ^  6  8; the “xor” function
+field &~ 7  8; the "and not" function 
+
+field rcy1  1  6;
+field rcy8  2  6;
+field rcy16 3  6;
+
+field skn 1  3; skip if ALU < 0
+field skz 2  3; skip if ALU = 0
+field ski 3  3; skip if InReady
+field skge 4 3; skip if ALU >= 0
+field sknz 5 3; skip if ALU != 0
+field skni 6 3; skip if ~InReady
+field skp  7 3; skip always
+
+field RbConst 1 0; Opcodes
+field IO      2 0;
+field Load    3 0;
+field Store   4 0;
+field StoreIM 5 0;
+field Jump    6 0;
+field Call    6 0; same as Jump, but clarifies the intent.  Calls will specify an Rw for the Link.
+field Const   7 0;
+
+mem instruction loc 1;  Set current memory to the instruction memory, location 1.
+
+rfref Trash 0; r0 used for both the trashcan and the source of zero 
+rfref Zero  0; 
+rfref Link  1; subroutine linkage register
+rfref Stkp 30; stack pointer 
+
+; Rb[0] = 0 is In, Rb[0] = 1 is Out
+field readRS232Rx  0 11;
+field readRS232Tx  2 11;
+field writeRS232Tx 3 11;
+field writeLEDs    5 11;
+
+
+; Registers
+rfref DelayCount 2;  count this register down to delay
+rfref OutValue   3;
+
+
+start: wStkp := Const 0x7ff; last location in DM
+blink: wDelayCount := Const 0xffffff; 
+       Jump delay  wLink;  subroutine call
+       IO writeLEDs aOutValue;
+       wOutValue := bOutValue ++;
+       Jump blink;
+
+
+delay:     Store aLink wStkp := bStkp -- ;
+delay1:    wDelayCount := bDelayCount -- skz;
+           Jump delay1;
+ret:       wStkp := bStkp ++ ;
+           Load wLink bStkp;
+           Jump aLink;
+  
+end
+
+

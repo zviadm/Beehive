@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="TC4asm">
+</Property><Property Name="Solution File" Value="C:\XUPv5RingFork\TinyAsm\TC4asm\TC4asm.sln">
+</Property><Property Name="User Options File" Value="C:\XUPv5RingFork\TinyAsm\TC4asm\TC4asm.suo">
+</Property><Property Name="Date" Value="Sunday, November 15, 2009">
+</Property><Property Name="Time" Value="7:09 AM">
+</Property></Properties><Event ErrorLevel="0" Project="" Source="TC4asm.sln" Description="File successfully backed up as C:\XUPv5RingFork\TinyAsm\TC4asm\Backup\TC4asm.sln">
+</Event><Event ErrorLevel="0" Project="" Source="TC4asm.suo" Description="File successfully backed up as C:\XUPv5RingFork\TinyAsm\TC4asm\Backup\TC4asm.suo">
+</Event><Event ErrorLevel="0" Project="TC4asm" Source="TC4asm\TC4asm.csproj" Description="Project file successfully backed up as C:\XUPv5RingFork\TinyAsm\TC4asm\Backup\TC4asm\TC4asm.csproj">
+</Event><Event ErrorLevel="0" Project="TC4asm" Source="TC4asm\TC4asm.csproj.user" Description="Project user file successfully backed up as C:\XUPv5RingFork\TinyAsm\TC4asm\Backup\TC4asm\TC4asm.csproj.user">
+</Event><Event ErrorLevel="0" Project="TC4asm" Source="TC4asm\Program.cs" Description="File successfully backed up as C:\XUPv5RingFork\TinyAsm\TC4asm\Backup\TC4asm\Program.cs">
+</Event><Event ErrorLevel="0" Project="TC4asm" Source="TC4asm\Properties\AssemblyInfo.cs" Description="File successfully backed up as C:\XUPv5RingFork\TinyAsm\TC4asm\Backup\TC4asm\Properties\AssemblyInfo.cs">
+</Event><Event ErrorLevel="0" Project="TC4asm" Source="TC4asm\TC4asm.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="TC4asm" Source="TC4asm\TC4asm.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="TC4asm.sln" Description="Solution converted successfully">
+</Event><Event ErrorLevel="3" Project="" Source="TC4asm.sln" Description="Converted">
+</Event><Event ErrorLevel="0" Project="TC4asm" Source="TC4asm\TC4asm.csproj" Description="Scan complete: Upgrade not required for project files.">
+</Event></UpgradeLog>
