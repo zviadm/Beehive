@@ -1,5 +1,4 @@
-*
-!.gitignore
-!*.xco
-!*.coe
-!*.ise
+_cg/
+_xmsgs/
+*_xdb/
+
