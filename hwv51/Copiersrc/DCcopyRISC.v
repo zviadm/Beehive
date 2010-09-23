@@ -152,11 +152,11 @@ assign loadCnt = selDMA & ~aqrd & (aq[4:3] == 2);
 //Pin buffers for DVIscl, DVIsda
   OBUFT sclBuf(.O(DVIscl), .I(1'b0), .T(~SCLx));
   
-(* KEEP = "TRUE" *) wire DVIsdaIn;  //to see an ACK with ChipScope
-(* KEEP = "TRUE" *) reg DVIsdaInReg;
-always @(posedge clock) DVIsdaInReg <= DVIsdaIn;
+//(* KEEP = "TRUE" *) wire DVIsdaIn;  //to see an ACK with ChipScope
+//(* KEEP = "TRUE" *) reg DVIsdaInReg;
+//always @(posedge clock) DVIsdaInReg <= DVIsdaIn;
 
-  IOBUF sdaBuf(.IO(DVIsda), .O(DVIsdaIn), .I(1'b0), .T(~SDAx));
+  IOBUF sdaBuf(.IO(DVIsda), .O(/*DVIsdaIn*/), .I(1'b0), .T(~SDAx));
   
  //local I/O device 2 is the Output register
  //This logic is simple enough that a separate module isn't needed.

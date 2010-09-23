@@ -6,7 +6,7 @@
 
 `timescale 1ns / 1ps
 
-// © Copyright Microsoft Corporation, 2008
+//  Copyright Microsoft Corporation, 2008
 
  module ddrController(
 
@@ -66,7 +66,7 @@
  reg [26:0] AFpipe;
  reg AFpipeValid;
  
- wire WBempty;
+ //wire WBempty;
  wire AFempty; 
  wire AFfullx;
  
@@ -136,7 +136,7 @@
  reg r_ras, r_cas, r_we;
  reg [2:0] altCmd;
  reg [13:0] addr; 
- reg [13:0] altAddr; //the alternate address
+ reg [9:2] altAddr; //the alternate address
  reg [13:0] addrd1;
  reg [13:0] addrd2;
  reg [2:0] bank; //the bank number
@@ -260,7 +260,7 @@ reg RBfulld1;
 
  always @(posedge MCLK) //addrd1
    if(clk_ce) addrd1 <= addr;
-   else addrd1 <= altAddr;
+   else addrd1 <= {4'b0000, altAddr, 2'b00};
       
  always @(posedge MCLK) begin
    rankd1 <= rank == 0? 2'b10: 2'b01;
@@ -491,7 +491,7 @@ assign GetNext = (StartOp & ~numOps[2]) | ((State == Act) & TlpZ & ~Inhibit & Tr
 //Instantiate the read and write buffers
 
  WB writeBuf( .Reset(CReset), .WD(WriteData), .WRen(WriteWB), .WRclk(WBclock), .Full(WBfull),
-   .MD(WD), .Rclk(MCLK90), .RDen(ReadWB), .Empty(WBempty));
+   .MD(WD), .Rclk(MCLK90), .RDen(ReadWB), .Empty(/*WBempty*/));
    
  RB readBuf( .Reset(CReset), .MD(RD), .WRen(WriteRB), .WRclk(MCLK90), .Full(RBfull),
    .RD(ReadData), .Rclk(RBclock), .RDen(ReadRB), .SingleError(SingleError), .DoubleError(DoubleError), .Empty(RBempty));
@@ -530,7 +530,7 @@ assign GetNext = (StartOp & ~numOps[2]) | ((State == Act) & TlpZ & ~Inhibit & Tr
    
    else begin 
    if(injectTC5address & ~inject1) begin  //differentiate injectTC5address
-       altAddr <= {4'b0, LastALU[7:0], 2'b0};   //col address
+       altAddr <= LastALU[7:0];   //col address
        bank <= LastALU[11:9];			
        addr <= LastALU[25:12];        		//row address
        rank <= LastALU[26];
@@ -548,7 +548,7 @@ assign GetNext = (StartOp & ~numOps[2]) | ((State == Act) & TlpZ & ~Inhibit & Tr
        if(numOps[0]) begin  //Hit.  Issue Nop, Op
            cmd <= NopCmd;
            altCmd <= ReadCommand? ReadCmd: WriteCmd;
-           altAddr <= {4'b0, colIn[7:0], 2'b00};    //col address
+           altAddr <= colIn[7:0];    //col address
            bank <= bankIn;
            State <= Idle;
        end
@@ -557,7 +557,7 @@ assign GetNext = (StartOp & ~numOps[2]) | ((State == Act) & TlpZ & ~Inhibit & Tr
            cmd <= ActiveCmd;
            altCmd <= ReadCommand? ReadCmd: WriteCmd;
            addr <= rowIn;
-           altAddr <= {4'b0, colIn[7:0], 2'b0};
+           altAddr <= colIn[7:0];
            bank <= bankIn;
            State <= Idle;
        end
@@ -575,7 +575,7 @@ assign GetNext = (StartOp & ~numOps[2]) | ((State == Act) & TlpZ & ~Inhibit & Tr
         cmd <= NopCmd;
         addr <= 14'bxxxxxxxxxxxxxx;        
         altCmd <= NopCmd;
-        altAddr <= 10'bxxxxxxxxxx;
+        altAddr <= 8'bxxxxxxxx;
         bank <= bankIn; 
         State <= Idle;
     end //case (Idle)
@@ -587,13 +587,13 @@ assign GetNext = (StartOp & ~numOps[2]) | ((State == Act) & TlpZ & ~Inhibit & Tr
         altCmd <= NopCmd;
         bank <= bankIn;
         addr <= 14'bxxxxxxxxxxxxxx;        
-        altAddr <= 10'bxxxxxxxxxx;
+        altAddr <= 8'bxxxxxxxx;
       end
       else begin
         cmd <= ActiveCmd; //Issue Act, Op
         altCmd <= ReadCommand? ReadCmd: WriteCmd;
         addr <= rowIn;
-        altAddr <= {4'b0, colIn[7:0], 2'b0};
+        altAddr <= colIn[7:0];
         bank <= bankIn;
         State <= Idle;
       end            

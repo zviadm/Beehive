@@ -138,7 +138,7 @@ wire [23:0] outWord;
 reg [1:0] outCount;
 wire [95:0] fifoDout;
 wire readFifo;
-(* KEEP = "TRUE" *) wire fifoEmpty;
+//(* KEEP = "TRUE" *) wire fifoEmpty;
 
 assign outWord =
   outCount == 0 ? fifoDout[23:0] :
@@ -164,7 +164,7 @@ frameFifo buffer (
 	.rd_en(readFifo & ~fifoReset),
 	.dout(fifoDout), // Bus [95 : 0] 
 	.full(),
-	.empty(fifoEmpty),
+	.empty(/*fifoEmpty*/),
 	.prog_full(stopDMA));
 
 assign DVIresetB = ~reset;
