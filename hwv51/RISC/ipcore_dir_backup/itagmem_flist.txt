@@ -1,0 +1,19 @@
+# Output products list for <itagmem>
+_xmsgs\
+dist_mem_gen_ds322.pdf
+dist_mem_gen_readme.txt
+itagmem.asy
+itagmem.gise
+itagmem.ise
+itagmem.ngc
+itagmem.sym
+itagmem.v
+itagmem.veo
+itagmem.vhd
+itagmem.vho
+itagmem.xco
+itagmem.xise
+itagmem_flist.txt
+itagmem_readme.txt
+itagmem_xdb\tmp\
+itagmem_xmdf.tcl

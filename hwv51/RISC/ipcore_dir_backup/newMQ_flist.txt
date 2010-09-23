@@ -1,0 +1,18 @@
+# Output products list for <newMQ>
+_xmsgs\
+fifo_generator_ug175.pdf
+newMQ.asy
+newMQ.gise
+newMQ.ise
+newMQ.ngc
+newMQ.sym
+newMQ.v
+newMQ.veo
+newMQ.vhd
+newMQ.vho
+newMQ.xco
+newMQ.xise
+newMQ_flist.txt
+newMQ_readme.txt
+newMQ_xdb\tmp\
+newMQ_xmdf.tcl

@@ -1,0 +1,19 @@
+# Output products list for <lockMem>
+_xmsgs\
+dist_mem_gen_ds322.pdf
+dist_mem_gen_readme.txt
+lockMem.asy
+lockMem.gise
+lockMem.ise
+lockMem.ngc
+lockMem.sym
+lockMem.v
+lockMem.veo
+lockMem.vhd
+lockMem.vho
+lockMem.xco
+lockMem.xise
+lockMem_flist.txt
+lockMem_readme.txt
+lockMem_xdb\tmp\
+lockMem_xmdf.tcl

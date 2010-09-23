@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-
+`define SOL4
 /* 
 * Barrier Module
 *
