@@ -388,6 +388,7 @@ assign SrcDestOut = msgrDriveRing? msgrSrcDestOut :
 `ifdef SOL4  
                     barrierDriveRing? barrierSrcDestOut :
 `endif
+                    dcDriveRing? dcSrcDestOut :
                     SrcDestIn;
 
  
