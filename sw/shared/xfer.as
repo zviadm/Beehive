@@ -7,15 +7,15 @@
 ////////////////////////////////////////////////////////////////////////////
 
 // Imports:
-	.include "stdas.as"
-	.globl	_k_threadBase
-	.globl	_abort
+  .include "stdas.as"
+  .globl  _k_threadBase
+  .globl  _abort
 
 // Exports:
-	.file "xfer.as"
-	.globl	_k_resume
-	.globl	_k_startThread
-	.globl	_k_xfer
+  .file "xfer.as"
+  .globl  _k_resume
+  .globl  _k_startThread
+  .globl  _k_xfer
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -33,40 +33,40 @@
 //                                                                        //
 ////////////////////////////////////////////////////////////////////////////
 saveSP:
-	ld	t1,link
-	aqw_sub	sp,sp,4
-	ld	wq,r9
-	aqw_sub	sp,sp,4
-	ld	wq,r10
-	aqw_sub	sp,sp,4
-	ld	wq,r11
-	aqw_sub	sp,sp,4
-	ld	wq,r12
-	aqw_sub	sp,sp,4
-	ld	wq,r13
-	aqw_sub	sp,sp,4
-	ld	wq,r14
-	aqw_sub	sp,sp,4
-	ld	wq,r15
-	aqw_sub	sp,sp,4
-	ld	wq,r16
-	aqw_sub	sp,sp,4
-	ld	wq,r17
-	aqw_sub	sp,sp,4
-	ld	wq,r18
-	aqw_sub	sp,sp,4
-	ld	wq,r19
-	aqw_sub	sp,sp,4
-	ld	wq,r20
-	aqw_sub	sp,sp,4
-	ld	wq,r21
-	aqw_sub	sp,sp,4
-	ld	wq,r22
-	aqw_sub	sp,sp,4
-	ld	wq,fp
-	aqw_sub	r3,r3,0
-	ld	wq,sp
-	j	t1
+  ld  t1,link
+  aqw_sub  sp,sp,4
+  ld  wq,r9
+  aqw_sub  sp,sp,4
+  ld  wq,r10
+  aqw_sub  sp,sp,4
+  ld  wq,r11
+  aqw_sub  sp,sp,4
+  ld  wq,r12
+  aqw_sub  sp,sp,4
+  ld  wq,r13
+  aqw_sub  sp,sp,4
+  ld  wq,r14
+  aqw_sub  sp,sp,4
+  ld  wq,r15
+  aqw_sub  sp,sp,4
+  ld  wq,r16
+  aqw_sub  sp,sp,4
+  ld  wq,r17
+  aqw_sub  sp,sp,4
+  ld  wq,r18
+  aqw_sub  sp,sp,4
+  ld  wq,r19
+  aqw_sub  sp,sp,4
+  ld  wq,r20
+  aqw_sub  sp,sp,4
+  ld  wq,r21
+  aqw_sub  sp,sp,4
+  ld  wq,r22
+  aqw_sub  sp,sp,4
+  ld  wq,fp
+  aqw_sub  r3,r3,0
+  ld  wq,sp
+  j  t1
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -86,44 +86,44 @@ saveSP:
 // Argument is in r3                                                      //
 //                                                                        //
 ////////////////////////////////////////////////////////////////////////////
-	.type	_k_resume, @function
+  .type  _k_resume, @function
 _k_resume:
-	ld	sp,r3
-	aqr_add sp,sp,0
-	ld fp,rq
-	aqr_add sp,sp,4
-	ld r22,rq
-	aqr_add sp,sp,4
-	ld r21,rq
-	aqr_add sp,sp,4
-	ld r20,rq
-	aqr_add sp,sp,4
-	ld r19,rq
-	aqr_add sp,sp,4
-	ld r18,rq
-	aqr_add sp,sp,4
-	ld r17,rq
-	aqr_add sp,sp,4
-	ld r16,rq
-	aqr_add sp,sp,4
-	ld r15,rq
-	aqr_add sp,sp,4
-	ld r14,rq
-	aqr_add sp,sp,4
-	ld r13,rq
-	aqr_add sp,sp,4
-	ld r12,rq
-	aqr_add sp,sp,4
-	ld r11,rq
-	aqr_add sp,sp,4
-	ld r10,rq
-	aqr_add sp,sp,4
-	ld r9,rq
-	add	sp,sp,4
-	aqr_add	sp,sp,0
-	add	sp,sp,4
-	j	rq
-	.size	_k_resume,.-_k_resume
+  ld  sp,r3
+  aqr_add sp,sp,0
+  ld fp,rq
+  aqr_add sp,sp,4
+  ld r22,rq
+  aqr_add sp,sp,4
+  ld r21,rq
+  aqr_add sp,sp,4
+  ld r20,rq
+  aqr_add sp,sp,4
+  ld r19,rq
+  aqr_add sp,sp,4
+  ld r18,rq
+  aqr_add sp,sp,4
+  ld r17,rq
+  aqr_add sp,sp,4
+  ld r16,rq
+  aqr_add sp,sp,4
+  ld r15,rq
+  aqr_add sp,sp,4
+  ld r14,rq
+  aqr_add sp,sp,4
+  ld r13,rq
+  aqr_add sp,sp,4
+  ld r12,rq
+  aqr_add sp,sp,4
+  ld r11,rq
+  aqr_add sp,sp,4
+  ld r10,rq
+  aqr_add sp,sp,4
+  ld r9,rq
+  add  sp,sp,4
+  aqr_add  sp,sp,0
+  add  sp,sp,4
+  j  rq
+  .size  _k_resume,.-_k_resume
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -139,15 +139,15 @@ _k_resume:
 // Arguments are in r3-r4                                                 //
 //                                                                        //
 ////////////////////////////////////////////////////////////////////////////
-	.type	_k_startThread, @function
+  .type  _k_startThread, @function
 _k_startThread:
-	aqw_sub	sp,sp,4
-	ld	wq,link
-	call saveSP
-	ld	sp,r4
-	long_call _k_threadBase
-	long_call _abort
-	.size	_k_startThread,.-_k_startThread
+  aqw_sub  sp,sp,4
+  ld  wq,link
+  call saveSP
+  ld  sp,r4
+  long_call _k_threadBase
+  long_call _abort
+  .size  _k_startThread,.-_k_startThread
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -163,12 +163,11 @@ _k_startThread:
 // Arguments are in r3-r4                                                 //
 //                                                                        //
 ////////////////////////////////////////////////////////////////////////////
-	.type	_k_xfer, @function
+  .type  _k_xfer, @function
 _k_xfer:
-	aqw_sub	sp,sp,4
-	ld	wq,link
-	call saveSP
-	ld	r3,r4
-	long_j	_k_resume
-	.size	_k_xfer,.-_k_xfer
-
+  aqw_sub  sp,sp,4
+  ld  wq,link
+  call saveSP
+  ld  r3,r4
+  long_j  _k_resume
+  .size  _k_xfer,.-_k_xfer

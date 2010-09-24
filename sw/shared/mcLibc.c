@@ -13,8 +13,7 @@
 #include <string.h>
 #include "intercore.h"
 #include "network.h"
-#include "lib/lib.h"
-#include "lib/msg.h"
+
 
 //
 // Primitive RPC from core != 1 to core 1
@@ -22,6 +21,7 @@
 
 // Message identifiers
 //
+#define msgTypeRPC 1
 #define mcPutchar 1
 #define mcMalloc 2
 #define mcFree 3
@@ -66,7 +66,7 @@ static void setResponse(int core, int n) {
 }
 
 static void rpcServer(unsigned int core, unsigned int type,
-		MQMessage *msg, unsigned int len) {
+    MQMessage *msg, unsigned int len) {
   // Handler for messages at core #1
   if (type == msgTypeRPC) {
     int id = (*msg)[0];
@@ -141,7 +141,7 @@ void *malloc(size_t size) {
     void *res = (void *)getResponse();
     if (res) cache_invalidateMem(res, size);
     return res;
-  }
+   }
 }
 
 void free(void *ptr) {

@@ -1,11 +1,10 @@
-////////////////////////////////////////////////////////////////////////
-//                                                                    //
-// intercore.h                                                        //
-//                                                                    //
-// Raw inter-core facilities: locks, messages,                        //
-// cache flush/invalidate, meters                                     //
-//                                                                    //
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//                                                                        //
+// intercore.h                                                            //
+//                                                                        //
+// Raw inter-core facilities: locks, messages, cache flush/invalidate     //
+//                                                                        //
+////////////////////////////////////////////////////////////////////////////
 
 #ifndef _INTERCORE_H
 #define _INTERCORE_H
@@ -20,11 +19,11 @@ static volatile unsigned int* msgControl = (unsigned int *)0x00000012;
 static volatile unsigned int* semaControl = (unsigned int *)0x00000016;
 
 
-////////////////////////////////////////////////////////////////////////
-//                                                                    //
-// Configuration                                                      //
-//                                                                    //
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//                                                                        //
+// Configuration                                                          //
+//                                                                        //
+////////////////////////////////////////////////////////////////////////////
 
 static unsigned int corenum() {
   // Return the number of this CPU core, counting from 1
@@ -52,23 +51,24 @@ static void releaseRS232() {
   *miscIO = 1;
 }
 
-////////////////////////////////////////////////////////////////////////
-//                                                                    //
-// Inter-core messaging                                               //
-//                                                                    //
-// The hardware breakpoint support uses message type 0, which         //
-// therefore is probably best to avoid in normal software.            //
-//                                                                    //
-// This API supports receiving zero-length messages, but the hardware //
-// does not.                                                          //
-//                                                                    //
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//                                                                        //
+// Inter-core messaging                                                   //
+//                                                                        //
+// The hardware breakpoint support uses message type 0, which therefore   //
+// is probably best to avoid in normal software.                          //
+//                                                                        //
+// This API supports receiving zero-length messages, but the hardware     //
+// does not.                                                              //
+//                                                                        //
+////////////////////////////////////////////////////////////////////////////
 
 typedef unsigned int IntercoreMessage[63];
 
 void message_send(unsigned int dest, unsigned int type,
-                  IntercoreMessage *buf, unsigned int len);
+      IntercoreMessage *buf, unsigned int len);
 // Send a message to core number "dest", using "len" words at "buf".
+//
 // Note that message lengths are measured in words, not bytes.
 
 unsigned int message_recv(IntercoreMessage *buf);
@@ -86,52 +86,50 @@ static unsigned int message_type(unsigned int s) {
 }
 
 static unsigned int message_len(unsigned int s) {
-  // Given a message status word, 
-  // return the message body length (in words)
+  // Given a message status word, return the message body length (in words)
   return s & 63;
 }
 
 
-////////////////////////////////////////////////////////////////////////
-//                                                                    //
-// Inter-core binary semaphores                                       //
-//                                                                    //
-// The semaphore unit stores a per-core local bit for each semaphore. //
-// The "value" of a semaphore is 1 - SUM(local bits).                 //
-// "P" blocks until the semaphore value is 1 then decrements it.      //
-// "V" sets the semaphore value to 1.                                 //
-// The initial value of a semaphore is 1.                             //
-//                                                                    //
-// The semaphore unit can also be used to emulate other usages,       //
-// which is why "tryP" distinguishes the "already held" case.         //
-//                                                                    //
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//                                                                        //
+// Inter-core binary semaphores                                           //
+//                                                                        //
+// The semaphore unit stores a per-core local bit for each semaphore.     //
+// The "value" of a semaphore is 1 - SUM(local bits).                     //
+// "P" blocks until the semaphore value is 1 then decrements it.          //
+// "V" sets the semaphore value to 1.                                     //
+// The initial value of a semaphore is 1.                                 //
+//                                                                        //
+// The semaphore unit can also be used to emulate other usages, which is  //
+// why "tryP" distinguishes the "already held" case.                      //
+//                                                                        //
+////////////////////////////////////////////////////////////////////////////
 
 static int icSleep(unsigned int n) {
   // Spin for n cycles. Assumes n is less than 2^31.
+  //
   unsigned int start = *cycleCounter;
   while (*cycleCounter - start < n) {}
 }
 
 static int icSema_tryP(int n) {
   // Perform conditional-P on inter-core semaphore n.
-  //   return 0 = fail: semaphore was 0, 
-  //                    local bit is set in another core
-  //   return 1 = success: semaphore was 1 and is 
-  //                       now 0 (set our local bit)
-  //   return 2 = held: semaphore was 0, 
-  //                    local bit already set in our core
+  //   return 0 = fail: semaphore was 0, local bit is set in another core
+  //   return 1 = success: semaphore was 1 and is now 0 (set our local bit)
+  //   return 2 = held: semaphore was 0, local bit already set in our core
   // For normal binary semaphore "P" semantics, use "tryP(n) != 1".
   // Assumes n is in [0..63].
+  //
   int semaAddr = (int)semaControl | (n << 5);
   return *((volatile int *)semaAddr);
 }
 
 static void icSema_P(int n) {
-  // Perform "P" on inter-core semaphore n, spinning if the semaphore 
-  // is currently 0 (because the local bit is set in some core, 
-  // perhaps by us). 
+  // Perform "P" on inter-core semaphore n, spinning if the semaphore is
+  // currently 0 (because the local bit is set in some core, perhaps us).
   // Assumes n is in [0..63].
+  //
   while (icSema_tryP(n) != 1) icSleep(1000);
 }
 
@@ -154,8 +152,8 @@ void icSema_V(int n);
 // E.g. "int i CACHELINE = 17"
 
 void cache_flush(unsigned int line, unsigned int countMinus1);
-// For cache lines [line .. line+countMinus1], if dirty write it to 
-// memory then mark it as clean.
+// For cache lines [line .. line+countMinus1], if dirty write it to memory
+// then mark it as clean.
 // There is no argument validation; both should be in [0..127]
 
 void cache_invalidate(unsigned int line, unsigned int countMinus1);
@@ -206,33 +204,32 @@ static void cache_invalidateMem(void *addr, unsigned int len) {
   // If len <= 0, countMinus1 could be negative, so don't do that
 }
 
-////////////////////////////////////////////////////////////////////////
-//                                                                    //
-// Meters                                                             //
-//                                                                    //
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//                                                                        //
+// Meters                                                                 //
+//                                                                        //
+////////////////////////////////////////////////////////////////////////////
 
 // read one of the performance meters (n in range 0 to 63).
 // meters are at cache lines 0xFFFFFF8 through 0xFFFFFFF.
 static unsigned int read_meter(unsigned int n) {
   n &= 0x3f;
-  // invalidate cache line holding meter
-  cache_invalidate(120 + (n >> 3),1);  
+  cache_invalidate(120 + (n >> 3),1);  // invalidate cache line holding meter
 
-  // Remember that data addresses are cyclically rotated right by 2
+  // Remember that data addresses are cyclically rotated right 2
   // so the bottom two address bits become aq[31:30] of the
-  // WORD address in the read queue. aq[30:3] are what's sent
-  // to memory controller. So we want the bottom two bits of
+  // WORD address in the read queue.  aq[30:3] are what's sent
+  // to memory controller.  So we want the bottom two bits of
   // our address to be 2'b01.
   unsigned int a = 0xFFFFFF01 + (n << 2);
   return *((volatile unsigned int *)a);
 }
 
-////////////////////////////////////////////////////////////////////////
-//                                                                    //
-// Save area used by initial bootstrap code on a breakpoint/interrupt //
-//                                                                    //
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//                                                                        //
+// Save area used by initial bootstrap code on a breakpoint/interrupt     //
+//                                                                        //
+////////////////////////////////////////////////////////////////////////////
 
 typedef struct SaveArea {
   unsigned int rqCount;
@@ -275,6 +272,7 @@ void saveArea();
 
 static SaveArea *getSaveArea(int n) {
   // Return pointer to save area for core #n
+  //
   SaveArea *base = (SaveArea *)(((unsigned int)saveArea) << 2);
   return base + (n - 1);
 }

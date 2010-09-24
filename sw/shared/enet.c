@@ -144,11 +144,8 @@ static void enetReceiveRequest() {
   enetRecvBufReset = 1;
 }
 
-static void enetDiscard(MAC srce, 
-                        Uint16 type, 
-                        Enet *buf, 
-                        Uint32 len,
-                        int broadcast) {
+static void enetDiscard(MAC srce, Uint16 type, Enet *buf, Uint32 len,
+      int broadcast) {
   // printf("Unexpected enet packet type %04x\n", type);
   // Note: 0 to 0x05DC are 802.3 length fields.  We don't do 802.3
 }
@@ -165,18 +162,14 @@ static void enetDeliver(void * arg) {
     pendingHead = pendingHead->next;
     EnetReceiver r = enetProtocols[this->type];
     mutex_release(enetMutex);
-    if (r) {
-      r(this->fromMAC, this->type, this->buf, 
-        this->len, this->broadcast);
-    }
+    if (r) r(this->fromMAC, this->type, this->buf, this->len,
+       this->broadcast);
     free(this);
   }
 }
 
-static void enetReceiver(unsigned int srce, 
-                         unsigned int type,
-                         IntercoreMessage *msg, 
-                         unsigned int len) {
+static void enetReceiver(unsigned int srce, unsigned int type,
+        IntercoreMessage *msg, unsigned int len) {
   // Up-call when a MQ message is received from the Ethernet controller
   //
   // Note that calling enet_send from this thread can deadlock (which we
@@ -225,9 +218,9 @@ static void enetReceiver(unsigned int srce,
       // The invalidate is more efficient done all at once, since
       // enetRecvBuf is much larger than the data cache.
     }
-    if ((unsigned int)(recvdPkt->buf) + recvdPkt->len - 
-        (unsigned int)enetRecvBuf > enetRecvBufSize - enetRecvBufMargin 
-        && !enetRecvBufReset) {
+    if ((unsigned int)(recvdPkt->buf) + recvdPkt->len -
+  (unsigned int)enetRecvBuf > enetRecvBufSize - enetRecvBufMargin &&
+  !enetRecvBufReset) {
       enetReceiveRequest();
     }
     if (pendingHead) {

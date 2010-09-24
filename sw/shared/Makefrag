@@ -1,15 +1,15 @@
 SHAREDCFLAGS := -quiet -std=c99 -fno-builtin -msavertn -O2 $(INCLUDES)
 
-SHARED := shared/threads.c \
-	shared/xfer.as \
-	shared/intercore.as \
-	shared/mq.c \
-	shared/enet.c \
-	shared/network.c \
-	shared/tcp.c \
-	shared/tftp.c \
-	shared/mcLibc.c \
-	shared/mcMain.c
+SHARED 	 := shared/threads.c \
+	    shared/xfer.as \
+	    shared/intercore.as \
+	    shared/mq.c \
+	    shared/enet.c \
+	    shared/network.c \
+	    shared/tcp.c \
+	    shared/tftp.c \
+	    shared/mcLibc.c \
+	    shared/mcMain.c
 
 SHAREDOBJS := $(SHARED)
 SHAREDOBJS := $(patsubst %.as, $(O)/%.o, $(SHAREDOBJS))

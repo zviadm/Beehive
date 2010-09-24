@@ -20,9 +20,9 @@ static MQReceiver *mqTypeHandlers;
 static void mqInit();
 
 static void mqDiscard(unsigned int srce, unsigned int type,
-		      IntercoreMessage *msg, unsigned int len) {
+          IntercoreMessage *msg, unsigned int len) {
    printf("Unexpected message: %d word(s) from %d, type %d",
-  	 len, srce, type);
+     len, srce, type);
    // for (int i = 0; i < len; i++) printf(", 0x%x", (*msg)[i]);
    printf("\n");
 }

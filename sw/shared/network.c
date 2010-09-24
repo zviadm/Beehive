@@ -134,7 +134,7 @@ void arp_remove(IPAddr addr) {
 }
 
 void arpReceiver(MAC srce, Uint16 type, Enet *buf, Uint32 len,
-		 int broadcast) {
+     int broadcast) {
   // Up-call when an ARP packet has been received
   ARPPacket *pkt = (ARPPacket *)buf;
   if (len >= sizeof(ARPPacket) &&
@@ -148,7 +148,7 @@ void arpReceiver(MAC srce, Uint16 type, Enet *buf, Uint32 len,
     IPAddr targetIP = ntohCopy((Octet *)&(pkt->targetIP));
     arp_insert(senderIP, senderMAC); // We learn all; not what RFC 791 says
     if (targetIP == myIP &&
-	ntohs(pkt->opcode) == arpOpcodeRequest) {
+  ntohs(pkt->opcode) == arpOpcodeRequest) {
       arpSend(arpOpcodeReply, senderMAC, senderIP);
     }
   }
@@ -179,8 +179,8 @@ static IPReceiver *ipProtocols; // receivers, indexed by protocol
 static void ipDiscard(IP *buf, Uint32 len, int broadcast) {
   // Default handler for an unsupported IP protocols
   icmp_bounce(buf, broadcast,
-	      icmpTypeDestinationUnreachable,
-	      icmpCodeProtocolUnreachable);
+        icmpTypeDestinationUnreachable,
+        icmpCodeProtocolUnreachable);
   printf("Unexpected IP protocol %d\n", buf->ip.protocol);
 }
 
@@ -200,7 +200,7 @@ static Uint16 ipChecksum(Uint32 res, Octet *buf, Uint32 len) {
     } else {
       res += lastW & 65535;
       if ((len & 3) == 3) {
-	res += (lastW >> 16) & 255;
+  res += (lastW >> 16) & 255;
       }
     }
   }
@@ -256,7 +256,7 @@ static int ipIsBroadcast(IPAddr addr) {
 }
 
 static void ipReceiver(MAC srce, Uint16 type, Enet *buf, Uint32 len,
-		       int broadcast) {
+           int broadcast) {
   // Up-call when an IP packet has been received.
   IP *ipBuf = (IP *)buf;
   IPAddr ipSrce = ntoh(ipBuf->ip.srce);
@@ -265,18 +265,18 @@ static void ipReceiver(MAC srce, Uint16 type, Enet *buf, Uint32 len,
   if (!ipHeaderValid(ipBuf)) {
     unsigned int *foo = (unsigned int *)ipBuf;
     printf("Invalid IP header at %08x: %08x %08x %08x %08x %08x\n",
-	   (unsigned int)foo,
-	   ntoh(foo[0]), ntoh(foo[1]), ntoh(foo[2]),
-	   ntoh(foo[3]), ntoh(foo[4]));
+     (unsigned int)foo,
+     ntoh(foo[0]), ntoh(foo[1]), ntoh(foo[2]),
+     ntoh(foo[3]), ntoh(foo[4]));
   } else if ((myIP && ipDest != myIP) && !broadcast) {
     // We should also accept broadcasts directed to all subnets
     // on our network, according to RFC 1122.  But nobody uses that.
     printf("Non-local IP destination %08x\n", ipDest);
   } else if (ipSrce >> 24 == 127 || ipSrce == ipBroadcast ||
-	     (myIP &&
-	      (ipSrce & ~mySubnetMask) == (ipBroadcast & ~mySubnetMask))) {
+       (myIP &&
+        (ipSrce & ~mySubnetMask) == (ipBroadcast & ~mySubnetMask))) {
     printf("Illegal IP source %08x\n (bcast %08x, ~mask %08x)\n",
-	   ipSrce, ipBroadcast, ~mySubnetMask);
+     ipSrce, ipBroadcast, ~mySubnetMask);
   } else {
     arp_insert(ipSrce, srce);
     IPReceiver r = ip_getReceiver(ipBuf->ip.protocol);
@@ -318,7 +318,7 @@ void ip_send(IP *buf, Uint32 len, Octet ttl, Octet tos) {
   } else if ((buf->ip.dest & 255) == 127) {
     // Local loopback
     ipReceiver(enet_localMAC(), enetTypeIP,
-	       (Enet *)buf, len + ip_headerSize(buf), 0);
+         (Enet *)buf, len + ip_headerSize(buf), 0);
     return;
   } else if (!arp_getMAC(destAddr, &destMAC)) {
     printf("No MAC address for %08x\n", destAddr);
@@ -387,9 +387,9 @@ static void icmpTransportProblem(IP *buf, Uint32 len) {
     Octet type = icmpHeader->type;
     Octet code = icmpHeader->code;
     if ((type == icmpTypeDestinationUnreachable &&
-	 (code == icmpCodeProtocolUnreachable ||
-	  code == icmpCodePortUnreachable)) ||
-	type == icmpTypeTimeExceeded) {
+   (code == icmpCodeProtocolUnreachable ||
+    code == icmpCodePortUnreachable)) ||
+  type == icmpTypeTimeExceeded) {
       arp_remove(ntoh(bouncedIP->ip.dest));
     }
     IPReceiver r = ip_getReceiver(bouncedIP->ip.protocol);
@@ -491,8 +491,8 @@ static void udpDiscard(IP *buf, int len, int broadcast, UDPPort port) {
   // Default handler for an unused UDP port
   UDPHeader *udpHeader = (UDPHeader *)ip_payload(buf);
   icmp_bounce(buf, broadcast,
-	      icmpTypeDestinationUnreachable,
-	      icmpCodePortUnreachable);
+        icmpTypeDestinationUnreachable,
+        icmpCodePortUnreachable);
 }
 
 static void udpEnqueue(IP *buf, int len, int broadcast, UDPPort dest) {
@@ -542,7 +542,7 @@ static void udpReceiver(IP *buf, Uint32 len, int broadcast) {
     UDPPort dest = ntohs(bouncedUDP->srce);
     Octet type = icmpHeader->type;
     if (type == icmpTypeDestinationUnreachable ||
-	type == icmpTypeTimeExceeded) {
+  type == icmpTypeTimeExceeded) {
       udpDeliver(NULL, udpRecvPortUnreachable, broadcast, dest);
     } // We ignore Source Quench and Parameter Problem
   } else if (udpHeader->checksum != 0 &&
@@ -597,14 +597,14 @@ int udp_recv(IP ** buf, UDPPort p, Microsecs microsecs) {
     }
     if (this != NULL) {
       if (this == udpHead) {
-	udpHead = udpHead->next;
+  udpHead = udpHead->next;
       } else {
-	this->prev->next = this->next;
+  this->prev->next = this->next;
       }
       if (this == udpTail) {
-	udpTail = NULL;
+  udpTail = NULL;
       } else {
-	this->next->prev = this->prev;
+  this->next->prev = this->prev;
       }
       *buf = this->buf;
       len = this->len;
@@ -753,12 +753,12 @@ int dns_lookup(char *name, IPAddr *res) {
       recvMisc = ntohs(recvHeader->misc);
       recvCode = recvMisc & 0xf;
       if (recvLen >= 0 &&  ntohs(recvHeader->id) == myReqId &&
-	  // recvMisc top bit indicates "response"
-	  (recvMisc & 0x8000) != 0 &&
-	  // recvCode 2 = server failure
-	  //          4 = not implemented
-	  //         >5 = undefined
-	  recvCode != 2 && recvCode != 4 && recvCode <= 5) break;
+    // recvMisc top bit indicates "response"
+    (recvMisc & 0x8000) != 0 &&
+    // recvCode 2 = server failure
+    //          4 = not implemented
+    //         >5 = undefined
+    recvCode != 2 && recvCode != 4 && recvCode <= 5) break;
     }
     if (recvBuf) udp_recvDone(recvBuf);
   }
@@ -833,11 +833,11 @@ typedef struct DHCPHeader {
 } DHCPHeader;
 
 static void readDhcpOptions(Octet *optData,
-			    Uint32 optLen,
-			    Octet *messageType,
-			    IPAddr *router,
-			    IPAddr *subnetMask,
-			    DNSAddrs *dnsAddr) {
+          Uint32 optLen,
+          Octet *messageType,
+          IPAddr *router,
+          IPAddr *subnetMask,
+          DNSAddrs *dnsAddr) {
   for (int i = 0; i < maxServers; i++) (*dnsAddr)[i] = 0;
   int pos = 0;
   for (;;) {
@@ -860,14 +860,14 @@ static void readDhcpOptions(Octet *optData,
       if (router) *router = ntohCopy(optData);
     } if (optionType == 6) {
       if (dnsAddr) {
-	int addrs = optionLength >> 2;
-	if (addrs > maxServers) addrs = maxServers;
-	for (int i = 0; i < addrs; i++) {
-	  (*dnsAddr)[i] = ntohCopy(optData);
-	  optData += 4;
-	  optionLength -= 4;
-	  pos += 4;
-	}
+  int addrs = optionLength >> 2;
+  if (addrs > maxServers) addrs = maxServers;
+  for (int i = 0; i < addrs; i++) {
+    (*dnsAddr)[i] = ntohCopy(optData);
+    optData += 4;
+    optionLength -= 4;
+    pos += 4;
+  }
       }
     }
     optData += optionLength;
@@ -923,72 +923,72 @@ static void configInit() {
       DHCPHeader *offer = (DHCPHeader *)udp_payload(recvd);
       Octet messageType;
       readDhcpOptions(udp_payload(recvd) + sizeof(DHCPHeader),
-		      recvdLen - sizeof(DHCPHeader),
-		      &messageType,
-		      NULL, NULL, NULL);
+          recvdLen - sizeof(DHCPHeader),
+          &messageType,
+          NULL, NULL, NULL);
       if (messageType == dhcpTypeOffer) {
-	pos = sizeof(DHCPHeader);
-	dhcpSendBuf->data[pos] = 50;  // Requested IP address
-	pos++;
-	dhcpSendBuf->data[pos] = 4;   // length
-	pos++;
-	htonCopy(ntoh(offer->yourIP), &(dhcpSendBuf->data[pos]));
-	pos += 4;
-	dhcpSendBuf->data[pos] = 53;  // DHCP message type
-	pos++;
-	dhcpSendBuf->data[pos] = 1;   // length
-	pos++;
-	dhcpSendBuf->data[pos] = dhcpTypeRequest;
-	pos++;
-	dhcpSendBuf->data[pos] = 54;  // Server identifier
-	pos++;
-	dhcpSendBuf->data[pos] = 4;   // length
-	pos++;
-	htonCopy(ntoh(offer->nextServerIP), &(dhcpSendBuf->data[pos]));
-	pos += 4;
-	dhcpSendBuf->data[pos] = 55;  // Parameter request list
-	pos++;
-	dhcpSendBuf->data[pos] = 3;   // length
-	pos++;
-	dhcpSendBuf->data[pos] = 1;   // subnet mask
-	pos++;
-	dhcpSendBuf->data[pos] = 3;   // router
-	pos++;
-	dhcpSendBuf->data[pos] = 6;   // DNS servers
-	pos++;
-	dhcpSendBuf->data[pos] = 255; // end of options
-	pos++;
-	udp_recvDone(recvd);
-	udp_send(dhcpSendBuf, pos);
-	recvdLen = udp_recv(&recvd, bootpcPort, 5000000);
-	if (recvd) {
-	  DHCPHeader *ack = (DHCPHeader *)udp_payload(recvd);
-	  IPAddr yourIP = ntoh(ack->yourIP);
-	  Octet messageType;
-	  IPAddr router;
-	  IPAddr subnetMask;
-	  DNSAddrs dnsAddrs;
-	  readDhcpOptions(udp_payload(recvd) + sizeof(DHCPHeader),
-			  recvdLen - sizeof(DHCPHeader),
-			  &messageType,
-			  &router,
-			  &subnetMask,
-			  &dnsAddrs);
-	  udp_recvDone(recvd);
-	  if (messageType == dhcpTypeAck) {
-	    mutex_acquire(arpMutex);
-	    myIP = yourIP;
-	    mySubnetMask = subnetMask;
-	    myRouter = router;
-	    mutex_release(arpMutex);
-	    mutex_acquire(dnsMutex);
-	    for (int i = 0; i < maxServers; i++) myDNS[i] = dnsAddrs[i];
-	    mutex_release(dnsMutex);
-	    break;
-	  }
-	} else {
-	  printf("No response to DHCP request\n");
-	}
+  pos = sizeof(DHCPHeader);
+  dhcpSendBuf->data[pos] = 50;  // Requested IP address
+  pos++;
+  dhcpSendBuf->data[pos] = 4;   // length
+  pos++;
+  htonCopy(ntoh(offer->yourIP), &(dhcpSendBuf->data[pos]));
+  pos += 4;
+  dhcpSendBuf->data[pos] = 53;  // DHCP message type
+  pos++;
+  dhcpSendBuf->data[pos] = 1;   // length
+  pos++;
+  dhcpSendBuf->data[pos] = dhcpTypeRequest;
+  pos++;
+  dhcpSendBuf->data[pos] = 54;  // Server identifier
+  pos++;
+  dhcpSendBuf->data[pos] = 4;   // length
+  pos++;
+  htonCopy(ntoh(offer->nextServerIP), &(dhcpSendBuf->data[pos]));
+  pos += 4;
+  dhcpSendBuf->data[pos] = 55;  // Parameter request list
+  pos++;
+  dhcpSendBuf->data[pos] = 3;   // length
+  pos++;
+  dhcpSendBuf->data[pos] = 1;   // subnet mask
+  pos++;
+  dhcpSendBuf->data[pos] = 3;   // router
+  pos++;
+  dhcpSendBuf->data[pos] = 6;   // DNS servers
+  pos++;
+  dhcpSendBuf->data[pos] = 255; // end of options
+  pos++;
+  udp_recvDone(recvd);
+  udp_send(dhcpSendBuf, pos);
+  recvdLen = udp_recv(&recvd, bootpcPort, 5000000);
+  if (recvd) {
+    DHCPHeader *ack = (DHCPHeader *)udp_payload(recvd);
+    IPAddr yourIP = ntoh(ack->yourIP);
+    Octet messageType;
+    IPAddr router;
+    IPAddr subnetMask;
+    DNSAddrs dnsAddrs;
+    readDhcpOptions(udp_payload(recvd) + sizeof(DHCPHeader),
+        recvdLen - sizeof(DHCPHeader),
+        &messageType,
+        &router,
+        &subnetMask,
+        &dnsAddrs);
+    udp_recvDone(recvd);
+    if (messageType == dhcpTypeAck) {
+      mutex_acquire(arpMutex);
+      myIP = yourIP;
+      mySubnetMask = subnetMask;
+      myRouter = router;
+      mutex_release(arpMutex);
+      mutex_acquire(dnsMutex);
+      for (int i = 0; i < maxServers; i++) myDNS[i] = dnsAddrs[i];
+      mutex_release(dnsMutex);
+      break;
+    }
+  } else {
+    printf("No response to DHCP request\n");
+  }
       }
     } else {
       printf("No response to DHCP discover\n");

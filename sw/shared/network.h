@@ -133,7 +133,7 @@ static Uint32 ntohCopy(Octet * srce) {
 typedef unsigned int MQMessage[63];
 
 typedef void (* MQReceiver)(unsigned int srce, unsigned int type,
-			    MQMessage *msg, unsigned int len);
+          MQMessage *msg, unsigned int len);
 // Up-call handler for received inter-core messages.
 // len is the message payload length.
 
@@ -167,7 +167,7 @@ typedef struct Enet {         // Ethernet packet payload, without header
 // Clients can do whatever they want with this field in a non-freed buffer.
 
 typedef void (* EnetReceiver)(MAC srce, Uint16 type, Enet *buf, Uint32 len,
-			      int broadcast);
+            int broadcast);
 // Up-call handler for received Ethernet packets.
 // len is the Ethernet payload length.
 // "broadcast" is a boolean indicating packet was a link-level broadcast.
@@ -401,7 +401,7 @@ typedef struct UDP {          // UDP packet for transmission (only)
 } UDP;
 
 typedef void (* UDPReceiver)(IP *buf, int len, int broadcast,
-			     UDPPort dest);
+           UDPPort dest);
 // Up-call handler for received UDP packets to the port "dest".
 // The buffer is available only during the up-call, and is NULL if
 // len is negative.
@@ -470,7 +470,7 @@ typedef Uint16 TCPPort;      // TCP port number, in hardware order
 typedef struct TCP * TCP;    // TCP connection handle
 
 void tcp_listen(TCPPort localPort, IPAddr remoteAddr, TCPPort remotePort,
-		int backlog);
+    int backlog);
 // Configures the system to accept TCP connections to the given local port.
 // If remoteAddr is non-zero, accepts connections only from that address;
 // otherwise from any address.  If remotePort is non-zero, accepts
@@ -493,7 +493,7 @@ void tcp_listen(TCPPort localPort, IPAddr remoteAddr, TCPPort remotePort,
 // interface.
 
 TCP tcp_accept(TCPPort localPort, IPAddr *remoteAddr, TCPPort *remotePort,
-	       Microsecs microsecs);
+         Microsecs microsecs);
 // Block until there is an established connection to localPort, then return
 // the connection.  Returns NULL if localPort is disabled, either by never
 // having been provided to tcp_listen, or if its backlog is set to negative,
@@ -506,7 +506,7 @@ TCP tcp_accept(TCPPort localPort, IPAddr *remoteAddr, TCPPort *remotePort,
 // in the BSD socket interface.
 
 TCP tcp_connect(TCPPort localPort, IPAddr remoteAddr, TCPPort remotePort,
-		Microsecs microsecs);
+    Microsecs microsecs);
 // Establish a TCP connection from localPort to the given (non-zero)
 // remoteAddr and remotePort.  If localPort is 0, a dynamically allocated
 // purt number is used.  Returns the connection, or NULL if the connection
@@ -623,7 +623,7 @@ int dns_lookup(char *name, IPAddr *res);
 ////////////////////////////////////////////////////////////////////////////
 
 char *tftp_get(IPAddr server, char *file,
-	       void(*receiver)(Octet *, Uint32));
+         void(*receiver)(Octet *, Uint32));
 // Fetch file from tftp server, using given IP address and file name.
 // Contents are delivered by call-back to "receiver(buffer, length)".
 // Returns null on successful completion, or error message string

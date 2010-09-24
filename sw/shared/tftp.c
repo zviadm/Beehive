@@ -45,7 +45,7 @@ void appendStr(UDP *sendBuf, Uint32 *pos, char * str) {
 }
 
 char * tftp_get(IPAddr server, char * file,
-		void(*receiver)(Octet *, Uint32)) {
+    void(*receiver)(Octet *, Uint32)) {
   UDP *sendBuf = (UDP *)enet_alloc();
   UDPPort local = udp_allocPort(NULL);
   sendBuf->ip.dest = hton(server);
@@ -66,35 +66,35 @@ char * tftp_get(IPAddr server, char * file,
     int tries;
     for (tries = 0; ; tries++) {
       if (tries >= retryLimit) {
-	udp_freePort(local);
-	enet_free((Enet *)sendBuf);
-	return "Timeout";
+  udp_freePort(local);
+  enet_free((Enet *)sendBuf);
+  return "Timeout";
       }
       udp_send(sendBuf, pos);
       recvLen = udp_recv(&recvBuf, local, timeout);
       if (recvBuf) {
-	recvHeader = (TFTPHeader *)udp_payload(recvBuf);
-	recvData = udp_payload(recvBuf) + tftpPosData;
-	dataLen = recvLen - tftpPosData;
-	if (ntohs(recvHeader->op) == tftpOpData) {
-	  if (ntohs(recvHeader->block) == blockNum) break;
-	} else if (ntohs(recvHeader->op) == tftpOpError) {
-	  recvData[dataLen-1] = 0; // in case server omitted it
-	  udp_freePort(local);
-	  enet_free((Enet *)sendBuf);
-	  int slen = strlen((char *)recvData);
-	  char *s = malloc(slen+1);
-	  strncpy(s, (char *)recvData, slen+1);
-	  udp_recvDone(recvBuf);
-	  return s;
-	} else {
-	  udp_freePort(local);
-	  enet_free((Enet *)sendBuf);
-	  udp_recvDone(recvBuf);
-	  return "Unknown opcode from server";
-	}
-	// ignore other stuff - excess retransmissions
-	udp_recvDone(recvBuf);
+  recvHeader = (TFTPHeader *)udp_payload(recvBuf);
+  recvData = udp_payload(recvBuf) + tftpPosData;
+  dataLen = recvLen - tftpPosData;
+  if (ntohs(recvHeader->op) == tftpOpData) {
+    if (ntohs(recvHeader->block) == blockNum) break;
+  } else if (ntohs(recvHeader->op) == tftpOpError) {
+    recvData[dataLen-1] = 0; // in case server omitted it
+    udp_freePort(local);
+    enet_free((Enet *)sendBuf);
+    int slen = strlen((char *)recvData);
+    char *s = malloc(slen+1);
+    strncpy(s, (char *)recvData, slen+1);
+    udp_recvDone(recvBuf);
+    return s;
+  } else {
+    udp_freePort(local);
+    enet_free((Enet *)sendBuf);
+    udp_recvDone(recvBuf);
+    return "Unknown opcode from server";
+  }
+  // ignore other stuff - excess retransmissions
+  udp_recvDone(recvBuf);
       }
     }
     // The only way to get here is by receiving the expected data block
