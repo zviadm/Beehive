@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-`define SOL4
 
 module newestDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   //signals common to all local I/O devices:
@@ -40,13 +39,9 @@ module newestDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   output Ihit,
   output decLineAddr,
   input msgrWaiting,
-`ifdef SOL4
   input lockerWaiting,
   input barrierWaiting
-`else
-  input lockerWaiting
-`endif
- );
+);
  
   wire[21:0] Dtag;  //output of data tag memory
   wire[21:0] DtagIn; //D input of data tag memory
@@ -291,12 +286,8 @@ endgenerate
         else if(Ddirty) state <= waitToken;	 //find a dirty line to flush
 
       waitToken: 
-`ifdef SOL4
         if ((SlotTypeIn == Token) & ~msgrWaiting & 
             ~lockerWaiting & ~barrierWaiting) begin
-`else 
-        if ((SlotTypeIn == Token) & ~msgrWaiting & ~lockerWaiting) begin
-`endif
           if(RingIn[7:0] == 0) begin
             if(flushing) state <= readCache;
             else state <= sendRA; //send the read address first

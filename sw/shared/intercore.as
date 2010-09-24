@@ -16,14 +16,17 @@
   .globl  _cache_flush
   .globl  _cache_invalidate
   .globl  _icSema_V
+#ifdef SOL4
   .globl  _hw_barrier
+#endif
 
 // Constants:
   cacheControl = 14
   msgControl = 18
   semaControl = 22
+#ifdef SOL4
   barrierControl = 26
-
+#endif
 
 ////////////////////////////////////////////////////////////////////////////
 //                                                                        //
@@ -154,9 +157,11 @@ _icSema_V:
 // Hardware barrier, all cores 2 till EtherCore - 1 will wait             //
 //                                                                        //
 ////////////////////////////////////////////////////////////////////////////
+#ifdef SOL4
   .type  _hw_barrier, @function
 _hw_barrier:
   lsl  r3,r3,6
   aqw_add  r3,r3,barrierControl
   j  link
   .size  _hw_barrier,.-_hw_barrier
+#endif

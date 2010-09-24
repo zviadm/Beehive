@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-`define SOL4
 
 /*
 This module is a 32-bit RISC processor and its local I/O system.
@@ -63,14 +62,11 @@ and may be instantiated several times on a single chip.
   wire [31:0] lockRingOut;
   wire [3:0]  lockSlotTypeOut;
   wire [3:0]  lockSrcDestOut;
-`ifdef SOL4   
   wire        selBarrier;   // select the barrier unit
   wire        barrierDriveRing;
   wire [31:0] barrierRingOut;
   wire [3:0]  barrierSlotTypeOut;
-  wire [3:0]  barrierSrcDestOut;
-`endif
- 
+  wire [3:0]  barrierSrcDestOut; 
  
   //The processor read, write, and address queues
   wire  [5:0] wrq;   //write the read queue
@@ -140,9 +136,7 @@ and may be instantiated several times on a single chip.
   (* KEEP = "TRUE" *) reg [9:0] stallCnt; //for testing
   wire       msgrWaiting;
   wire       lockerWaiting;
-`ifdef SOL4
   wire       barrierWaiting;
-`endif   
  
   wire       ctrlValid;  //debugging unit signals
   wire [3:0] ctrlType;
@@ -271,9 +265,7 @@ and may be instantiated several times on a single chip.
     .decLineAddr(decLineAddr),
     .msgrWaiting(msgrWaiting),
     .lockerWaiting(lockerWaiting),
-`ifdef SOL4  
     .barrierWaiting(barrierWaiting),
-`endif
     .RDreturn(RDreturn),
     .RDdest(RDdest)
   );
@@ -331,18 +323,12 @@ and may be instantiated several times on a single chip.
     //  .lockHeld(lockHeld)
   );
   
-
-`ifdef SOL4   
   //instantiate the barrier unit.  Local I/O device 6.
   assign selBarrier = ~aqe & aq[31] & (aq[2:0] == 6);
 
-  Barrier BarrierUnit(    // XXX don't line up with module yet
+  Barrier BarrierUnit(
     .clock(clock),
     .reset(reset),
-//    .aq(aq[8:3]), //other aq bits not used
-//    .read(aqrd),
-//    .rqBarrier(rqBarrier),
-//    .wrq(wrq[5]),
     .done(done[6]),
     .selBarrier(selBarrier),
     .whichCore(whichCore),
@@ -358,7 +344,6 @@ and may be instantiated several times on a single chip.
     .barrierDriveRing(barrierDriveRing),
     .barrierWaiting(barrierWaiting)
   );
-`endif //  `ifdef SOL4
     
 assign raq = | done;
   
@@ -367,33 +352,24 @@ assign rqIn = ~aq[31] ? rqDCache :   // mux for read queue input
               (aq[2:0] == 1)? rqMul :
               (aq[2:0] == 4)? rqMsgr :
               (aq[2:0] == 5)? rqLock :
-//`ifdef SOL4
-//              (aq[2:0] == 6)? rqBarrier :
-//`endif 
               32'b0;
 
 //Interactions with the ring
 assign RingOut = msgrDriveRing? msgrRingOut :
                  lockDriveRing? lockRingOut :
-`ifdef SOL4
                  barrierDriveRing? barrierRingOut :
-`endif  
                  dcDriveRing? dcRingOut :
                  RingIn;
 
 assign SlotTypeOut = msgrDriveRing? msgrSlotTypeOut :
                      lockDriveRing? lockSlotTypeOut :
-`ifdef SOL4  
                      barrierDriveRing? barrierSlotTypeOut :
-`endif
                      dcDriveRing? dcSlotTypeOut :
                      SlotTypeIn;
 
 assign SrcDestOut = msgrDriveRing? msgrSrcDestOut :
                     lockDriveRing ? lockSrcDestOut :
-`ifdef SOL4  
                     barrierDriveRing? barrierSrcDestOut :
-`endif
                     dcDriveRing? dcSrcDestOut :
                     SrcDestIn;
 
