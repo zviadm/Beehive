@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`define SOL4
 
 /*
 This module is a 32-bit RISC processor and its local I/O system.
@@ -64,13 +65,17 @@ and may be instantiated several times on a single chip.
   wire [3:0]  lockSrcDestOut;
 `ifdef SOL4   
   wire        selBarrier;   // select the barrier unit
+  wire        barrierDriveRing;
+  wire [31:0] barrierRingOut;
+  wire [3:0]  barrierSlotTypeOut;
+  wire [3:0]  barrierSrcDestOut;
 `endif
  
  
   //The processor read, write, and address queues
   wire  [5:0] wrq;   //write the read queue
   wire        aqe;   //address queue empty
-  wire [5:0]  done;  //read address queue
+  wire [6:0]  done;  //read address queue
   wire [31:0] aq;   //address queue output
   wire        aqrd; //address queue entry is for a read request
   wire        wqe;  //write queue empty
@@ -334,14 +339,15 @@ and may be instantiated several times on a single chip.
   Barrier BarrierUnit(    // XXX don't line up with module yet
     .clock(clock),
     .reset(reset),
-    .aq(aq[8:3]), //other aq bits not used
-    .read(aqrd),
-    .rqBarrier(rqBarrier),
-    .wrq(wrq[5]),
-    .done(done[5]),
+//    .aq(aq[8:3]), //other aq bits not used
+//    .read(aqrd),
+//    .rqBarrier(rqBarrier),
+//    .wrq(wrq[5]),
+    .done(done[6]),
     .selBarrier(selBarrier),
     .whichCore(whichCore),
-    .msgrWaiting(msgrWaiting)
+    .EtherCore(EtherCore),
+    .msgrWaiting(msgrWaiting),
     .lockerWaiting(lockerWaiting),
     .RingIn(RingIn),
     .SlotTypeIn(SlotTypeIn),
@@ -350,7 +356,7 @@ and may be instantiated several times on a single chip.
     .barrierSlotTypeOut(barrierSlotTypeOut),
     .barrierSrcDestOut(barrierSrcDestOut),
     .barrierDriveRing(barrierDriveRing),
-    .barrierWaiting(barrierWaiting),
+    .barrierWaiting(barrierWaiting)
   );
 `endif //  `ifdef SOL4
     
@@ -361,9 +367,9 @@ assign rqIn = ~aq[31] ? rqDCache :   // mux for read queue input
               (aq[2:0] == 1)? rqMul :
               (aq[2:0] == 4)? rqMsgr :
               (aq[2:0] == 5)? rqLock :
-`ifdef SOL4
-              (aq[2:0] == 6)? rqBarrier :
-`endif 
+//`ifdef SOL4
+//              (aq[2:0] == 6)? rqBarrier :
+//`endif 
               32'b0;
 
 //Interactions with the ring

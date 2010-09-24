@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+`define SOL4
+
 module newestDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   //signals common to all local I/O devices:
   input clock, 
