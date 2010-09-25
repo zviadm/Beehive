@@ -26,7 +26,8 @@ include shared/Makefrag
 LIBS	:= lib/longjump.S \
 	lib/print.c \
 	lib/msg.c \
-	lib/meters.c
+	lib/meters.c \
+	lib/barrier.c
 
 LIBOBJS	:= $(LIBS)
 LIBOBJS	:= $(patsubst %.S, $(O)/%.o, $(LIBOBJS))
@@ -36,7 +37,8 @@ OBJDIRS	:= $(O) $(O)/lib $(O)/shared $(O)/test
 
 BINS	:= $(O)/hello.img  \
 	$(O)/meterstest.img    \
-	$(O)/bcasttest.img
+	$(O)/bcasttest.img     \
+	$(O)/barriertest.img
 
 all: $(OBJDIRS) $(BINS)
 

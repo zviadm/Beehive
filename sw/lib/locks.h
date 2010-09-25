@@ -7,7 +7,8 @@
 enum {
   sem_xprintf = 2,
   sem_barrier_mutex,
-  sem_barrier_wait,
+  sem_barrier_wait0,
+  sem_barrier_wait1,
 };
 
 #endif

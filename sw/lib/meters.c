@@ -22,7 +22,7 @@ const char *slot_type[] = {
   "PFail",
   "VReq",
   "Broadcast",
-  "???",
+  "Barrier",
   "???",
   "???"
 };
