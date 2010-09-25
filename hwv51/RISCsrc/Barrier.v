@@ -55,7 +55,7 @@ module Barrier(
       
 //-------------------------------End of Declarations----------------------------
 
-  wire nBarrierCoresMinusOne = EtherCore - 4'd3;
+  wire [3:0] nBarrierCoresMinusOne = EtherCore - 4'd3;
 
   // Barrier is done when it receives last Barrier message
   assign done = selBarrier & 
@@ -85,7 +85,7 @@ module Barrier(
     if (reset) count <= 0;
     else if (SlotTypeIn == Barrier) begin
       if (count == nBarrierCoresMinusOne) count <= 0;
-      else count <= count + 1;
+      else count <= count + 4'b1;
     end
   end
    
@@ -110,13 +110,13 @@ module Barrier(
       end
 
       send: // send the barrier slot
-        state <= waitBarrier;          // wait for barrier
+        state <= waitBarrier; 
 
-      waitBarrier:
+      waitBarrier: // wait for barrier messages from other cores
         if ((SlotTypeIn == Barrier) & (count == nBarrierCoresMinusOne)) begin
           state <= idle;
-        end
+        end        
     endcase
   end
-endmodule // Barrier
+endmodule
 

@@ -23,6 +23,24 @@ risc3.bit: RISC/RISCtop.bit $(MEM)
 	mv risc3.bit Bits/
 	scp Bits/risc3.bit beectl.csail.mit.edu:
 
+risc5.bit: RISC/RISCtop.bit $(MEM)
+	data2mem -bm mem/memX5a_bd.bmm -bt RISC/RISCtop.bit \
+	 -bd Basm/RISCtestcode.mem tag ram3 \
+	 -bd Basm/RISCtestdata.mem tag ram4 \
+	 -o b risc1.bit
+	data2mem -bm mem/memX5a_bd.bmm -bt risc1.bit \
+	 -bd Basm/CopyDCcode.mem tag ram5 \
+	 -o b risc2.bit
+	data2mem -bm mem/memX5a_bd.bmm -bt risc2.bit \
+	 -bd Basm/Masterdata.mem tag ram7 \
+	 -bd Basm/Mastercode.mem tag ram8 \
+	 -bd Basm/Slavedata.mem tag ram9 ram11 ram13 ram15 \
+	 -bd Basm/Slavecode.mem tag ram10 ram12 ram14 ram16 \
+	 -o b risc.bit
+	rm risc1.bit risc2.bit
+	mv risc5.bit Bits/
+	scp Bits/risc5.bit beectl.csail.mit.edu:
+
 risc13.bit: RISC/RISCtop.bit $(MEM)
 	data2mem -bm mem/memX13a_bd.bmm -bt RISC/RISCtop.bit \
 	 -bd Basm/RISCtestcode.mem tag ram3 \
