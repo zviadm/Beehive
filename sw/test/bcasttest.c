@@ -24,8 +24,14 @@ void test2(int hw);
 const unsigned int MSG_BCAST = 9;
 
 // Broadcast message
-const unsigned int kTestMsgMaxLen = 6;
-const unsigned int kTestMsg[6] = {2, 13, 14, 0x14a, 23, 75};
+const unsigned int kTestMsgMaxLen = DEBUG ? 3 : 60;
+const unsigned int kTestMsg[63] = {
+  2, 13, 14, 0x14a, 23, 75, 0x4a1, 7, 8, 9, 10, 11, 12,
+  13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
+  43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+  58, 59, 60, 61, 62
+};
 
 void mc_init(void) 
 {
@@ -36,21 +42,22 @@ void mc_main(void)
 {
   xprintf("core #%u mc_main\n", corenum());  
 
+  const unsigned int kSleepTime = 200000 * (enetCorenum() - 1);
   // Spin for 500000 cycles (half second) between every test, since 
   // we dont have actual implementation of barrier yet and we dont want 
   // tests to interfere with each other
   for (unsigned int i = 1; i <= kTestMsgMaxLen; ++i) {
-    icSleep(500000);
+    icSleep(kSleepTime);
     test1(0, i);
   }  
-  icSleep(500000);
+  icSleep(kSleepTime);
   test2(0);
   
   for (unsigned int i = 1; i <= kTestMsgMaxLen; ++i) {
-    icSleep(500000);
+    icSleep(kSleepTime);
     test1(1, i);
   }
-  icSleep(500000);
+  icSleep(kSleepTime);
   test2(1);    
 }
 
