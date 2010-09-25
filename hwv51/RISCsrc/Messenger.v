@@ -84,7 +84,7 @@ module Messenger(
   parameter Broadcast = 12;
 
 //------------------End of Declarations-----------------------
-  wire normalCore = (whichCore + 4'b1 < copyCore);
+  wire normalCore = (whichCore > 4'b1) & (whichCore < copyCore - 4'b1);
   assign firstMessageWord = 
     (((SlotTypeIn == Message) & (SrcDestIn == whichCore)) |
      ((SlotTypeIn == Broadcast) & (SrcDestIn != whichCore) & normalCore)) &
