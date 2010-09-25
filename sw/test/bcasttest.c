@@ -43,9 +43,8 @@ void mc_main(void)
   xprintf("core #%u mc_main\n", corenum());  
 
   const unsigned int kSleepTime = 200000 * (enetCorenum() - 1);
-  // Spin for 500000 cycles (half second) between every test, since 
-  // we dont have actual implementation of barrier yet and we dont want 
-  // tests to interfere with each other
+  // Spin for kSleepTime cycles between every test, since 
+  // we dont tests to interfere with each other
   for (unsigned int i = 1; i <= kTestMsgMaxLen; ++i) {
     icSleep(kSleepTime);
     test1(0, i);
