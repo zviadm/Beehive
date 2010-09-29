@@ -15,10 +15,10 @@ This version uses a separate ring to return read data
   //interface signals to the ring
   input[31:0] RingIn,
   input [3:0] SlotTypeIn,
-  input [3:0] SrcDestIn,
+  input [3:0] SourceIn,
   output [31:0] RingOut,
   output [3:0] SlotTypeOut,
-  output [3:0] SrcDestOut,
+  output [3:0] SourceOut,
 
   output [31:0] RDreturn,  //separate path for read data return
   output [3:0] RDdest,
@@ -136,7 +136,7 @@ This version uses a separate ring to return read data
   wire [27:0] meter_cache_line = 28'hFFFFFF8;
   wire rd_meters = (RingIn[27:3] == meter_cache_line[27:3]);
   assign destIn = 
-    (SlotTypeIn == Address) ? {rd_meters, RingIn[2:0], 1'b0, SrcDestIn} :
+    (SlotTypeIn == Address) ? {rd_meters, RingIn[2:0], 1'b0, SourceIn} :
     9'b000011111;
 
   assign writeDest = ((SlotTypeIn == Address) & RingIn[28]) | readAck;
@@ -182,13 +182,22 @@ This version uses a separate ring to return read data
     else if(wcnt == 2) wr2 <= RingIn;
     else if(wcnt == 3) wr3 <= RingIn;
 
+  // Interactions with the ring
+  assign RingOut     = (state == sendToken) ? 32'b0 : RingIn;
+  assign SourceOut  = (state == sendToken) ? 4'b0  : SourceIn;
+  assign SlotTypeOut = 
+    (state == sendToken)  ? Token : 
+    (SlotTypeIn == Token) ? Null : 
+                            SlotTypeIn;
+
   always @(posedge clock) begin
     if(reset) state <= idle;
     else case(state)
-      idle: if(~InhibitDDR & ~ResetDDR) state <= sendToken;
+      idle: if (~InhibitDDR & ~ResetDDR) state <= sendToken;
+      
       sendToken: state <= waitToken;
-      waitToken: if(SlotTypeIn == Token) state <= waitData;
-      waitData: if(burstLength == 0)  begin
+      
+      waitToken: if(SlotTypeIn == Token) begin 
         if(~InhibitDDR & ~ResetDDR) state <= sendToken;
         else state <= idle;
       end
@@ -204,8 +213,8 @@ This version uses a separate ring to return read data
   //  bank 2: count D/Write Address slots per core
   //  bank 3: count D/Read Address slots per core
   wire [5:0] meter_addr = (SlotTypeIn != Address) ? {2'b00,SlotTypeIn} :  // non-address, bank 0
-                          (RingIn[29]) ? {2'b01,SrcDestIn} :  // I access, bank 1
-                          {1'b1,RingIn[28],SrcDestIn};  // D access (W: bank 2, R: bank 3)
+                          (RingIn[29]) ? {2'b01,SourceIn} :  // I access, bank 1
+                          {1'b1,RingIn[28],SourceIn};  // D access (W: bank 2, R: bank 3)
   always @(posedge clock) begin
     if (!reset && (state == waitToken || state == waitData)) begin
       meters[meter_addr] <= meters[meter_addr]+1;
@@ -226,15 +235,6 @@ This version uses a separate ring to return read data
       endcase
   end
   assign RDreturn = RBempty ? 32'b0 : mdata;
-
-  wire forwardMessage = (SlotTypeIn[3] & (SrcDestIn != 0));
-  assign SlotTypeOut = 
-    (state == sendToken) ? Token :
-    (state == waitData && forwardMessage) ? SlotTypeIn : 4'b0;
-  assign RingOut = 
-    (state == waitData && forwardMessage) ? RingIn : 32'b0;
-  assign SrcDestOut = 
-    (state == waitData && forwardMessage) ? SrcDestIn : 4'b0000; 
 
   //cjt change width from 5 to 9
   queueNnef #(.width(9)) destQueue(  //fifo for the read data destination

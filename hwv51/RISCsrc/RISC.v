@@ -25,12 +25,12 @@ and may be instantiated several times on a single chip.
   input  [3:0]  CopyCore,   //the number of the Copy core
   input  [31:0] RingIn,
   input  [3:0]  SlotTypeIn,
-  input  [3:0]  SrcDestIn,
+  input  [3:0]  SourceIn,
   input  [31:0] RDreturn,
   input  [3:0]  RDdest,
   output [31:0] RingOut,
   output [3:0]  SlotTypeOut,
-  output [3:0]  SrcDestOut,
+  output [3:0]  SourceOut,
   input  RxD,
   output TxD,
   output reg    releaseRS232
@@ -39,34 +39,52 @@ and may be instantiated several times on a single chip.
  
   //signals to and from local I/O devices
   wire [31:0] rqIn;  //RISC's read queue
+  
+  // Multiplier and RS232
+  wire        selRS232;
+  wire        selMul;
   wire [31:0] rqRS232; //the RS232 data
   wire [31:0] rqMul; //the multiplier result
+  
+  // I/DCache Unit
+  wire        selDCache;
+  wire        selDCacheIO;
   wire [31:0] rqDCache;  //data from the cache
   wire [31:0] dcRingOut;
   wire [3:0]  dcSlotTypeOut;
-  wire [3:0]  dcSrcDestOut;
-  wire        dcDriveRing;      //data cache drives the ring
-  wire        selRS232;
-  wire        selMul;
-  wire        selDCache;
-  wire        selDCacheIO;
-  wire        selMsgr;         //select the messenger
-  wire        msgrDriveRing;
+  wire [3:0]  dcSourceOut;
+  wire        dcDriveRing;
+  wire        dcWantsToken;
+  wire        dcAcquireToken;
+  
+  // Messenger Unit
+  wire        selMsgr;
+  wire [31:0] rqMsgr;
   wire [31:0] msgrRingOut;
   wire [3:0]  msgrSlotTypeOut;
-  wire [3:0]  msgrSrcDestOut;
-  wire [31:0] rqMsgr;
+  wire [3:0]  msgrSourceOut;
+  wire        msgrDriveRing;
+  wire        msgrWantsToken;
+  wire        msgrAcquireToken;
+  
+  // Lock Unit
   wire        selLock;
-  wire        lockDriveRing;
   wire [31:0] rqLock;
   wire [31:0] lockRingOut;
   wire [3:0]  lockSlotTypeOut;
-  wire [3:0]  lockSrcDestOut;
-  wire        selBarrier;   // select the barrier unit
-  wire        barrierDriveRing;
+  wire [3:0]  lockSourceOut;
+  wire        lockDriveRing;
+  wire        lockWantsToken;
+  wire        lockAcquireToken;
+  
+  // Barrier Unit
+  wire        selBarrier;
   wire [31:0] barrierRingOut;
   wire [3:0]  barrierSlotTypeOut;
-  wire [3:0]  barrierSrcDestOut; 
+  wire [3:0]  barrierSourceOut; 
+  wire        barrierDriveRing;
+  wire        barrierWantsToken;
+  wire        barrierAcquireToken;
  
   //The processor read, write, and address queues
   wire  [5:0] wrq;   //write the read queue
@@ -91,10 +109,10 @@ and may be instantiated several times on a single chip.
   wire [31:0] outx;  //shifter output
   wire [31:0] amux;  //alu input
   wire [31:0] bmux;  //alu input
-  wire [30:0]  pcMux;  //pcx, IM input
-  reg [30:0]   pcx;  //has the address of the instruction in stage IFRR
-  reg [30:0]   pc;   //pc used by EX stage
-  reg [30:0]   pcd1; //pc written to link
+  wire [30:0] pcMux;  //pcx, IM input
+  reg [30:0]  pcx;  //has the address of the instruction in stage IFRR
+  reg [30:0]  pc;   //pc used by EX stage
+  reg [30:0]  pcd1; //pc written to link
   reg [31:0]  link;
   wire [31:0] linkIn;
   wire doLoadLink;
@@ -103,7 +121,7 @@ and may be instantiated several times on a single chip.
   reg         waq;  //write the address queue
   reg         wrd;  //address queue entry is for a read request
   wire        rrq; //read from the read queue
-  wire [30:0]  pcInc;  //the incremented pc
+  wire [30:0] pcInc;  //the incremented pc
   wire        jumpOp;
   wire        doJump;  //jump actually happens
   reg         nullify; //previous instruction was a non-nullified taken branch.
@@ -112,10 +130,10 @@ and may be instantiated several times on a single chip.
   reg  [31:0] inst;  //the instruction
   (* KEEP = "TRUE" *) wire stall; //attempt to read from an empty read queue
   wire        noShift;  //shiftCtrl > 4
-  wire [4:0] shiftAmount;  //amount to shift
-  wire       left;
-  wire       shift;
-  wire       arith;
+  wire [4:0]  shiftAmount;  //amount to shift
+  wire        left;
+  wire        shift;
+  wire        arith;
 
   //instruction fields
   wire [3:0] op;
@@ -134,9 +152,6 @@ and may be instantiated several times on a single chip.
   wire       Ihit;
   wire       decLineAddr;
   (* KEEP = "TRUE" *) reg [9:0] stallCnt; //for testing
-  wire       msgrWaiting;
-  wire       lockerWaiting;
-  wire       barrierWaiting;
  
   wire       ctrlValid;  //debugging unit signals
   wire [3:0] ctrlType;
@@ -237,7 +252,7 @@ and may be instantiated several times on a single chip.
   assign selDCache = ~aqe & ~aq[31] & (aqrd | ~wqe);  
   assign selDCacheIO = ~aqe & aq[31] & aq[2:0] == 3;
  
-  CoherentDCache #(.I_INIT(I_INIT),.D_INIT(D_INIT)) dCacheN(
+  DCache #(.I_INIT(I_INIT),.D_INIT(D_INIT)) dCacheN(
     .clock(clock),
     .reset(reset),
     .aq(aq[30:0]),
@@ -250,23 +265,28 @@ and may be instantiated several times on a single chip.
     .selDCache(selDCache),
     .selDCacheIO(selDCacheIO),
     .whichCore(whichCore),
-    .EtherCore(EtherCore),
+    //.EtherCore(EtherCore),
+    
+    //Ring Signals
     .RingIn(RingIn),
     .SlotTypeIn(SlotTypeIn),
-    .SrcDestIn(SrcDestIn),
+    .SourceIn(SourceIn),
     .dcRingOut(dcRingOut),
     .dcSlotTypeOut(dcSlotTypeOut),
-    .dcSrcDestOut(dcSrcDestOut),
+    .dcSourceOut(dcSourceOut),
     .dcDriveRing(dcDriveRing),
+    .dcWantsToken(dcWantsToken),
+    .dcAcquireToken(dcAcquireToken),
+    
+    //Signals for ICache operation
     .pcMux(pcMux[9:0]),
     .pcx(pcx),
     .stall(stall),
     .instx(instx),
     .Ihit(Ihit),
     .decLineAddr(decLineAddr),
-    .msgrWaiting(msgrWaiting),
-    .lockerWaiting(lockerWaiting),
-    .barrierWaiting(barrierWaiting),
+    
+    //RDreturn ring
     .RDreturn(RDreturn),
     .RDdest(RDdest)
   );
@@ -286,15 +306,20 @@ and may be instantiated several times on a single chip.
     .done(done[4]),
     .selMsgr(selMsgr),
     .whichCore(whichCore),
-    .copyCore(CopyCore),
+    .CopyCore(CopyCore),
+    
+    //Ring Signals
     .RingIn(RingIn),
     .SlotTypeIn(SlotTypeIn),
-    .SrcDestIn(SrcDestIn),
+    .SourceIn(SourceIn),
     .msgrRingOut(msgrRingOut),
     .msgrSlotTypeOut(msgrSlotTypeOut),
-    .msgrSrcDestOut(msgrSrcDestOut),
+    .msgrSourceOut(msgrSourceOut),
     .msgrDriveRing(msgrDriveRing),
-    .msgrWaiting(msgrWaiting),
+    .msgrWantsToken(msgrWantsToken),
+    .msgrAcquireToken(msgrAcquireToken),
+    
+    //Ctrl Signals for Debugging Unit
     .ctrlValid(ctrlValid),
     .ctrlType(ctrlType),
     .ctrlSrc(ctrlSrc)
@@ -312,16 +337,17 @@ and may be instantiated several times on a single chip.
     .done(done[5]),
     .selLock(selLock),
     .whichCore(whichCore),
+    
+    //Ring Signals
     .RingIn(RingIn),
     .SlotTypeIn(SlotTypeIn),
-    .SrcDestIn(SrcDestIn),
+    .SourceIn(SourceIn),
     .lockRingOut(lockRingOut),
     .lockSlotTypeOut(lockSlotTypeOut),
-    .lockSrcDestOut(lockSrcDestOut),
+    .lockSourceOut(lockSourceOut),
     .lockDriveRing(lockDriveRing),
-    .lockerWaiting(lockerWaiting),
-    .msgrWaiting(msgrWaiting)
-    //  .lockHeld(lockHeld)
+    .lockWantsToken(lockWantsToken),
+    .lockAcquireToken(lockAcquireToken),
   );
   
   //instantiate the barrier unit.  Local I/O device 6.
@@ -334,46 +360,82 @@ and may be instantiated several times on a single chip.
     .selBarrier(selBarrier),
     .whichCore(whichCore),
     .EtherCore(EtherCore),
-    .msgrWaiting(msgrWaiting),
-    .lockerWaiting(lockerWaiting),
+    
+    //Ring Signals
     .RingIn(RingIn),
     .SlotTypeIn(SlotTypeIn),
-    .SrcDestIn(SrcDestIn),
+    .SourceIn(SourceIn),
     .barrierRingOut(barrierRingOut),
     .barrierSlotTypeOut(barrierSlotTypeOut),
-    .barrierSrcDestOut(barrierSrcDestOut),
+    .barrierSourceOut(barrierSourceOut),
     .barrierDriveRing(barrierDriveRing),
-    .barrierWaiting(barrierWaiting)
+    .barrierWantsToken(barrierWantsToken),
+    .barrierAcquireToken(barrierAcquireToken),
   );
     
-assign raq = | done;
+  assign raq = | done;
+    
+  assign rqIn = ~aq[31] ? rqDCache :   // mux for read queue input 
+                (aq[2:0] == 0)? rqRS232 : 
+                (aq[2:0] == 1)? rqMul :
+                (aq[2:0] == 4)? rqMsgr :
+                (aq[2:0] == 5)? rqLock :
+                32'b0;
+
+  //State Machine that handles Interactions with the ring
+  assign coreHasToken = (SlotTypeIn == Token) | (state == tokenHeld);  
+  assign msgrAcquireToken = (coreHasToken & msgrWantsToken);
+  assign lockAcquireToken = (coreHasToken & ~msgrDriveRing & lockWantsToken);
+  assign barrierAcquireToken = (coreHasToken & ~msgrDriveRing & 
+                                ~lockDriveRing & barrierWantsToken);
+  assign dcAcquireToken = (coreHasToken & ~msgrDriveRing & ~lockDriveRing &
+                           ~barrierDriveRing & dcWantsToken);
+  wire coreSendNewToken = (coreHasToken & ~msgrDriveRing & ~lockDriveRing & 
+                           ~barrierDriveRing & ~dcDriveRing)
+
+  always @(posedge clock) begin
+    if(reset) state <= idle;
+    else case(state)
+      idle: if(SlotTypeIn == Token) begin
+        if (msgrWantsToken | lockWantsToken | 
+            barrierWantsToken | dcWantsToken)
+          state <= tokenHeld;
+        else
+          state <= sendToken;
+      end
+      
+      tokenHeld: if (coreSendNewToken) state <= idle;
+    endcase
+  end
+
+  // This handles when core needs to drive the ring to either send new token
+  // or Nullify messages
+  wire coreDriveRing = coreSendNewToken | (SlotTypeIn == Token) | 
+                       (SourceIn == whichCore & SlotTypeIn != Null);
+  wire [31:0] coreRingOut = 32'b0;
+  wire [3:0]  coreSourceOut = whichCore;
+  wire [3:0]  coreSlotTypeOut = coreSendNewToken ? Token : Null;
   
-assign rqIn = ~aq[31] ? rqDCache :   // mux for read queue input 
-              (aq[2:0] == 0)? rqRS232 : 
-              (aq[2:0] == 1)? rqMul :
-              (aq[2:0] == 4)? rqMsgr :
-              (aq[2:0] == 5)? rqLock :
-              32'b0;
+  assign RingOut = msgrDriveRing    ? msgrRingOut    :
+                   lockDriveRing    ? lockRingOut    :
+                   barrierDriveRing ? barrierRingOut :
+                   dcDriveRing      ? dcRingOut      :
+                   coreDriveRing    ? coreRingOut    :
+                   RingIn;
 
-//Interactions with the ring
-assign RingOut = msgrDriveRing? msgrRingOut :
-                 lockDriveRing? lockRingOut :
-                 barrierDriveRing? barrierRingOut :
-                 dcDriveRing? dcRingOut :
-                 RingIn;
+  assign SlotTypeOut = msgrDriveRing    ? msgrSlotTypeOut    :
+                       lockDriveRing    ? lockSlotTypeOut    :
+                       barrierDriveRing ? barrierSlotTypeOut :
+                       dcDriveRing      ? dcSlotTypeOut      :
+                       coreDriveRing    ? coreSlotTypeOut    :
+                       SlotTypeIn;
 
-assign SlotTypeOut = msgrDriveRing? msgrSlotTypeOut :
-                     lockDriveRing? lockSlotTypeOut :
-                     barrierDriveRing? barrierSlotTypeOut :
-                     dcDriveRing? dcSlotTypeOut :
-                     SlotTypeIn;
-
-assign SrcDestOut = msgrDriveRing? msgrSrcDestOut :
-                    lockDriveRing ? lockSrcDestOut :
-                    barrierDriveRing? barrierSrcDestOut :
-                    dcDriveRing? dcSrcDestOut :
-                    SrcDestIn;
-
+  assign SourceOut = msgrDriveRing    ? msgrSourceOut    :
+                     lockDriveRing    ? lockSourceOut    :
+                     barrierDriveRing ? barrierSourceOut :
+                     dcDriveRing      ? dcSourceOut      :
+                     coreDriveRing    ? coreSourceOut    :
+                     SourceIn;
  
 //----------------------------The Processor-----------------------------------
   //instruction fields

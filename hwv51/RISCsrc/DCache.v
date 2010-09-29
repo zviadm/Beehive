@@ -19,7 +19,7 @@ module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   //ring signals
   input  [31:0] RingIn,
   input  [3:0] SlotTypeIn,
-  input  [3:0] SrcDestIn,
+  input  [3:0] SourceIn,
  
   //addition for separate read data return ring.
   //cache never modifies the data or dest, so there are no outputs
@@ -28,8 +28,10 @@ module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
  
   output [31:0] dcRingOut,
   output [3:0] dcSlotTypeOut,
-  output [3:0] dcSrcDestOut,
+  output [3:0] dcSourceOut,
   output dcDriveRing,
+  output dcWantsToken,
+  input  dcAcquireToken,
  
   //instruction cache signals
   input [9:0] pcMux,
@@ -67,7 +69,6 @@ module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   wire preWriteItag;
   reg  flushing;
 
-
   parameter idle = 0;  //states
   parameter waitToken = 1;  //wait for a token
   parameter waitN = 2;      //Wait for the last slot of the burst
@@ -88,7 +89,6 @@ module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
  
 //---------------------------------End of Declarations-------------------------
 
-
   assign Iaddr = Ihit? pcMux[9:0] : pcx[9:0];
 
   assign DtagIn = 
@@ -98,7 +98,6 @@ module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     ((state != idle) & ~selDCacheIO) ? {1'b0, aq[30:10]} : 
     //Flush or invalidate leaves address alone but cleans the line
     {1'b0, Dtag[20:0]};  
-
 
 generate
   if (I_INIT == "NONE") begin : icache_synth
@@ -190,24 +189,29 @@ generate
 endgenerate
  
   //Interactions with the ring
-  assign dcDriveRing = (state != idle);
+  assign dcWantsToken = (state == waitToken);
+  
+  assign dcDriveRing = 
+    (state == waitToken & (dcAcquireToken)) | 
+    (state == readCache) | (state == sendWA);
 
   //cjt modified to use RingOut[29] on Address slots to indicate 0=D, 1=I
   assign dcRingOut = 
-    (~selDCacheIO & (state == waitToken) & (SlotTypeIn == Token)) ?
-      ((Dmiss & Ddirty) ? (RingIn + 10) : (RingIn + 1)) :
-    (selDCacheIO & (state == waitToken) & (SlotTypeIn == Token)) ? RingIn + 9 :  
-    (state == readCache) ? cacheData :
+    ((state == waitToken & (dcAcquireToken) & flushing) | 
+     (state == readCache)) ? cacheData :
+    ((state == waitToken & (dcAcquireToken) & ~flushing) ? 
+      (Dmiss ? {4'b0001, aq[30:3]} : {4'b0011, pcx[30:3]}) :
     (state == sendWA) ? {4'b0000, Dtag[20:0], aq[9:3]} :
-    (state == sendRA) ? (Dmiss ? {4'b0001, aq[30:3]} : {4'b0011, pcx[30:3]}) :
     RingIn;
 
-  assign dcSlotTypeOut = (state == readCache) ? WriteData :
-    ((state == sendRA) | (state == sendWA)) ? Address :
-    SlotTypeIn;
+  assign dcSlotTypeOut = 
+    ((state == waitToken & (dcAcquireToken) & flushing) | 
+     (state == readCache)) ? WriteData :
+    ((state == waitToken & (dcAcquireToken) & ~flushing) | 
+     (state == sendWA)) ? Address :
+    Null;
 
-  assign dcSrcDestOut = ((state == sendRA) | (state == sendWA)) ? whichCore :
-    SrcDestIn;
+  assign dcSourceOut = whichCore;
 
   always @(posedge clock) select <= selDCache & ~done;
 
@@ -227,11 +231,17 @@ endgenerate
 
   assign Ihit = (Itag[20:0] == pcx[30:10]);
 
-  assign incCnt = (state == readCache) | (RDdest == whichCore);
+  assign incCnt = 
+    (state == waitToken & dcAcquireToken & flushing) |
+    (state == readCache) | (RDdest == whichCore);
 
-  assign cacheAddr = (state == readCache) ? cnt + 1 : cnt;
+  assign cacheAddr = 
+    ((state == waitToken & dcAcquireToken & flushing) | 
+     (state == readCache)) ? cnt + 1 : cnt;
 
-  always @(posedge clock) if(reset) cnt <= 0; else if (incCnt) cnt <= cnt + 1;
+  always @(posedge clock) 
+    if(reset) cnt <= 0; 
+    else if (incCnt) cnt <= cnt + 1;
 
   assign decLineAddr = 
     ((state == doInvalidate) |
@@ -239,9 +249,9 @@ endgenerate
      (selDCacheIO & (state == sendWA)));
 
   always @(posedge clock) 
-    if(reset) lineCnt <= 0;
-    else if((state == idle) & selDCacheIO) lineCnt <= {1'b0, aq[16:10]}; 
-    else if(decLineAddr) lineCnt <= lineCnt - 1;
+    if (reset) lineCnt <= 0;
+    else if ((state == idle) & selDCacheIO) lineCnt <= {1'b0, aq[16:10]}; 
+    else if (decLineAddr) lineCnt <= lineCnt - 1;
 
   assign writeDdata = select & ~read & Dhit;
 
@@ -282,32 +292,17 @@ endgenerate
       doInvalidate: if(lineCnt[7]) state <= idle;
  
       doFlush:
-        if(lineCnt[7]) state <= idle;
-        else if(Ddirty) state <= waitToken;	 //find a dirty line to flush
+        if (lineCnt[7]) state <= idle;
+        else if (Ddirty) state <= waitToken; //find a dirty line to flush
 
       waitToken: 
-        if ((SlotTypeIn == Token) & ~msgrWaiting & 
-            ~lockerWaiting & ~barrierWaiting) begin
-          if(RingIn[7:0] == 0) begin
-            if(flushing) state <= readCache;
-            else state <= sendRA; //send the read address first
-          end else begin
-            burstLength <= RingIn[7:0];
-            state <= waitN;
-          end
+        if (dcAcquireToken) begin
+          if (flushing) state <= readCache;
+          else begin 
+            if (Dmiss & Ddirty) state <= readCache; 
+            else state <= waitRD;
+          end 
         end
-
-      sendRA: 
-        if (Dmiss & Ddirty) state <= readCache; 
-        else state <= waitRD;
-
-      waitN: begin  //wait for the end of the train
-        burstLength <= burstLength - 1;
-        if(burstLength == 1) begin
-          if(flushing) state <= readCache;
-          else state <= sendRA;
-        end
-      end
 
       readCache: if(cnt == 7) state <= sendWA;
 
