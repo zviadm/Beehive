@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module newestDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
+module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   //signals common to all local I/O devices:
   input clock, 
   input reset,
@@ -43,7 +43,7 @@ module newestDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   input barrierWaiting
 );
  
-  wire[21:0] Dtag;  //output of data tag memory
+  wire[21:0] Dtag;   //output of data tag memory
   wire[21:0] DtagIn; //D input of data tag memory
   wire Dhit;
   wire Ddirty;    //data cache line is dirty

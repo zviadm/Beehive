@@ -8,7 +8,7 @@
 #include "lib/meters.h"
 #include "lib/msg.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 void mc_init(void);
 void mc_main(void);
@@ -19,6 +19,7 @@ void incdone(void);
 void test1(int hw, unsigned int msg_len);
 void test1_slave(unsigned int msg_len);
 void test2(int hw);
+void test3_hw(void);
 
 // Broadcast message type
 const unsigned int MSG_BCAST = 9;
@@ -58,6 +59,9 @@ void mc_main(void)
   }
   icSleep(kSleepTime);
   test2(1);    
+  
+  icSleep(kSleepTime);
+  test3_hw();
 }
 
 /*
@@ -165,4 +169,42 @@ void test2(int hw)
   } else {
     incdone();
   }
+}
+
+void test3_hw()
+{
+  const unsigned int kIters = 1000;
+  int buf[1] = {13};
+
+  if(corenum() == 2){
+    for(unsigned int i = 0; i < kIters; i++){
+      hw_bcast_send(11, 1, buf);
+      while(1){
+        IntercoreMessage msg;
+        int xst;
+        while((xst = message_recv(&msg)) == 0)
+          ;
+        if(message_type(xst) == 12)
+          break;
+      }
+    }
+  } else if(corenum() == 3){
+    for(unsigned int i = 0; i < kIters; i++){
+      while(1){
+        IntercoreMessage msg;
+        int xst;
+        while((xst = message_recv(&msg)) == 0)
+          ;
+        if(message_type(xst) == 11)
+          break;
+      }
+      hw_bcast_send(12, 1, buf);
+    }
+  } else {
+    while(1){
+      IntercoreMessage msg;
+      message_recv(&msg);
+    }
+  }
+  xprintf("test3_hw: %d done after %d iterations\n", corenum(), kIters);
 }

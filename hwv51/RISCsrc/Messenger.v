@@ -24,8 +24,8 @@ When the messenger is selected for reading,
 the first message in MQ is copied into RQ. If MQ is 
 empty, RQ is loaded with 0.
 
-Messenger supports broadcasts. If a core (1 to nCores) sends message to itself
-it will be sent as broadcasts and all other cores (1 to nCores) will receive
+Messenger supports broadcasts. If a core (2 to nCores) sends message to itself
+it will be sent as broadcasts and all other cores (2 to nCores) will receive
 the message. Broadcast is taken off from the ring by the sender itself.
 */
 

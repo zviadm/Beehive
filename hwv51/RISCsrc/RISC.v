@@ -237,7 +237,7 @@ and may be instantiated several times on a single chip.
   assign selDCache = ~aqe & ~aq[31] & (aqrd | ~wqe);  
   assign selDCacheIO = ~aqe & aq[31] & aq[2:0] == 3;
  
-  newestDCache #(.I_INIT(I_INIT),.D_INIT(D_INIT)) dCacheN(
+  CoherentDCache #(.I_INIT(I_INIT),.D_INIT(D_INIT)) dCacheN(
     .clock(clock),
     .reset(reset),
     .aq(aq[30:0]),
@@ -250,6 +250,7 @@ and may be instantiated several times on a single chip.
     .selDCache(selDCache),
     .selDCacheIO(selDCacheIO),
     .whichCore(whichCore),
+    .EtherCore(EtherCore),
     .RingIn(RingIn),
     .SlotTypeIn(SlotTypeIn),
     .SrcDestIn(SrcDestIn),

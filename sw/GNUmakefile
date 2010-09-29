@@ -38,7 +38,8 @@ OBJDIRS	:= $(O) $(O)/lib $(O)/shared $(O)/test
 BINS	:= $(O)/hello.img  \
 	$(O)/meterstest.img    \
 	$(O)/bcasttest.img     \
-	$(O)/barriertest.img
+	$(O)/barriertest.img   \
+	$(O)/coherencytest.img
 
 all: $(OBJDIRS) $(BINS)
 

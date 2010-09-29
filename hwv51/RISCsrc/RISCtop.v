@@ -50,7 +50,7 @@
   inout DVIsda   //data
 );
  
-  parameter nCores = 13;  //Number of RISC cores in the design
+  parameter nCores = 3;  //Number of RISC cores in the design
   parameter EtherCore = nCores + 1;
   parameter CopyCore  = nCores + 2;
   
@@ -149,7 +149,8 @@ endgenerate
   wire [3:0] RDdestTemp;
  
   //Instantiate the memory controller (contains the display controller)
-  newMemMux mctrl(
+  defparam mctrl.mmsFSM.nCores = nCores;
+  CoherentMemMux mctrl(
     .clock(clock),
     .clock90(clock90),
     .reset(reset),
