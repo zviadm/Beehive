@@ -1,6 +1,6 @@
 // this file replaces RISCsrc/RISCtop.v for simulation
-
 `timescale 1ns / 1ps
+//`default_nettype none
 
 // fifo of specified width and depth
 module fifo #(parameter width = 1, logsize = 6, lut = 1) (
@@ -74,11 +74,12 @@ module rs232_sim #(parameter bitTime = 868) (input clock,reset,RxD);
   wire midBit = bitCounter == bitTime/2;
 
   always @(posedge clock) begin
-    bitCounter <= (runCounter & (bitCounter < (bitTime-1))) ? bitCounter + 1 : 0;
+    bitCounter <= 
+      (runCounter & (bitCounter < (bitTime - 1))) ? bitCounter + 1 : 0;
 
     if (reset) run <= 0;
-    else if (~RxD & midBit & ~run) run <= 1;   // START bit? start receiving
-    else if (sr[0]) run <= 0;         // stop receiving when STOP bit enters sr
+    else if (~RxD & midBit & ~run) run <= 1;  // START bit? start receiving
+    else if (sr[0]) run <= 0;  // stop receiving when STOP bit enters sr
 
     if (reset | (~run & sr[0])) sr <= 0;
     else if (midBit & ~sr[0]) sr[9:0] <= {~RxD,sr[9:1]};  // right shift
@@ -206,11 +207,11 @@ module beehive;
 
   //The registers of the ring
   reg [31:0] RingOut[nCores:0];
-  reg [3:0] SlotTypeOut[nCores:0];
-  reg [3:0] SrcDestOut[nCores:0];
+  reg [3:0]  SlotTypeOut[nCores:0];
+  reg [3:0]  SourceOut[nCores:0];
 
   reg [31:0] RDreturn[nCores:0];  //separate pipelined bus for read data
-  reg [3:0] RDdest[nCores:0];
+  reg [3:0]  RDdest[nCores:0];
 
   wire [nCores:1] releaseRS232;
   wire [nCores:1] lockHeld;
@@ -224,32 +225,35 @@ module beehive;
   genvar i;
   generate
     for (i = 1; i <= nCores; i = i+1) begin: coreBlk
-      wire [31:0] tempOut;
-      wire [3:0] tempSlotType;
-      wire [3:0] tempSrcDest;
+      wire [31:0] tempRiscRingOut;
+      wire [3:0] tempRiscSlotTypeOut;
+      wire [3:0] tempRiscSourceOut;
       wire [3:0] coreNum = i;
 
       RISC #(.bitTime(bitTime),
-             .I_INIT(i==1?"../Simulation/Mastercode.hex":"../Simulation/Slavecode.hex"),
-             .D_INIT(i==1?"../Simulation/Masterdata.hex":"../Simulation/Slavedata.hex"))
+             .I_INIT(i==1 ? "../Simulation/Mastercode.hex" : 
+                            "../Simulation/Slavecode.hex"),
+             .D_INIT(i==1 ? "../Simulation/Masterdata.hex" : 
+                            "../Simulation/Slavedata.hex"))
        riscN(
        .clock(clock),
        .reset(reset),
        .whichCore(coreNum),  //the number of this core
        .RingIn(RingOut[i-1]),
        .SlotTypeIn(SlotTypeOut[i-1]),
-       .SrcDestIn(SrcDestOut[i-1]),
+       .SourceIn(SourceOut[i-1]),
        .RDreturn(RDreturn[i-1]),
        .RDdest(RDdest[i-1]),
-       .RingOut(tempOut),
-       .SlotTypeOut(tempSlotType),
-       .SrcDestOut(tempSrcDest),
+       .RingOut(tempRiscRingOut),
+       .SlotTypeOut(tempRiscSlotTypeOut),
+       .SourceOut(tempRiscSourceOut),
        .RxD(RxDv[i]),
        .TxD(TxDv[i]),
-       .releaseRS232(releaseRS232[i]), //core connected to the RS232 pulses this to reset the selection
+       //core connected to the RS232 pulses this to reset the selection
+       .releaseRS232(releaseRS232[i]), 
        .EtherCore(etherCore),
        .CopyCore(copyCore)
-        );
+      );
 
       always @(posedge clock) begin
         RDreturn[i] <= RDreturn[i-1];
@@ -257,9 +261,9 @@ module beehive;
       end
 
       always @(posedge clock) begin
-        RingOut[i] <= tempOut;
-	SlotTypeOut[i] <= tempSlotType;
-	SrcDestOut[i] <= tempSrcDest;
+        RingOut[i] <= tempRiscRingOut;
+        SlotTypeOut[i] <= tempRiscSlotTypeOut;
+        SourceOut[i] <= tempRiscSourceOut;
       end
     end
   endgenerate
@@ -276,159 +280,101 @@ module beehive;
 
   // Slot types
   localparam Token = 1;     // data = count of following words
-  localparam Address = 2;   // data = { 1'read, 28'line_addr }, srcdst = node
+  localparam Address = 2;   // data = { 1'read, 28'line_addr }, source = node
   localparam WriteData = 3; // data => mem data fifo
   localparam Null = 7;
-  // Slots types > 7 are just passed to start of ring
-  localparam Message = 8;   // data = { 4'source, 4'type, 6'length }, srcdst = dest
-                            // followed by length <Message, dest, data> ring words
-  localparam Preq = 9;      // data = { 6'number }, srcdest = node
-  localparam Pfail = 10;    // data = { 6'number }, srcdest = node
-  localparam Vreq = 11;     // data = { 6'number }, srcdest = node
 
-  // ring sending state machine
-  localparam SEND_TOKEN = 0; // start a token on the ring this cycle
-  localparam SEND_QUEUE = 1; // empty queue onto the ring
-  localparam SEND_NULL = 2;  // send NULLs
-
-  // ring receiving state machine
-  localparam RCV_TOKEN = 0;  // waiting for token
-  localparam RCV_QUEUE = 1;  // process incoming ring data until done
-
-  reg [7:0] send_count,rcv_count;
-  reg [1:0] send_state,rcv_state;
-  reg token_outstanding;
-
-  reg [39:0] ring_queue[255:0];  // data to send to the cores
-  reg [7:0] ring_rd,ring_wr;
-
-  // send ring data to the cores
+  // Interactions with the ring
+  localparam sendInitialToken = 0; // start a token on the ring this cycle
+  localparam idle = 1; // empty queue onto the ring
+  
+  reg state;
+  wire [31:0] mctrlRingIn     = RingOut[nCores];
+  wire [3:0]  mctrlSlotTypeIn = SlotTypeOut[nCores];
+  wire [3:0]  mctrlSourceIn   = SourceOut[nCores];
+  
   always @(posedge clock) begin
     if (reset) begin
-      send_state <= SEND_NULL;
-      send_count <= 0;
-      RingOut[0] <= 32'h00000000;
+      state <= sendInitialToken;
+      RingOut[0]     <= 32'b0;
       SlotTypeOut[0] <= Null;
-      SrcDestOut[0] <= 4'h0;
-      token_outstanding <= 0;
-    end
-    else case (send_state)
-      SEND_TOKEN:
-        begin
-          RingOut[0] <= send_count;
-	  SlotTypeOut[0] <= Token;
-	  SrcDestOut[0] <= 4'h0;
-	  send_state <= (send_count == 0) ? SEND_NULL : SEND_QUEUE;
-          token_outstanding <= 1;
-        end
-      SEND_QUEUE:
-        begin
-          RingOut[0] <= ring_queue[ring_rd][31:0];
-          SlotTypeOut[0] <= ring_queue[ring_rd][35:32];
-          SrcDestOut[0] <= ring_queue[ring_rd][39:36];
-	  ring_rd <= ring_rd + 1;
-	  send_count <= send_count - 1;
-          if (send_count == 1) send_state <= SEND_NULL;
-        end
-      SEND_NULL:
-        begin
-          RingOut[0] <= 32'h00000000;
-          SlotTypeOut[0] <= Null;
-          SrcDestOut[0] <= 4'h0;
-          if (rcv_state == RCV_TOKEN && !token_outstanding) begin
-            send_state <= SEND_TOKEN;
-            send_count <= ring_wr;
-            ring_rd <= 0;
-          end
-        end
-    endcase
-  end
-
-  // receive ring data from the core
-  wire [31:0] RingData = RingOut[nCores];
-  wire [3:0] RingSlotType = SlotTypeOut[nCores];
-  wire [3:0] RingSrcDest = SrcDestOut[nCores];
-  always @(posedge clock) begin
-    if (reset) begin
-      rcv_state <= RCV_TOKEN;
-      ring_wr <= 0;
-    end
-    else case (rcv_state)
-      RCV_TOKEN:
-        begin
-	  if (RingSlotType == Token) begin
-            rcv_state <= (RingData[7:0] == 0) ? RCV_TOKEN : RCV_QUEUE;
-            rcv_count <= RingData[7:0];
-	    ring_wr <= 0;
-            token_outstanding <= 0;
-          end
-        end
-      RCV_QUEUE:
-        begin
-          if (SlotTypeOut[nCores] > Null) begin
-            ring_queue[ring_wr] <= {RingSrcDest,RingSlotType,RingData};
-	    ring_wr <= ring_wr + 1;
-          end
-	  rcv_count <= rcv_count - 1;
-          if (rcv_count == 1) rcv_state <= RCV_TOKEN;
-        end
+      SourceOut[0]   <= 4'h0;
+    end else case (state)
+      sendInitialToken: begin
+        state <= idle;
+        RingOut[0]     <= 32'b0;
+        SlotTypeOut[0] <= Token;
+        SourceOut[0]   <= 4'h0;
+      end
+      
+      idle: begin
+        RingOut[0]     <= mctrlRingIn;
+        SlotTypeOut[0] <= mctrlSlotTypeIn;
+        SourceOut[0]   <= mctrlSourceIn;
+      end
     endcase
   end
 
   // count the numbers of cars of each type in the train
   reg [31:0] meters[15:0];
   always @(posedge clock)
-    if (!reset) meters[RingSlotType] <= meters[RingSlotType] + 1;
+    if (!reset) meters[mctrlSlotTypeIn] <= meters[mctrlSlotTypeIn] + 1;
   // initialize meters to zero
   integer m; initial for (m = 0; m < 16; m = m + 1) meters[m] = 0;
 
   // display interesting ring data
-  //always @(posedge clock) /*if (RingSlotType != Null)*/ $display("Ring: type=%x, dest=%x, data=%x",RingSlotType,RingSrcDest,RingData);
+  //always @(posedge clock) 
+  //  if (RingSlotType != Null) 
+  //      $display("Ring: type=%x, dest=%x, data=%x",
+  //                RingSlotType,RingSrcDest,RingData);
 
   //************************************
   // Memory
   //************************************
 
   // capture memory addresses arriving from the ring
-  wire ma_wr = (rcv_state == RCV_QUEUE) && (RingSlotType == Address);
+  wire ma_wr = (mctrlSlotTypeIn == Address);
   wire ma_rd;
   wire ma_rw,ma_empty;
   wire [3:0] ma_dest;
   wire [27:0] ma_addr;
-  wire ma_full,md_full;
+  wire ma_full, md_full;
   fifo #(.width(33),.logsize(9)) ma(
     .clk(clock),
     .rst(reset),
-    .din({RingSrcDest,RingData[28:0]}),
+    .din({mctrlSourceIn, mctrlRingIn[28:0]}),
     .wr_en(ma_wr),
-    .dout({ma_dest,ma_rw,ma_addr}),
+    .dout({ma_dest, ma_rw, ma_addr}),
     .rd_en(ma_rd),
     .empty(ma_empty),
     .full(ma_full)
   );
-  always @(posedge clock) if (ma_wr & ma_full) $display("*** write to full ma fifo");
+  always @(posedge clock) 
+    if (ma_wr & ma_full) $display("*** write to full ma fifo");
 
   // capture write data arriving from the ring
-  wire md_wr = rcv_state == RCV_QUEUE && SlotTypeOut[nCores] == WriteData;
+  wire md_wr = (mctrlSlotTypeIn == WriteData);
   wire md_rd;
   wire md_empty;
   wire [31:0] md_data;
   fifo #(.width(32),.logsize(12)) md(
     .clk(clock),
     .rst(reset),
-    .din(RingData),
+    .din(mctrlRingIn),
     .wr_en(md_wr),
     .dout(md_data),
     .rd_en(md_rd),
     .empty(md_empty),
     .full(md_full)
   );
-  always @(posedge clock) if (ma_wr & ma_full) $display("*** write to full md fifo");
+  always @(posedge clock) 
+    if (ma_wr & ma_full) $display("*** write to full md fifo");
 
   // read and write 8-word blocks from memory (a cache line)
   // use a 4-bit counter, mcount == 8 when memory is idle
   reg [3:0] mcount;
-  reg [3:0] mdelay;   // memory needs to delay reads by 10 cycles to avoid breaking D cache
+  // memory needs to delay reads by 10 cycles to avoid breaking D cache
+  reg [3:0] mdelay; 
    
   wire rd_enb = !reset & ma_rw & (mcount < 8);
   wire [MBITS-1:0] rd_addr = {ma_addr[MBITS-4:0],mcount[2:0]};
@@ -438,10 +384,13 @@ module beehive;
 
   always @(posedge clock) begin
     // complain if address falls outside range we cover
-    //if (!reset && mcount < 8 && !rd_meters && ma_addr[27:MBITS-3]!=0) $display("**** ma_addr not valid: %x",ma_addr);
-    RDreturn[0] <= rd_return;
+    if (!reset && mcount < 8 && !rd_meters && ma_addr[27:MBITS-3]!=0) 
+      $display("**** ma_addr not valid: %x",ma_addr);
+    
+    RDreturn[0] <= (rd_dest == 0) ? 32'hDEADBEEF : rd_return;
     RDdest[0] <= rd_dest;
-    //if (rd_dest != 0) $display("r mem[%x] %x core %x",rd_addr,rd_return,rd_dest);
+    //if (rd_dest != 0) 
+    //  $display("r mem[%x] %x core %x",rd_addr,rd_return,rd_dest);
     if (reset) begin
       mcount <= 4'h8;
       mdelay <= 4'h0;
@@ -457,7 +406,7 @@ module beehive;
     else if (mcount < 8) begin
       if (!ma_rw) begin   // write
         mem[rd_addr] <= md_data;
-	//$display("w mem[%x] %x",rd_addr,md_data);
+        //$display("w mem[%x] %x",rd_addr,md_data);
       end
       mcount <= mcount + 1;
     end
@@ -478,7 +427,7 @@ module beehive;
 
   reg [31:0] cycle_count;
   always @(posedge clock) begin
-    cycle_count <= reset ? 0 : cycle_count+1;
+    cycle_count <= reset ? 0 : cycle_count + 1;
   end   
 
   // periodically print out cycle count
@@ -495,11 +444,30 @@ module beehive;
 
   // follow execution in core N
   localparam N = 2;
-  // true on cycles where core N is executing an instruction (not stalled, not anulled)
-  wire exeN = !beehive.coreBlk[N].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
+  // true on cycles where core N is executing an instruction 
+  // (not stalled, not anulled)
+  wire exeN = 
+    !beehive.coreBlk[N].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
   always @(negedge clock) if (!reset) begin
+      /*
+      $write("cycle=%5d ",cycle_count);
+      $write("lockaddr=%6d ",beehive.coreBlk[2].riscN.lockUnit.lockAddr);
+      $write("ringIn[5:0]=%6d ",beehive.coreBlk[2].riscN.lockUnit.RingIn[5:0]);
+      $write("mctrlRingIn=%d ", mctrlRingIn);
+      $write("mctrlSlotTypeIn=%d ", mctrlSlotTypeIn);
+      $write("mctrlSourceIn=%d ", mctrlSourceIn);
+      $write("%d ", beehive.coreBlk[1].riscN.msgrDriveRing);
+      $write("%d ", beehive.coreBlk[1].riscN.lockDriveRing);
+      $write("%d ", beehive.coreBlk[1].riscN.barrierDriveRing);
+      $write("%d ", beehive.coreBlk[1].riscN.dcDriveRing);
+      $write("%d ", beehive.coreBlk[1].riscN.coreDriveRing);
+      $display("");    
+      */
+    
   /*
-    if (cycle_count % 10000 == 0) begin
+    if (beehive.coreBlk[N].riscN.pc >= 4096) begin
+  */
+    if (cycle_count < 2100 /*&& cycle_count > 2000*/) begin
       $write("cycle=%5d ",cycle_count);
       //$write("pcx=%x ",beehive.coreBlk[N].riscN.pcx);
       //$write("instx=%x ",beehive.coreBlk[N].riscN.instx);
@@ -523,14 +491,13 @@ module beehive;
       //$write("[1] pc=%x/%x/%x ",beehive.coreBlk[1].riscN.pc,beehive.coreBlk[1].riscN.nullify,beehive.coreBlk[1].riscN.stall);
       //$write("[2] pc=%x/%x/%x ",beehive.coreBlk[2].riscN.pc,beehive.coreBlk[2].riscN.nullify,beehive.coreBlk[2].riscN.stall);
       //$write("[3] pc=%x/%x/% ",beehive.coreBlk[3].riscN.pc,beehive.coreBlk[3].riscN.nullify,beehive.coreBlk[3].riscN.stall);
-      $write("Ring: type=%x, dest=%x, data=%x ",RingSlotType,RingSrcDest,RingData);
+      $write("Ring: type=%x, dest=%x, data=%x ", mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
       $write("RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
       $display("");
-    end
-  */
+    end  
   end
 
-
+  integer k;
   initial begin
     //    $dumpfile("test.lxt");
 
@@ -545,7 +512,8 @@ module beehive;
     reset = 1;
 
     // initialize lower part of main memory, assume high part doesn't need it
-    $readmemh("../Simulation/main.hex",mem);
+    for (k = 0; k < (1 << MBITS); k = k + 1) mem[k] = 0;
+    $readmemh("../Simulation/main.hex", mem);
 
     // deassert reset after ring has cleared (ncores*10 + 5 time units)
     #135

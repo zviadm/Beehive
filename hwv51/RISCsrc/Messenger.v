@@ -91,7 +91,7 @@ module Messenger(
     else if (inLen != 0) inLen <= inLen - 1;
     else if (SlotTypeIn == Message) begin 
       inLen <= RingIn[5:0];
-      putMessageInMQ <= fistMessageWord;
+      putMessageInMQ <= firstMessageWord;
     end
 
   //Write the first message word into MQ unless the message length is zero

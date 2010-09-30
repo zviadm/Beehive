@@ -17,18 +17,18 @@ module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   input [3:0] whichCore,
   
   //ring signals
-  input  [31:0] RingIn,
-  input  [3:0] SlotTypeIn,
-  input  [3:0] SourceIn,
+  input [31:0] RingIn,
+  input [3:0]  SlotTypeIn,
+  input [3:0]  SourceIn,
  
   //addition for separate read data return ring.
   //cache never modifies the data or dest, so there are no outputs
   input [31:0] RDreturn,
-  input [3:0] RDdest,
+  input [3:0]  RDdest,
  
   output [31:0] dcRingOut,
-  output [3:0] dcSlotTypeOut,
-  output [3:0] dcSourceOut,
+  output [3:0]  dcSlotTypeOut,
+  output [3:0]  dcSourceOut,
   output dcDriveRing,
   output dcWantsToken,
   input  dcAcquireToken,
@@ -39,10 +39,7 @@ module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   input stall,
   output [31:0] instx,
   output Ihit,
-  output decLineAddr,
-  input msgrWaiting,
-  input lockerWaiting,
-  input barrierWaiting
+  output decLineAddr
 );
  
   wire[21:0] Dtag;   //output of data tag memory
@@ -69,23 +66,23 @@ module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   wire preWriteItag;
   reg  flushing;
 
-  parameter idle = 0;  //states
-  parameter waitToken = 1;  //wait for a token
-  parameter waitN = 2;      //Wait for the last slot of the burst
-  parameter readCache = 3;  //Send dirty miss data
-  parameter sendWA = 4;     //Send write address
-  parameter sendRA = 5;     //Send read address
-  parameter waitRD = 6;      //Wait for read data 
-  parameter readData = 7;       //Write read data into cache
-  parameter preIdle = 8;
-  parameter doInvalidate = 9;
-  parameter doFlush = 10;
+  localparam idle = 0;  //states
+  localparam waitToken = 1;  //wait for a token
+  localparam waitN = 2;      //Wait for the last slot of the burst
+  localparam readCache = 3;  //Send dirty miss data
+  localparam sendWA = 4;     //Send write address
+  localparam sendRA = 5;     //Send read address
+  localparam waitRD = 6;      //Wait for read data 
+  localparam readData = 7;       //Write read data into cache
+  localparam preIdle = 8;
+  localparam doInvalidate = 9;
+  localparam doFlush = 10;
 
-  parameter Null = 7; //Slot Types
-  parameter Token = 1;
-  parameter Address = 2;
-  parameter WriteData = 3;
-  parameter ReadData = 4;
+  localparam Null = 7; //Slot Types
+  localparam Token = 1;
+  localparam Address = 2;
+  localparam WriteData = 3;
+  localparam ReadData = 4;
  
 //---------------------------------End of Declarations-------------------------
 
@@ -126,7 +123,11 @@ generate
     end
     assign instx = instCache[instAddr];
 
-    initial $readmemh(I_INIT,instCache);
+    integer i;
+    initial begin
+      for (i = 0; i < 1024; i = i + 1) instCache[i] = 0;
+      $readmemh(I_INIT,instCache);
+    end
   end
 endgenerate
  
@@ -184,7 +185,11 @@ generate
     assign rqDCache = dataCache[dAddrA];
     assign cacheData = dataCache[dAddrB];
 
-    initial $readmemh(D_INIT,dataCache);
+    integer i;
+    initial begin      
+      for (i = 0; i < 1024; i = i + 1) dataCache[i] = i;
+      $readmemh(D_INIT,dataCache);
+    end
   end
 endgenerate
  
@@ -199,7 +204,7 @@ endgenerate
   assign dcRingOut = 
     ((state == waitToken & (dcAcquireToken) & flushing) | 
      (state == readCache)) ? cacheData :
-    ((state == waitToken & (dcAcquireToken) & ~flushing) ? 
+    ((state == waitToken & (dcAcquireToken) & ~flushing)) ? 
       (Dmiss ? {4'b0001, aq[30:3]} : {4'b0011, pcx[30:3]}) :
     (state == sendWA) ? {4'b0000, Dtag[20:0], aq[9:3]} :
     RingIn;

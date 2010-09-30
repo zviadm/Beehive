@@ -122,7 +122,7 @@ module Sem(
  
   assign lockRingOut = 
     //lock request. Drive Lock number.
-    ((state == waitToken) & (lockAcquireToken)) ? {24'b0, aq[8:3]} : RingIn;
+    ((state == waitToken) & (lockAcquireToken)) ? {26'b0, aq[8:3]} : RingIn;
   assign lockSourceOut = 
     ((state == waitToken) & (lockAcquireToken)) ? whichCore : SourceIn;
 

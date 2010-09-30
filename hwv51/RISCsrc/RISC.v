@@ -36,6 +36,14 @@ and may be instantiated several times on a single chip.
   output reg    releaseRS232
   // output  lockHeld
 );
+
+  localparam Null = 7; //Slot Types
+  localparam Token = 1;
+  
+  //FSM that handles interactions with the ring
+  reg state;
+  localparam idle = 0;  
+  localparam tokenHeld = 1;
  
   //signals to and from local I/O devices
   wire [31:0] rqIn;  //RISC's read queue
@@ -347,7 +355,7 @@ and may be instantiated several times on a single chip.
     .lockSourceOut(lockSourceOut),
     .lockDriveRing(lockDriveRing),
     .lockWantsToken(lockWantsToken),
-    .lockAcquireToken(lockAcquireToken),
+    .lockAcquireToken(lockAcquireToken)
   );
   
   //instantiate the barrier unit.  Local I/O device 6.
@@ -370,7 +378,7 @@ and may be instantiated several times on a single chip.
     .barrierSourceOut(barrierSourceOut),
     .barrierDriveRing(barrierDriveRing),
     .barrierWantsToken(barrierWantsToken),
-    .barrierAcquireToken(barrierAcquireToken),
+    .barrierAcquireToken(barrierAcquireToken)
   );
     
   assign raq = | done;
@@ -391,17 +399,14 @@ and may be instantiated several times on a single chip.
   assign dcAcquireToken = (coreHasToken & ~msgrDriveRing & ~lockDriveRing &
                            ~barrierDriveRing & dcWantsToken);
   wire coreSendNewToken = (coreHasToken & ~msgrDriveRing & ~lockDriveRing & 
-                           ~barrierDriveRing & ~dcDriveRing)
+                           ~barrierDriveRing & ~dcDriveRing);
 
   always @(posedge clock) begin
     if(reset) state <= idle;
     else case(state)
       idle: if(SlotTypeIn == Token) begin
-        if (msgrWantsToken | lockWantsToken | 
-            barrierWantsToken | dcWantsToken)
+        if (msgrWantsToken | lockWantsToken | barrierWantsToken | dcWantsToken)
           state <= tokenHeld;
-        else
-          state <= sendToken;
       end
       
       tokenHeld: if (coreSendNewToken) state <= idle;

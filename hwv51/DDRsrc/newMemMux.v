@@ -80,7 +80,6 @@ This version uses a separate ring to return read data
   reg writeWB;
   wire RBempty;
   wire ReadRB;
-  reg [7:0] burstLength;
   reg [1:0] wcnt;
   reg [2:0] rcnt;
   reg [2:0] state;  
@@ -120,11 +119,6 @@ This version uses a separate ring to return read data
 
   //Read return bus destination.
   assign RDdest = (~RBempty & ~dest[4]) ? dest[3:0] : 4'b0000;  
-
-  always @(posedge clock) 
-    if(SlotTypeIn == Token) burstLength <= RingIn[7:0];
-    else if(burstLength != 0) burstLength <= burstLength - 1;
-
   assign ReadRB = (~RBempty & ~dest[4] & (rcnt[1:0] == 3)) | 
                   (~RBempty & dest[4]);
 
