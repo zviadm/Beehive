@@ -277,13 +277,10 @@
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
-<<<<<<< HEAD
     <file xil_pn:name="../Simulation/BeehiveSim.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
-=======
->>>>>>> newringarchitecture
     <file xil_pn:name="../RISCsrc/DCache.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
