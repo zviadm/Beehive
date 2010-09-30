@@ -87,7 +87,7 @@ DSP48E #(
    .ACASCREG(0),       
    .ALUMODEREG(1),     
    .AREG(0),           
-   .AUTORESET_PATTERN_DETECT(1'b0),     // "FALSE" (cjt -- fix modelsim complaint
+   .AUTORESET_PATTERN_DETECT("FALSE"),     // "FALSE" (cjt -- fix modelsim complaint
    .AUTORESET_PATTERN_DETECT_OPTINV("MATCH"), 
    .A_INPUT("DIRECT"), 
    .BCASCREG(0),       

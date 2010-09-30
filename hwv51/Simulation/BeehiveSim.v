@@ -497,9 +497,23 @@ module beehive;
   localparam N = 2;
   // true on cycles where core N is executing an instruction (not stalled, not anulled)
   wire exeN = !beehive.coreBlk[N].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
-  always @(negedge clock) if (!reset) begin
-  /*
-    if (cycle_count % 10000 == 0) begin
+  always @(negedge clock) if (!reset) begin  
+    if ((cycle_count > 1900 && cycle_count < 2100)) begin
+      $write("cycle=%5d ",cycle_count);
+      //$write("pcx=%x ",beehive.coreBlk[N].riscN.pcx);
+      //$write("instx=%x ",beehive.coreBlk[N].riscN.instx);
+      $write("pc=%x ",beehive.coreBlk[3].riscN.pc);
+      $write("inst=%x ",beehive.coreBlk[3].riscN.inst);
+      $write("outx=%x ",beehive.coreBlk[3].riscN.outx);
+      $write("out=%x/%x ",beehive.coreBlk[3].riscN.out,beehive.coreBlk[N].riscN.wwq);
+      $write("n/s=%x/%x ",beehive.coreBlk[3].riscN.nullify,beehive.coreBlk[N].riscN.stall);
+      $write("lock_ring_in=%x ",beehive.coreBlk[3].riscN.lockUnit.RingIn);
+      $write("lock_type_in=%x ",beehive.coreBlk[3].riscN.lockUnit.SlotTypeIn);
+      $write("lock_srcdest_in=%x ",beehive.coreBlk[3].riscN.lockUnit.SrcDestIn);
+      $write("lock_aq_=%x ",beehive.coreBlk[3].riscN.lockUnit.aq);
+      $display("");
+    end
+    if (cycle_count > 200000) begin    
       $write("cycle=%5d ",cycle_count);
       //$write("pcx=%x ",beehive.coreBlk[N].riscN.pcx);
       //$write("instx=%x ",beehive.coreBlk[N].riscN.instx);
@@ -508,6 +522,8 @@ module beehive;
       $write("outx=%x ",beehive.coreBlk[N].riscN.outx);
       $write("out=%x/%x ",beehive.coreBlk[N].riscN.out,beehive.coreBlk[N].riscN.wwq);
       $write("n/s=%x/%x ",beehive.coreBlk[N].riscN.nullify,beehive.coreBlk[N].riscN.stall);
+      $write("lock_ring_in=%x ",beehive.coreBlk[N].riscN.lockUnit.RingIn);
+      $write("lock_aq_=%x ",beehive.coreBlk[N].riscN.lockUnit.aq);
       //$write("aq=%x/%x/%x ",beehive.coreBlk[N].riscN.aqrd,beehive.coreBlk[N].riscN.aq,beehive.coreBlk[N].riscN.aqe);
       //$write("wq=%x/%x%x%x ",beehive.coreBlk[N].riscN.wq,|beehive.coreBlk[N].riscN.rwq,beehive.coreBlk[N].riscN.wwq,beehive.coreBlk[N].riscN.wqe);
       //$write("wq: %x%x%x %x %x %x ",beehive.coreBlk[N].riscN.writeQueue.rst,beehive.coreBlk[N].riscN.writeQueue.rd_en,beehive.coreBlk[N].riscN.writeQueue.wr_en,beehive.coreBlk[N].riscN.writeQueue.ra,beehive.coreBlk[N].riscN.writeQueue.wa,beehive.coreBlk[N].riscN.writeQueue.count);
@@ -527,10 +543,9 @@ module beehive;
       $write("RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
       $display("");
     end
-  */
   end
 
-
+  integer k;
   initial begin
     //    $dumpfile("test.lxt");
 
@@ -545,6 +560,7 @@ module beehive;
     reset = 1;
 
     // initialize lower part of main memory, assume high part doesn't need it
+    for (k = 0; k < (1 << MBITS); k = k + 1) mem[k] = 0;
     $readmemh("../Simulation/main.hex",mem);
 
     // deassert reset after ring has cleared (ncores*10 + 5 time units)
