@@ -476,6 +476,8 @@ module beehive;
       $write("outx=%x ",beehive.coreBlk[N].riscN.outx);
       $write("out=%x/%x ",beehive.coreBlk[N].riscN.out,beehive.coreBlk[N].riscN.wwq);
       $write("n/s=%x/%x ",beehive.coreBlk[N].riscN.nullify,beehive.coreBlk[N].riscN.stall);
+      $write("lock_ring_in=%x ",beehive.coreBlk[N].riscN.lockUnit.RingIn);
+      $write("lock_aq_=%x ",beehive.coreBlk[N].riscN.lockUnit.aq);
       //$write("aq=%x/%x/%x ",beehive.coreBlk[N].riscN.aqrd,beehive.coreBlk[N].riscN.aq,beehive.coreBlk[N].riscN.aqe);
       //$write("wq=%x/%x%x%x ",beehive.coreBlk[N].riscN.wq,|beehive.coreBlk[N].riscN.rwq,beehive.coreBlk[N].riscN.wwq,beehive.coreBlk[N].riscN.wqe);
       //$write("wq: %x%x%x %x %x %x ",beehive.coreBlk[N].riscN.writeQueue.rst,beehive.coreBlk[N].riscN.writeQueue.rd_en,beehive.coreBlk[N].riscN.writeQueue.wr_en,beehive.coreBlk[N].riscN.writeQueue.ra,beehive.coreBlk[N].riscN.writeQueue.wa,beehive.coreBlk[N].riscN.writeQueue.count);
@@ -494,7 +496,7 @@ module beehive;
       $write("Ring: type=%x, dest=%x, data=%x ", mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
       $write("RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
       $display("");
-    end  
+    end
   end
 
   integer k;

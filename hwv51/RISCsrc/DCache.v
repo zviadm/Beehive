@@ -123,9 +123,9 @@ generate
     end
     assign instx = instCache[instAddr];
 
-    integer i;
+    integer k;
     initial begin
-      for (i = 0; i < 1024; i = i + 1) instCache[i] = 0;
+      for (k = 0; k < 1024; k = k + 1) instCache[k] = 0;
       $readmemh(I_INIT,instCache);
     end
   end
@@ -185,9 +185,9 @@ generate
     assign rqDCache = dataCache[dAddrA];
     assign cacheData = dataCache[dAddrB];
 
-    integer i;
-    initial begin      
-      for (i = 0; i < 1024; i = i + 1) dataCache[i] = i;
+    integer k;
+    initial begin
+      for (k = 0; k < 1024; k = k + 1) dataCache[k] = 0;
       $readmemh(D_INIT,dataCache);
     end
   end

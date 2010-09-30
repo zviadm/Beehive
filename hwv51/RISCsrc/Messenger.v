@@ -198,10 +198,10 @@ module Messenger(
     .DATA_WIDTH(36), // Sets data width to 4, 9, 18 or 36
     .DO_REG(1), // Enable output register (0 or 1)
                 // Must be 1 if EN_SYN = "FALSE"
-    .EN_SYN(1'b0), // Specifies FIFO as Asynchronous ("FALSE")
+    .EN_SYN("FALSE"), // Specifies FIFO as Asynchronous ("FALSE")
                    // or Synchronous ("TRUE")
-    .FIRST_WORD_FALL_THROUGH(1'b1) // Sets the FIFO FWFT to "TRUE" or 
-                                   // "FALSE" ("TRUE")
+    .FIRST_WORD_FALL_THROUGH("TRUE") // Sets the FIFO FWFT to "TRUE" or 
+                                     // "FALSE" ("TRUE")
   )
 
   MQ (
