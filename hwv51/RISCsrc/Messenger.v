@@ -42,17 +42,19 @@ module Messenger(
   output done,     //operation is finished. Read the AQ
   input selMsgr,
   input [3:0] whichCore,
-  input [3:0] copyCore,
+  input [3:0] CopyCore,
   
   //ring signals
   input  [31:0] RingIn,
   input  [3:0] SlotTypeIn,
-  input  [3:0] SrcDestIn,
+  input  [3:0] SourceIn,
   output [31:0] msgrRingOut,
   output [3:0] msgrSlotTypeOut,
-  output [3:0] msgrSrcDestOut,
+  output [3:0] msgrSourceOut,
   output msgrDriveRing,
-  output msgrWaiting,
+  output msgrWantsToken,
+  input  msgrAcquireToken,
+  
   output ctrlValid,
   output [3:0] ctrlType,
   output [3:0] ctrlSrc
@@ -60,86 +62,64 @@ module Messenger(
 
   wire         writeMQ;
   wire         MQempty;
-  wire         rdMQ;
   wire         firstMessageWord;
+  wire         rdMQ;
   wire [31:0]  MQdata;
-  reg [3:0]    state;  //messenger FSM
-  reg [5:0]    length; //payload length
-  reg [7:0]    burstLength; //length of the train
+  reg [2:0]    state;  //messenger FSM
+  reg [5:0]    length; //payload length when copying message from MQ to RQ
   reg [5:0]    inLen;  //counts incoming payload length
+  reg          putMessageInMQ;
 
   parameter idle = 0;  //states
   parameter waitToken = 1;  
-  parameter waitN = 2;  //wait for the end of the train
-  parameter sendAQ = 3; //send the message header
-  parameter sendWQ = 4; //send the message payload
-  parameter copyHeader = 5; //from MQ to RQ, and load length
-  parameter copyMQ = 6; //from MQ to RQ until length == 1
-  parameter copyWait = 7;  //wait for a reply from the copier.
-  parameter doCopy = 8;    //one cycle to write the read queue
+  parameter sendWQ = 2; //send the message payload
+  parameter copyHeader = 3; //from MQ to RQ, and load length
+  parameter copyMQ = 4; //from MQ to RQ until length == 1
+  parameter copyWait = 5;  //wait for a reply from the copier.
+  parameter doCopy = 6;    //one cycle to write the read queue
 
   parameter Null = 7; //Slot Types
   parameter Token = 1;
   parameter Message = 8;
-  parameter Broadcast = 12;
 
 //------------------End of Declarations-----------------------
-  wire normalCore = (whichCore > 4'b1) & (whichCore < copyCore - 4'b1);
+  //wire normalCore = (whichCore > 4'b1) & (whichCore < CopyCore - 4'b1);
   assign firstMessageWord = 
-    (((SlotTypeIn == Message) & (SrcDestIn == whichCore)) |
-     ((SlotTypeIn == Broadcast) & (SrcDestIn != whichCore) & normalCore)) &
-    (inLen == 0);
+    ((SlotTypeIn == Message) & (RingIn[17:14] == whichCore)) & (inLen == 0);
  
   always @(posedge clock) if (reset) inLen <= 0;
-    else if (firstMessageWord) inLen <= RingIn[5:0];
     else if (inLen != 0) inLen <= inLen - 1;
-
-  assign msgrWaiting = (state == waitToken);
+    else if (SlotTypeIn == Message) begin 
+      inLen <= RingIn[5:0];
+      putMessageInMQ <= fistMessageWord;
+    end
 
   //Write the first message word into MQ unless the message length is zero
   //or the source core is copyCore. Write later words (inLen != 0)
   //unless they are copier replies (state == doCopy).  The copier only
   //sends messages with a 1-word payload.  
   assign writeMQ = 
-    (firstMessageWord & (RingIn[5:0] != 0) & (RingIn[13:10] != copyCore)) |  
-    ((inLen != 0) & (state != doCopy)); 
+    (firstMessageWord & (RingIn[5:0] != 0) & (RingIn[13:10] != CopyCore)) |  
+    ((inLen != 0) & putMessageInMQ & (state != doCopy)); 
  
   assign ctrlValid = firstMessageWord & (RingIn[5:0] == 0);
   assign ctrlType  = RingIn[9:6];
   assign ctrlSrc   = RingIn[13:10];
- 
+   
   //interactions with the ring
+  assign msgrWantsToken = (state == waitToken);
   assign msgrDriveRing = 
-    //convert messages sent to me to Null
-    ((SlotTypeIn == Message) & (SrcDestIn == whichCore)) |   
-    //convert broadcasts sent by me to Null
-    ((SlotTypeIn == Broadcast) & (SrcDestIn == whichCore)) |  
-    //send the new token
-    ((state == waitToken) & (SlotTypeIn == Token)) |  
-    //message header & message payload
-    (state == sendAQ) | (state == sendWQ);  
+    //When msgr Acquires Token it sends Header and then Payload
+    ((state == waitToken) & (msgrAcquireToken)) | (state == sendWQ);
     
-  assign msgrSrcDestOut =
-    ((state == sendAQ) | (state == sendWQ)) ? aq[6:3] :  //the destination core
-    SrcDestIn;
-
-  assign msgrSlotTypeOut =
-    //replace messages directed to me with Null
-    ((SlotTypeIn == Message) & (SrcDestIn == whichCore)) ? Null :  
-    //replace messages broadcasted by me with Null
-    ((SlotTypeIn == Broadcast) & (SrcDestIn == whichCore)) ? Null :  
-    ((state == sendAQ) | (state == sendWQ)) ?
-      //send broadcast when dst == src
-      (((aq[6:3] == whichCore) & normalCore) ? Broadcast : Message) :
-    SlotTypeIn;
-    
-  assign msgrRingOut = 
-    //aq[12:7] is the payload length (may be zero), one one for header
-    ((state == waitToken) & (SlotTypeIn == Token)) ? (RingIn + aq[12:7] + 1) :     
-    //header: source core(4), type(4), payload length(6)
-    (state == sendAQ) ? {18'b0, whichCore, aq[16:7]} : 
-    (state == sendWQ) ? wq : //the message payload
-    RingIn;
+  assign msgrSourceOut = whichCore;
+  assign msgrSlotTypeOut = Message;    
+  assign msgrRingOut =     
+    ((state == waitToken) & (msgrAcquireToken)) ? 
+      // Send Header, 4 bits of dest, 4 bits of source, 6 bits of length
+      {14'b0, aq[6:3], whichCore, aq[16:7]} :
+    (state == sendWQ) ? wq : // Message Payload
+    32'b0;
 
   //data between the queues                      
   assign rqMsgr = 
@@ -157,46 +137,34 @@ module Messenger(
  
   assign done = 
     (((state == idle) & selMsgr & read & MQempty)) | 
-    ((state == sendAQ) & (aq[12:7] == 0)) |
+    ((state == waitToken) & (msgrAcquireToken) & (aq[12:7] == 0)) |
+    ((state == sendWQ) & (length == 1) & (aq[6:3] != CopyCore)) |  //normal message
     ((state == copyMQ) & (length == 1)) | 
-    ((state == sendWQ) & (length == 1) & (aq[6:3] != copyCore)) |  //normal message
     (state == doCopy);   //reply arrived from copier
 
   assign rwq = (state == sendWQ);
 
   //the state machine
   always @(posedge clock) begin
-    if(reset) state <= idle;
-    else case(state)
-      idle: if(selMsgr) begin
-        if(~read) state <= waitToken;
+    if (reset) state <= idle;
+    else case (state)
+      idle: if (selMsgr) begin
+        if (~read) state <= waitToken;
         else if (~MQempty) state <= copyHeader;
       end
      
-      waitToken: if(SlotTypeIn == Token) begin
-        if(RingIn[7:0] == 0) state <= sendAQ;
-        else begin
-          burstLength <= RingIn[7:0];
-          state <= waitN;
-        end
-      end
-
-      waitN: begin  //wait for the end of the train
-        burstLength <= burstLength - 1;
-        if(burstLength == 1) state <= sendAQ;
-      end
-
-      sendAQ: begin
+      waitToken: if (msgrAcquireToken) begin 
         length <= aq[12:7];  //payload length
         if(aq[12:7] == 0) state <= idle;
         else state <= sendWQ;
       end
-
+      
       sendWQ: begin  //send data on the ring
         length <= length - 1;
         if(length == 1) begin
-          if(aq[6:3] != copyCore) state <= idle;
-          else state <= copyWait; //the messenger waits for a reply to messages sent to the copier.
+          if(aq[6:3] != CopyCore) state <= idle;
+          else state <= copyWait; //the messenger waits for a reply to 
+                                  //messages sent to the copier.
         end
       end
 
@@ -211,9 +179,10 @@ module Messenger(
       end
 
       copyWait:
-        //A message is from the copier if it contains copyCore in the bits 13:10 of the message header.
-        //In this case, we insert the 1-word payload (the checksum) directly into RQ.
-        if(firstMessageWord & (RingIn[13:10] == copyCore)) state <= doCopy;
+        //A message is from the copier if it contains CopyCore in the bits 
+        //13:10 of the message header. In this case, we insert the 1-word 
+        //payload (the checksum) directly into RQ.
+        if(firstMessageWord & (RingIn[13:10] == CopyCore)) state <= doCopy;
     
       doCopy:
         state <= idle;   

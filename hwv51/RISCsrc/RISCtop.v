@@ -77,7 +77,7 @@
   //The registers of the ring
   reg [31:0] RingOut[0:nCores + 2];
   reg [3:0] SlotTypeOut[0:nCores + 2];
-  reg [3:0] SrcDestOut[0:nCores + 2];
+  reg [3:0] SourceOut[0:nCores + 2];
 
   reg [31:0] RDreturn[0:nCores];  //separate pipelined bus for read data
   reg [3:0] RDdest[0:nCores];
@@ -101,10 +101,10 @@ genvar i;
 generate
   for (i = 1; i <= nCores; i = i+1)
   begin: coreBlk
-    wire [31:0] tempOut;
-    wire [3:0] tempSlotType;
-    wire [3:0] tempSrcDest;
-    wire [3:0]  coreNum;
+    wire [31:0] tempRiscRingOut;
+    wire [3:0] tempRiscSlotTypeOut;
+    wire [3:0] tempRiscSourceOut;
+    wire [3:0] coreNum;
 
     assign coreNum = i;
 
@@ -116,12 +116,12 @@ generate
       .EtherCore(EtherCore),
       .RingIn(RingOut[i-1]),
       .SlotTypeIn(SlotTypeOut[i-1]),
-      .SrcDestIn(SrcDestOut[i-1]),
+      .SourceIn(SourceOut[i-1]),
       .RDreturn(RDreturn[i-1]),
       .RDdest(RDdest[i-1]),
-      .RingOut(tempOut),
-      .SlotTypeOut(tempSlotType),
-      .SrcDestOut(tempSrcDest),
+      .RingOut(tempRiscRingOut),
+      .SlotTypeOut(tempRiscSlotTypeOut),
+      .SourceOut(tempRiscSourceOut),
       .RxD(RxDv[i]),
       .TxD(TxDv[i]),
       //core connected to the RS232 pulses this to reset 
@@ -135,34 +135,34 @@ generate
     end
 
     always @(posedge clock) begin
-      RingOut[i] <= tempOut;
-      SlotTypeOut[i] <= tempSlotType;
-      SrcDestOut[i] <= tempSrcDest;
+      RingOut[i] <= tempRiscRingOut;
+      SlotTypeOut[i] <= tempRiscSlotTypeOut;
+      SourceOut[i] <= tempRiscSourceOut;
     end
   end
 endgenerate
 
-  wire [31:0] RingOutTemp;
-  wire [3:0] SlotTypeOutTemp;
-  wire [3:0] SrcDestOutTemp;
-  wire [31:0] RDreturnTemp;
-  wire [3:0] RDdestTemp;
+  wire [31:0] tempMCtrlRingOut;
+  wire [3:0]  tempMCtrlSlotTypeOut;
+  wire [3:0]  tempMCtrlSourceOut;
+  wire [31:0] tempMCtrlRDreturn;
+  wire [3:0]  tempMCtrlRDdest;
  
   //Instantiate the memory controller (contains the display controller)
-  defparam mctrl.mmsFSM.nCores = nCores;
-  CoherentMemMux mctrl(
+  //defparam mctrl.mmsFSM.nCores = nCores;
+  newMemMux mctrl(
     .clock(clock),
     .clock90(clock90),
     .reset(reset),
 
     .RingIn(RingOut[nCores + 2]),
     .SlotTypeIn(SlotTypeOut[nCores + 2]),
-    .SrcDestIn(SrcDestOut[nCores + 2]),
-    .RingOut(RingOutTemp),
-    .SlotTypeOut(SlotTypeOutTemp),
-    .SrcDestOut(SrcDestOutTemp),
-    .RDreturn(RDreturnTemp),
-    .RDdest(RDdestTemp),
+    .SourceIn(SourceOut[nCores + 2]),
+    .RingOut(tempMCtrlRingOut),
+    .SlotTypeOut(tempMCtrlSlotTypeOut),
+    .SourceOut(tempMCtrlSourceOut),
+    .RDreturn(tempMCtrlRDreturn),
+    .RDdest(tempMCtrlRDdest),
 
     .DQ(DQ),
     .DQS(DQS),
@@ -198,20 +198,20 @@ endgenerate
   );
 
   always@(posedge clock) begin
-    RDreturn[0] <= RDreturnTemp;
-    RDdest[0] <= RDdestTemp;
+    RDreturn[0] <= tempMCtrlRDreturn;
+    RDdest[0] <= tempMCtrlRDdest;
   end
  
   always@(posedge clock) begin
-    RingOut[0] <= RingOutTemp;
-    SlotTypeOut[0] <= SlotTypeOutTemp;
-    SrcDestOut[0] <= SrcDestOutTemp;
+    RingOut[0] <= tempMCtrlRingOut;
+    SlotTypeOut[0] <= tempMCtrlSlotTypeOut;
+    SourceOut[0] <= tempMCtrlSourceDestOut;
   end
 
   //Instantiate the Ethernet Controller
-  wire [31:0] RingOutTemp1;
-  wire [3:0] SlotTypeOutTemp1;
-  wire [3:0] SrcDestOutTemp1;
+  wire [31:0] tempEthconRingOut;
+  wire [3:0]  tempEthconSlotTypeOut;
+  wire [3:0]  tempEthconSourceOut;
 
   Ethernet ethcon( 
     .reset(reset),
@@ -223,10 +223,10 @@ endgenerate
     //Ring signals
     .RingIn(RingOut[nCores]),
     .SlotTypeIn(SlotTypeOut[nCores]),
-    .SrcDestIn(SrcDestOut[nCores]),
-    .RingOut(RingOutTemp1),
-    .SlotTypeOut(SlotTypeOutTemp1),
-    .SrcDestOut(SrcDestOutTemp1),
+    .SourceIn(SourceOut[nCores]),
+    .RingOut(tempEthconRingOut),
+    .SlotTypeOut(tempEthconSlotTypeOut),
+    .SourceOut(tempEthconSourceOut),
     .RDreturn(RDreturn[nCores]),
     .RDdest(RDdest[nCores]),
 
@@ -250,15 +250,15 @@ endgenerate
   );
 
   always@(posedge clock) begin
-    RingOut[nCores + 1] <= RingOutTemp1;
-    SlotTypeOut[nCores + 1] <= SlotTypeOutTemp1;
-    SrcDestOut[nCores + 1] <= SrcDestOutTemp1;
+    RingOut[nCores + 1] <= tempEthconRingOut;
+    SlotTypeOut[nCores + 1] <= tempEthconSlotTypeOut;
+    SourceOut[nCores + 1] <= tempEthconSourceOut;
   end
 
   //Instantiate the block copier
-  wire [31:0] RingOutTemp2;
-  wire [3:0] SlotTypeOutTemp2;
-  wire [3:0] SrcDestOutTemp2;
+  wire [31:0] tempBCopyRingOut;
+  wire [3:0]  tempBCopySlotTypeOut;
+  wire [3:0]  tempBCopySourceOut;
 
   copier bcopy( 
     .reset(reset),
@@ -268,10 +268,10 @@ endgenerate
     //Ring signals
     .RingIn(RingOut[nCores + 1]),
     .SlotTypeIn(SlotTypeOut[nCores + 1]),
-    .SrcDestIn(SrcDestOut[nCores + 1]),
-    .RingOut(RingOutTemp2),
-    .SlotTypeOut(SlotTypeOutTemp2),
-    .SrcDestOut(SrcDestOutTemp2),
+    .SourceIn(SourceOut[nCores + 1]),
+    .RingOut(tempBCopyRingOut),
+    .SlotTypeOut(tempBCopySlotTypeOut),
+    .SourceOut(tempBCopySourceOut),
      //Copier gets RDreturn data without waiting for the ring.
     .RDreturn(RDreturn[0]), 
     .RDdest(RDdest[0]),
@@ -282,9 +282,9 @@ endgenerate
   );
 
   always@(posedge clock) begin
-    RingOut[nCores + 2] <= RingOutTemp2;
-    SlotTypeOut[nCores + 2] <= SlotTypeOutTemp2;
-    SrcDestOut[nCores + 2] <= SrcDestOutTemp2;
+    RingOut[nCores + 2] <= tempBCopyRingOut;
+    SlotTypeOut[nCores + 2] <= tempBCopySlotTypeOut;
+    SourceOut[nCores + 2] <= tempBCopySourceOut;
   end
   
   //Pin buffers for SDA, SCL used by the Ethernet controller

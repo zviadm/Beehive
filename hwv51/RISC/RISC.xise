@@ -188,10 +188,6 @@
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
-    <file xil_pn:name="ipcore_dir/dValidTag.xco" xil_pn:type="FILE_COREGEN">
-      <association xil_pn:name="BehavioralSimulation"/>
-      <association xil_pn:name="Implementation"/>
-    </file>
     <file xil_pn:name="ipcore_dir/frameFifo.xco" xil_pn:type="FILE_COREGEN">
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
@@ -218,10 +214,6 @@
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="ipcore_dir/regFileX.xco" xil_pn:type="FILE_COREGEN">
-      <association xil_pn:name="BehavioralSimulation"/>
-      <association xil_pn:name="Implementation"/>
-    </file>
-    <file xil_pn:name="ipcore_dir/tagmemX.xco" xil_pn:type="FILE_COREGEN">
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
@@ -285,10 +277,13 @@
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
+<<<<<<< HEAD
     <file xil_pn:name="../Simulation/BeehiveSim.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
+=======
+>>>>>>> newringarchitecture
     <file xil_pn:name="../RISCsrc/DCache.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
@@ -304,9 +299,6 @@
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="ipcore_dir/bufRAM64x32.ise" xil_pn:type="FILE_COREGENISE">
-      <association xil_pn:name="Implementation"/>
-    </file>
-    <file xil_pn:name="ipcore_dir/dValidTag.ise" xil_pn:type="FILE_COREGENISE">
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="ipcore_dir/frameFifo.ise" xil_pn:type="FILE_COREGENISE">
@@ -331,9 +323,6 @@
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="ipcore_dir/regFileX.ise" xil_pn:type="FILE_COREGENISE">
-      <association xil_pn:name="Implementation"/>
-    </file>
-    <file xil_pn:name="ipcore_dir/tagmemX.ise" xil_pn:type="FILE_COREGENISE">
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="ipcore_dir/txFifo.ise" xil_pn:type="FILE_COREGENISE">

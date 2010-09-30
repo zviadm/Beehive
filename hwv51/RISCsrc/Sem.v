@@ -1,29 +1,4 @@
 `timescale 1ns / 1ps
-module Sem(
-//signals common to all local I/O devices:
-  input clock,
-  input reset,
-  input [8:3]  aq, //the CPU address queue output.
-  input read,      //request in AQ is a read
-  output [31:0] rqLock, //the CPU read queue input
-  output wrq,      //write the read queue
-  output done,     //operation is finished. Read the AQ
-  input selLock,
-  input [3:0] whichCore,
-  input msgrWaiting,
-  
-//ring signals
- input  [31:0] RingIn,
- input  [3:0]  SlotTypeIn,
- input  [3:0]  SrcDestIn,
- output [31:0] lockRingOut,
- output [3:0]  lockSlotTypeOut,
- output [3:0]  lockSrcDestOut,
- output        lockDriveRing,
- output lockerWaiting
-// output reg lockHeld //for debugging
- );
-
 
 /* 
 This unit provides 64 binary semaphores.  It replaces the earlier
@@ -36,7 +11,7 @@ To do a P (Wait), a core reads AQ[2:0] = 5 with the semaphore number in AQ[8:3].
 If the indicated bit is set in the lock RAM, the read returns RQ = -1 immediately (Andrew's case (a)).
 Otherwise, a Preq  is sent on the ring.
 
-If another core holds the semaphore, it converts the Preq into a “Pfail” 
+If another core holds the semaphore, it converts the Preq into a Pfail 
 slot type before forwarding it.  If the requesting core receives the unmodified request,
 it sets the semaphore bit and returns 1 in RQ (Andrew's case (b)). If it receives Pfail,
 it returns 0 and the semaphore bit is not modified (Andrew's case (c)).
@@ -52,123 +27,131 @@ The "otherV" signal is asserted when a Vreq slot arrives from another core.
 Signal always has priority over the core's activity for writing the lock RAM.  The ram is dual-ported,
 with a mux on the address which selects RingIn[5:0] if otherV, else AQ[8:3].  The second read
 port is used to check whether the sem is held when a Preq arrives from another core. 
-
 */
 
- reg [2:0]   state;  //lock FSM
- reg [7:0]   burstLength; //length of the train
- wire writeLock;
- wire lockD;   //lock memory din
- wire locked;  //addressed by lockAddr
- wire ringLock; //addressed by RingIn
- wire otherV;
- wire [5:0] lockAddr;
+module Sem(
+  //signals common to all local I/O devices:
+  input clock,
+  input reset,
+  input [8:3]  aq, //the CPU address queue output.
+  input read,      //request in AQ is a read
+  output [31:0] rqLock, //the CPU read queue input
+  output wrq,      //write the read queue
+  output done,     //operation is finished. Read the AQ
+  input selLock,
+  input [3:0] whichCore,
+  
+  //ring signals
+  input  [31:0] RingIn,
+  input  [3:0]  SlotTypeIn,
+  input  [3:0]  SourceIn,
+  output [31:0] lockRingOut,
+  output [3:0]  lockSlotTypeOut,
+  output [3:0]  lockSourceOut,
+  output lockDriveRing,
+  output lockWantsToken,
+  input  lockAcquireToken
+);
 
- parameter idle = 0;  //states
- parameter waitToken = 2;
- parameter waitN = 3;
- parameter send = 4;
- parameter waitSF = 5;
- 
- parameter Null = 7; //Slot Types
- parameter Token = 1;
- parameter Preq = 9;
- parameter Pfail = 10;
- parameter Vreq = 11;
- 
+  reg [1:0] state;  //lock FSM
+  wire writeLock;
+  wire lockD;   //lock memory din
+  wire locked;  //addressed by lockAddr
+  wire ringLock; //addressed by RingIn
+  wire otherV;
+  wire [5:0] lockAddr;
+
+  parameter idle = 0;  //states
+  parameter waitToken = 2;
+  parameter waitSF = 3;
+
+  parameter Null = 7; //Slot Types
+  parameter Token = 1;
+  parameter Preq = 9;
+  parameter Pfail = 10;
+  parameter Vreq = 11;
+
 //------------------End of Declarations-----------------------
 
- assign otherV = (SlotTypeIn == Vreq) & (SrcDestIn != whichCore);
+  assign otherV = (SlotTypeIn == Vreq) & (SourceIn != whichCore);
  
- assign lockAddr = otherV ? RingIn[5:0] : aq[8:3];
-/* 
- always @(posedge clock) begin
-   if(reset |((state == idle) & selLock & ~read & (aq[8:3] == 1)))  lockHeld <= 0;  //core releases lock
-	else if((state == waitSF) & (SlotTypeIn == Preq) & (SrcDestIn == whichCore) & (RingIn[5:0] == 1)) lockHeld <= 1;  //core acquires lock
- end
-*/	
- assign lockerWaiting = (state == waitToken);
- 
- always @(posedge clock) begin
-  if(reset) state <= idle;
-  else case(state)
+  assign lockAddr = otherV ? RingIn[5:0] : aq[8:3];
+
+  assign done = 
+    //Signal or wait on a sem we hold.
+    ((state == idle) & selLock  & ~otherV & locked) |  
+    //send the V.
+    ((state == waitToken & (lockAcquireToken)) & ~read) |
+    //Preq returned after one ring transit
+    ((state == waitSF) & (SourceIn == whichCore) & 
+     ((SlotTypeIn == Preq) | (SlotTypeIn == Pfail)));
+
+  assign rqLock = 
+    ((state == idle) & selLock & read & ~otherV & locked) ? 32'h00000002 :
+    ((state == waitSF) & (SourceIn == whichCore) & 
+     (SlotTypeIn == Preq)) ? 32'h00000001 : 
+    32'h00000000;
+
+  assign wrq = done & read;
   
-   idle: if
-	 (selLock & ~otherV & ~locked ) state <= waitToken; //Wait or Signal on a sem we don't hold.
-	
-	waitToken: if((SlotTypeIn == Token) & ~msgrWaiting) begin
-     if(RingIn[7:0] == 0) state <= send;
-	  else begin
-		 burstLength <= RingIn[7:0];
-		 state <= waitN;
-	  end
-   end
-	
-   waitN: begin  //wait for the end of the train
-	       burstLength <= burstLength - 1;
-			 if(burstLength == 1) state <= send;
-    end
-	 
-	 send: //send the lock request
-	   if (read) state <= waitSF; //wait for success or failure of the P.
-		else state <= idle;        //send the V (Signal)
-		
-	 waitSF:
-	   if(((SlotTypeIn == Preq) | (SlotTypeIn == Pfail)) & (SrcDestIn == whichCore)) state <= idle;
- endcase
- end
+  //lock is set it when Preq returns unscathed.
+  //It is cleared by a Signal or an otherV.
+  assign writeLock = 
+    ((state == idle) & selLock & ~read) |  //Signal
+    (otherV) |
+    ((state == waitSF) & (SourceIn == whichCore) & 
+     ((SlotTypeIn == Preq) | (SlotTypeIn == Pfail)));  //set or clear
 
-assign done = ((state == idle) & selLock  & ~otherV & locked) |  //Signal or wait on a sem we hold.
-   ((state == send) & ~read) |                                   //send the V.
-   ((state == waitSF) & (SrcDestIn == whichCore) &
-	((SlotTypeIn == Preq) | (SlotTypeIn == Pfail)));              //Preq returned after one ring transit				
-
- assign rqLock = 
-   ((state == idle) & selLock & read & ~otherV & locked) ? 32'h00000002 :
-	((state == waitSF) & (SrcDestIn == whichCore) & (SlotTypeIn == Preq))? 32'h00000001 :
-	32'h00000000;
-
- assign wrq = done & read;
-
-/*lock is set it when Preq returns unscathed.
-It is cleared by a Signal or an otherV.
-*/
-	  
- assign writeLock =
-	((state == idle) & selLock & ~read) |  //Signal
-	(otherV) |
-   ((state == waitSF) & (SrcDestIn == whichCore) & ((SlotTypeIn == Preq) | (SlotTypeIn == Pfail)));  //set or clear
-	  
- assign lockD = 
-	((state == waitSF) & (SrcDestIn == whichCore) & (SlotTypeIn == Preq));
+  assign lockD = 
+    ((state == waitSF) & (SourceIn == whichCore) & (SlotTypeIn == Preq));
    
- assign lockDriveRing =
-   ((state == waitToken) & (SlotTypeIn == Token)) |  //to add to the train.
-   (state == send) |  //send Preq or Vreq 
-   (((SlotTypeIn == Preq) | (SlotTypeIn == Pfail) | SlotTypeIn == Vreq) & (SrcDestIn == whichCore)) | //My Preq, Pfail, or Vreq returns.  Drive Null.
-   ((SlotTypeIn == Preq) & (SrcDestIn != whichCore) & ringLock);  //A Preq from another core for a sem that I hold.  Drive Pfail 
+  // interactions with the ring
+  assign lockWantsToken = (state == waitToken);
+  assign lockDriveRing =
+    //send Preq or Vreq 
+    ((state == waitToken) & (lockAcquireToken)) | 
+    //A Preq from another core for a sem that I hold.  Drive Pfail 
+    ((SlotTypeIn == Preq) & (SourceIn != whichCore) & ringLock);
  
- assign lockSlotTypeOut = 
-    (((SlotTypeIn == Preq) | (SlotTypeIn == Pfail) | (SlotTypeIn == Vreq)) & (SrcDestIn == whichCore)) ? Null :  //replace my Preq, Pfail, or Vreq with Null
-    ((SlotTypeIn == Preq) & (SrcDestIn != whichCore) & ringLock) ? Pfail :  //a Preq from another core for a sem that I hold.  Send LockFail
-	 ((state == send) & read) ? Preq :  //send Preq
-	 ((state == send) & ~read) ? Vreq : //send Vreq
-    SlotTypeIn;
-	 
- assign lockRingOut = ((state == waitToken) & (SlotTypeIn == Token)) ? (RingIn + 1) :
-                      (state == send) ? {24'b0, aq[8:3]} :  //lock request  Drive Lock number.
-							 RingIn;
-							 
- assign lockSrcDestOut = (state == send) ? whichCore : SrcDestIn;
+  assign lockSlotTypeOut = 
+    ((state == waitToken) & (lockAcquireToken) & read) ? Preq :  //send Preq
+    ((state == waitToken) & (lockAcquireToken) & ~read) ? Vreq : //send Vreq
+    //a Preq from another core for a sem that I hold.  Send PFail
+    ((SlotTypeIn == Preq) & (SourceIn != whichCore) & ringLock) ? Pfail : 
+    Null;
+ 
+  assign lockRingOut = 
+    //lock request. Drive Lock number.
+    ((state == waitToken) & (lockAcquireToken)) ? {24'b0, aq[8:3]} : RingIn;
+  assign lockSourceOut = 
+    ((state == waitToken) & (lockAcquireToken)) ? whichCore : SourceIn;
 
+  // Lock Unit FSM
+  always @(posedge clock) begin
+    if(reset) state <= idle;
+    else case(state)
+      idle: if (selLock & ~otherV & ~locked) 
+        state <= waitToken; //Wait or Signal on a sem we don't hold.
 
-lockMem Locker (
-	.a(lockAddr), 
-	.d(lockD), 
-	.dpra(RingIn[5:0]), 
-	.clk(clock),
-	.we(writeLock),
-	.spo(locked), 
-	.dpo(ringLock)); 
+      waitToken: if (lockAcquireToken) begin
+        if (read) state <= waitSF; //wait for success or failure of the P.
+        else state <= idle;        //send the V (Signal)
+      end
+      
+      waitSF: 
+        if(((SlotTypeIn == Preq) | (SlotTypeIn == Pfail)) & 
+           (SourceIn == whichCore)) 
+          state <= idle;
+    endcase
+  end
 
+  lockMem Locker (
+    .a(lockAddr), 
+    .d(lockD), 
+    .dpra(RingIn[5:0]), 
+    .clk(clock),
+    .we(writeLock),
+    .spo(locked), 
+    .dpo(ringLock)
+  ); 
 endmodule

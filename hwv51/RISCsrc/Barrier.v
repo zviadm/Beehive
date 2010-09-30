@@ -25,29 +25,25 @@ module Barrier(
   input selBarrier,
   input [3:0] whichCore,
   input [3:0] EtherCore,
-  input msgrWaiting,
-  input lockerWaiting,
 
   //ring signals
   input  [31:0] RingIn,
   input  [3:0]  SlotTypeIn,
-  input  [3:0]  SrcDestIn,
+  input  [3:0]  SourceIn,
   output [31:0] barrierRingOut,
   output [3:0]  barrierSlotTypeOut,
-  output [3:0]  barrierSrcDestOut,
-  output        barrierDriveRing,
-  output        barrierWaiting
+  output [3:0]  barrierSourceOut,
+  output barrierDriveRing,
+  output barrierWantsToken,
+  input  barrierAcquireToken
 );
 
-  reg [2:0] state;  // barrier FSM
-  reg [7:0] burstLength; // length of the train
+  reg [1:0] state;  // barrier FSM
   reg [4:0] count;  // number of cores that reached barrier
    
   parameter idle = 0;  //states
   parameter waitToken = 2;
-  parameter waitN = 3;
-  parameter send = 4;
-  parameter waitBarrier = 5;
+  parameter waitBarrier = 3;
 
   parameter Null = 7; //Slot Types
   parameter Token = 1;
@@ -61,25 +57,12 @@ module Barrier(
   assign done = selBarrier & 
                 (SlotTypeIn == Barrier) & (count == nBarrierCoresMinusOne);
 
-  assign barrierWaiting = (state == waitToken);
-   
-  assign barrierDriveRing =
-    ((state == waitToken) & (SlotTypeIn == Token)) |  //to add to the train.
-    (state == send) |                                 //send Barrier message
-    ((SlotTypeIn == Barrier) & (SrcDestIn == whichCore)); //drive NULL
-   
-  assign barrierSlotTypeOut = 
-    ((SlotTypeIn == Barrier) & (SrcDestIn == whichCore)) ? Null :  
-    (state == send) ? Barrier :  //send Barrier message
-    SlotTypeIn;
-
-  assign barrierSrcDestOut = (state == send) ? whichCore : SrcDestIn;
-   
-  assign barrierRingOut = 
-    ((state == waitToken) & (SlotTypeIn == Token)) ? (RingIn + 1) :
-    (state == send) ? {32'b0} :  // Barrier message contains no data
-    RingIn;
-   
+  // Intercations with the ring
+  assign barrierWantsToken = (state == waitToken);   
+  assign barrierDriveRing = (state == waitToken) & (barrierAcquireToken);
+  assign barrierSlotTypeOut = Barrier;
+  assign barrierSourceOut = whichCore;
+  assign barrierRingOut = 32'b0;
    
   always @(posedge clock) begin
     if (reset) count <= 0;
@@ -92,30 +75,11 @@ module Barrier(
   always @(posedge clock) begin
     if (reset) state <= idle;
     else case(state)      
-      idle: 
-        if (selBarrier) state <= waitToken;  // need to send barrier slot
-               
-      waitToken: 
-        if ((SlotTypeIn == Token) & ~msgrWaiting & ~lockerWaiting) begin
-          if(RingIn[7:0] == 0) state <= send;
-          else begin
-            burstLength <= RingIn[7:0];
-            state <= waitN;
-          end
-        end
-
-      waitN: begin  //wait for the end of the train
-        burstLength <= burstLength - 1;
-        if(burstLength == 1) state <= send;
-      end
-
-      send: // send the barrier slot
-        state <= waitBarrier; 
-
-      waitBarrier: // wait for barrier messages from other cores
-        if ((SlotTypeIn == Barrier) & (count == nBarrierCoresMinusOne)) begin
+      idle: if (selBarrier) state <= waitToken;
+      waitToken: if (barrierAcquireToken) state <= waitBarrier; 
+      waitBarrier: // wait for barrier messages
+        if ((SlotTypeIn == Barrier) & (count == nBarrierCoresMinusOne))
           state <= idle;
-        end        
     endcase
   end
 endmodule

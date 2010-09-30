@@ -94,15 +94,15 @@ module CoherentMemMux (
   // FSM state, and wires that queues up messages in MQ
   reg [7:0] burstLength;
   reg [2:0] state;
-  wire MQmainEmpty;
-  wire MQsdEmpty;
-  wire MQempty;
-  reg MQloaded;  //MQ was loaded
-  wire [31:0] MQout;
-  wire [3:0] MQtype;
-  wire [3:0] MQsrcDest;
-  wire rdMQ;
-  wire wrMQ;  
+  //wire MQmainEmpty;
+  //wire MQsdEmpty;
+  //wire MQempty;
+  //reg MQloaded;  //MQ was loaded
+  //wire [31:0] MQout;
+  //wire [3:0] MQtype;
+  //wire [3:0] MQsrcDest;
+  //wire rdMQ;
+  //wire wrMQ;  
   
   // resend queue wires
   wire [39:0] resendQin;
@@ -139,10 +139,10 @@ module CoherentMemMux (
   parameter sendToken = 1;
   parameter waitToken = 2;
   parameter waitData = 3;
-  parameter waitMQnonEmpty = 4;
-  parameter readMQ = 5;
-  parameter readRB = 6;
-  parameter readResendQ = 7;
+  //parameter waitMQnonEmpty = 4;
+  //parameter readMQ = 5;
+  //parameter readRB = 6;
+  parameter readResendQ = 4;
 
   parameter Null = 7; //Slot Types
   parameter Token = 1;
@@ -151,7 +151,7 @@ module CoherentMemMux (
   parameter ReadData = 4;
   parameter AddressRequest = 5;
   parameter GrantExclusive = 6;
-  parameter Message = 8;  //Types >= 8 go in MQ
+  parameter Message = 8;  //Types >= 8 go around ring
   parameter Lock = 9;
   parameter LockFail = 10;
 
@@ -161,10 +161,10 @@ module CoherentMemMux (
     if(SlotTypeIn == Token) burstLength <= RingIn[7:0];
     else if(burstLength != 0) burstLength <= burstLength - 1;
 
-  assign rdMQ = (state == readMQ) & ~MQempty;
-  assign wrMQ = 
-    (SlotTypeIn[3] & (SrcDestIn != 0)) ||                 // Type >= NULL    
-    (SlotTypeIn == Address && RingIn[28] && ~RingIn[31]); // Fresh read address request
+  //assign rdMQ = (state == readMQ) & ~MQempty;
+  //assign wrMQ = 
+  //  (SlotTypeIn[3] & (SrcDestIn != 0)) ||                 // Type >= NULL    
+  //  (SlotTypeIn == Address && RingIn[28] && ~RingIn[31]); // Fresh read address request
   assign rdResendQ = (state == readResendQ) & ~resendQempty;
 
   always @(posedge clock) if(reset) state <= idle;

@@ -1,11 +1,6 @@
 `timescale 1ns / 1ps
-module copier(
- input  reset,
- input  clock, //clock
- input  [3:0]  whichCore,  //the number of this core
-
-
-/* The block copier is similar to the Ethernet controller,
+/* 
+The block copier is similar to the Ethernet controller,
 in that it is a node on the Ring, and has a RISC to
 process messages for its clients.  The RISC sets
 up the three registers that control the transfer:
@@ -17,164 +12,172 @@ The copier does word-aligned transfers,
 using an intermediate buffer to assemble the destination
 data.
 
-The controller currently only doe non-overlapping source
+The controller currently only does non-overlapping source
 and destination regions.
 
 It could be made faster by providing a 128-bit back-door
 path to the memory, but since it can transfer one cache line
 per token, it should be fast enough.
-
 */
- 
- //Ring signals
- input  [31:0] RingIn,
- input  [3:0]  SlotTypeIn,
- input  [3:0]  SrcDestIn,
- output [31:0] RingOut,
- output [3:0]  SlotTypeOut,
- output [3:0]  SrcDestOut,
- input  [31:0] RDreturn,
- input  [3:0]  RDdest,
 
-//signals between the copier and the display controller. 
- inout DVIscl,
- inout DVIsda,
- input verticalFP,
- output [25:0] displayAddress
+module copier(
+  input  reset,
+  input  clock, //clock
+  input  [3:0]  whichCore,  //the number of this core
  
+  //Ring signals
+  input  [31:0] RingIn,
+  input  [3:0]  SlotTypeIn,
+  input  [3:0]  SrcDestIn,
+  output [31:0] RingOut,
+  output [3:0]  SlotTypeOut,
+  output [3:0]  SrcDestOut,
+  input  [31:0] RDreturn,
+  input  [3:0]  RDdest,
+
+  //signals between the copier and the display controller. 
+  inout DVIscl,
+  inout DVIsda,
+  input verticalFP,
+  output [25:0] displayAddress
 );
 
-reg [5:0] wa; //write address for the buffer ram
-reg [5:0] ra; //read address for the buffer ram
-reg [2:0] bCnt; //buffer count (8 buffers).  Incremented when
-//a buffer is filled, decremented when a buffer is written to memory.
-reg [30:0] S; //source word address (for BEE3)
-reg [30:0] D; //destination word address
-reg [30:0] L; //transfer length
-reg [2:0]  rcnt; //word number during a read transfer
-reg [3:0]  state;   //control machine
-reg [2:0]  RCfsm; //ring control machine
-reg readRequested, writeRequested;
-reg [7:0] burstLength;
-reg [16:0] checksum;
-wire [16:0] interA;
-wire [16:0] interB;
+  reg [5:0] wa; //write address for the buffer ram
+  reg [5:0] ra; //read address for the buffer ram
+  reg [2:0] bCnt; //buffer count (8 buffers).  Incremented when
+  //a buffer is filled, decremented when a buffer is written to memory.
+  reg [30:0] S; //source word address (for BEE3)
+  reg [30:0] D; //destination word address
+  reg [30:0] L; //transfer length
+  reg [2:0]  rcnt; //word number during a read transfer
+  reg [3:0]  state;   //control machine
+  reg [2:0]  RCfsm; //ring control machine
+  reg readRequested, writeRequested;
+  reg [7:0] burstLength;
+  reg [16:0] checksum;
+  wire [16:0] interA;
+  wire [16:0] interB;
 
-wire readIssued;
-wire [31:0] readAddress;
-wire [31:0] writeAddress;
-wire [31:0] bufData; //output of buffer memory
-wire [31:0] wq;      //RISC write queue
-wire loadS;
-wire loadD;
-wire loadL;
-wire [16:0] chkBusy;    //controller is busy
-wire [31:0] msgrRingOut;
-wire [3:0] msgrSlotTypeOut;
-wire [3:0] msgrSrcDestOut;
-wire msgrDriveRing;
-wire msgrWaiting;
-wire readRequest;
-wire writeRequest;
-wire decBcnt;
-wire incBcnt;
-wire writeBufFromSrc;
-wire writeBufFromDest;
+  wire readIssued;
+  wire [31:0] readAddress;
+  wire [31:0] writeAddress;
+  wire [31:0] bufData; //output of buffer memory
+  wire [31:0] wq;      //RISC write queue
+  wire loadS;
+  wire loadD;
+  wire loadL;
+  wire [16:0] chkBusy;    //controller is busy
+  wire [31:0] msgrRingOut;
+  wire [3:0] msgrSlotTypeOut;
+  wire [3:0] msgrSrcDestOut;
+  wire msgrDriveRing;
+  wire msgrWaiting;
+  wire readRequest;
+  wire writeRequest;
+  wire decBcnt;
+  wire incBcnt;
+  wire writeBufFromSrc;
+  wire writeBufFromDest;
 
-parameter idle = 0;
-parameter fetchD = 1; //fetch from D
-parameter waitD = 2;  //wait for D data
-parameter fetchS = 3; //fetch first source block
-parameter waitS = 4; //wait for first source
-parameter fetchS1 = 5; //fetch remaining source lines
-parameter waitS1 = 6;   //wait for read data
-parameter waitWriteFetchD1 = 7;  //wait for writes to complete, go to fetchD1
-parameter fetchD1 = 8; //fetch last destination line (if needed)
-parameter waitD1 = 9;  //wait for last destination data
-parameter waitFinalWrite = 10;  //wait for the final write to finish
+  parameter idle = 0;
+  parameter fetchD = 1; //fetch from D
+  parameter waitD = 2;  //wait for D data
+  parameter fetchS = 3; //fetch first source block
+  parameter waitS = 4; //wait for first source
+  parameter fetchS1 = 5; //fetch remaining source lines
+  parameter waitS1 = 6;   //wait for read data
+  parameter waitWriteFetchD1 = 7;  //wait for writes to complete, go to fetchD1
+  parameter fetchD1 = 8; //fetch last destination line (if needed)
+  parameter waitD1 = 9;  //wait for last destination data
+  parameter waitFinalWrite = 10;  //wait for the final write to finish
 
- parameter RCidle = 0;
- parameter RCwaitToken = 1;
- parameter RCwaitN = 2;
- parameter RCsendBoth = 3;
- parameter RCsendRAonly = 4;
- parameter RCsendWA = 5;
- parameter RCsendData = 6; 
+  parameter RCidle = 0;
+  parameter RCwaitToken = 1;
+  parameter RCwaitN = 2;
+  parameter RCsendBoth = 3;
+  parameter RCsendRAonly = 4;
+  parameter RCsendWA = 5;
+  parameter RCsendData = 6; 
 
-parameter Null = 7; //Slot Types
- parameter Token = 1;
- parameter Address = 2;
- parameter WriteData = 3;
- parameter Message = 8;
- parameter Lock = 9;
- parameter LockFail = 10;
+  parameter Null = 7; //Slot Types
+  parameter Token = 1;
+  parameter Address = 2;
+  parameter WriteData = 3;
+  parameter Message = 8;
+  parameter Lock = 9;
+  parameter LockFail = 10;
  
  
 //--------------------------End of declarations--------------------
 
-assign chkBusy = { ~checksum[15:0], ~(state == idle)};
-//if bit 0 = 0, the controller is idle and the checksum is valid
+  assign chkBusy = { ~checksum[15:0], ~(state == idle)};
+  //if bit 0 = 0, the controller is idle and the checksum is valid
 
-assign writeBufFromSrc = (RDdest == whichCore) & (L != 0) & 
-  (
-    ((state == waitS) & (rcnt >= S[2:0])) | //fetching the first source word.
-    (state == waitS1)
+  assign writeBufFromSrc = (RDdest == whichCore) & (L != 0) & 
+    (
+      ((state == waitS) & (rcnt >= S[2:0])) | //fetching the first source word
+      (state == waitS1)
+    );
+  
+  assign writeBufFromDest = (RDdest == whichCore) &
+    (
+      //Write the entire block, even though the final words may be overwritten.
+      (state == waitD)  |  
+      //Fill in the final block with destination data.
+      ((state == waitD1) & (rcnt >= wa)) 
+    );
+
+  assign writeBuf = writeBufFromSrc | writeBufFromDest;
+
+  assign writeRequest = (bCnt != 0);
+
+  assign readRequest = (bCnt < 5) &  //don't overfill buffer
+    ( 
+      (state == fetchD) |
+      (state == fetchS) |
+      (state == fetchS1)|
+      (state == fetchD1)
+    );
+
+  assign readIssued = (RCfsm == RCsendRAonly) | (RCfsm == RCsendBoth);
+
+  always @(posedge clock) if(loadS) wa <= 0;
+    else if((state == fetchS) & readIssued) 
+      wa <= {3'b0, D[2:0]}; //Unaligned destination, reset wa.
+    else if(writeBuf) 
+      wa <= wa + 1;
+
+  assign readBuf = (RCfsm == RCsendData);
+ 
+  always @(posedge clock) if(loadS) ra <= 0;
+    else if(readBuf) ra <= ra + 1;
+
+  assign incBcnt = (
+    //normal case when full block written 
+    ((wa[2:0] == 7) & writeBufFromSrc) |  
+    //block ended befort the first block is full
+    ((state == waitS) & (rcnt == 7) & (L == 0)) |  
+    //final block filled from destination.
+    ((state == waitD1) & (rcnt == 7))  
   );
   
-assign writeBufFromDest = (RDdest == whichCore) &
-  (
-  (state == waitD)  |  //Write the entire block, even though the final words may be overwritten.
-  ((state == waitD1) & (rcnt >= wa)) //Fill in the final block with destination data.
-  );
-
-assign writeBuf = writeBufFromSrc | writeBufFromDest;
-
-assign writeRequest = (bCnt != 0);
-
-assign readRequest = (bCnt < 5) &  //don't overfill buffer
- ( 
-  (state == fetchD) |
-  (state == fetchS) |
-  (state == fetchS1)|
-  (state == fetchD1)
- );
-
-assign readIssued = (RCfsm == RCsendRAonly) | (RCfsm == RCsendBoth);
-
-always @(posedge clock) if(loadS)   wa <= 0;
- else if((state == fetchS) & readIssued) wa <= {3'b0, D[2:0]}; //Unaligned destination, reset wa.
- else if(writeBuf) wa <= wa + 1;
-
-assign readBuf = (RCfsm == RCsendData);
- 
-always @(posedge clock) if(loadS) ra <= 0;
- else if(readBuf) ra <= ra + 1;
-
-assign incBcnt = (
-  ((wa[2:0] == 7) & writeBufFromSrc) |   //normal case when full block written 
-  ((state == waitS) & (rcnt == 7) & (L == 0)) |  //block ended befort the first block is full
-  ((state == waitD1) & (rcnt == 7))  //final block filled from destination.
- );
+  assign decBcnt = (RCfsm == RCsendWA);
   
-assign decBcnt = (RCfsm == RCsendWA);
+  always @(posedge clock) if(reset | loadS) bCnt <= 0;
+    else if(incBcnt & ~decBcnt) bCnt <= bCnt + 1;
+    else if(decBcnt & ~incBcnt) bCnt <= bCnt - 1;
   
-always @(posedge clock) if(reset | loadS) bCnt <= 0;
-  else if(incBcnt & ~decBcnt) bCnt <= bCnt + 1;
-  else if(decBcnt & ~incBcnt) bCnt <= bCnt - 1;
-  
-always @(posedge clock) if (loadS)
-  S <= wq[30:0];
-  else if(writeBufFromSrc) S <= S + 1;
- 
-always @(posedge clock) if (loadD)
-  D <= wq[30:0];
-  else if(RCfsm == RCsendWA) D <= D + 8;
- 
-always @(posedge clock) if (loadL) L <= wq[30:0];
- else if(writeBufFromSrc) L <= L - 1;
+  always @(posedge clock) if (loadS) S <= wq[30:0];
+    else if(writeBufFromSrc) S <= S + 1;
+   
+  always @(posedge clock) if (loadD) D <= wq[30:0];
+    else if(RCfsm == RCsendWA) D <= D + 8;
+   
+  always @(posedge clock) if (loadL) L <= wq[30:0];
+    else if(writeBufFromSrc) L <= L - 1;
 
-always @(posedge clock) if (reset) rcnt <= 0;
-  else if(RDdest == whichCore) rcnt <= rcnt + 1;
+  always @(posedge clock) if (reset) rcnt <= 0;
+    else if(RDdest == whichCore) rcnt <= rcnt + 1;
 
 //The ring controller is identical to the one in the Ethernet
 //-------------------The ring controller FSM:----------------------
