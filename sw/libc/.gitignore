@@ -1,0 +1,15 @@
+*.lst
+*.o
+bee_core_clock.s
+bee_core_eth.s
+bee_core_i.s
+bee_core_n.s
+bee_dcache_command_internal.s
+bee_dcache_empty_all.s
+bee_dcache_empty_rgn.c
+bee_dcache_flush_all.s
+bee_dcache_flush_rgn.c
+bee_lock_cacq.s
+bee_lock_rel.s
+bee_msg_poll_w.s
+bee_msg_send_w.s
