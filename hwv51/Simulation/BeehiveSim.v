@@ -449,25 +449,7 @@ module beehive;
   wire exeN = 
     !beehive.coreBlk[N].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
   always @(negedge clock) if (!reset) begin
-      /*
-      $write("cycle=%5d ",cycle_count);
-      $write("lockaddr=%6d ",beehive.coreBlk[2].riscN.lockUnit.lockAddr);
-      $write("ringIn[5:0]=%6d ",beehive.coreBlk[2].riscN.lockUnit.RingIn[5:0]);
-      $write("mctrlRingIn=%d ", mctrlRingIn);
-      $write("mctrlSlotTypeIn=%d ", mctrlSlotTypeIn);
-      $write("mctrlSourceIn=%d ", mctrlSourceIn);
-      $write("%d ", beehive.coreBlk[1].riscN.msgrDriveRing);
-      $write("%d ", beehive.coreBlk[1].riscN.lockDriveRing);
-      $write("%d ", beehive.coreBlk[1].riscN.barrierDriveRing);
-      $write("%d ", beehive.coreBlk[1].riscN.dcDriveRing);
-      $write("%d ", beehive.coreBlk[1].riscN.coreDriveRing);
-      $display("");    
-      */
-    
-  /*
-    if (beehive.coreBlk[N].riscN.pc >= 4096) begin
-  */
-    if (cycle_count < 2100 /*&& cycle_count > 2000*/) begin
+    /*
       $write("cycle=%5d ",cycle_count);
       //$write("pcx=%x ",beehive.coreBlk[N].riscN.pcx);
       //$write("instx=%x ",beehive.coreBlk[N].riscN.instx);
@@ -496,7 +478,7 @@ module beehive;
       $write("Ring: type=%x, dest=%x, data=%x ", mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
       $write("RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
       $display("");
-    end
+    */
   end
 
   integer k;

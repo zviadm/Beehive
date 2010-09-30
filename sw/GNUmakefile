@@ -15,11 +15,11 @@ CWARNS	:= -Wformat=2 -Wmissing-noreturn -Wwrite-strings -Wshadow \
 	-Wswitch-default -Wextra -Wmissing-prototypes \
 	-Wmissing-declarations -Werror
 
-INCLUDES	:= -I$(APIARY)/include -I.
+INCLUDES	:= -Iinclude -I.
 COMFLAGS	:= -fms-extensions -quiet -fno-builtin -msavertn -O2
 CFLAGS		:= $(CWARNS) -std=c99 $(COMFLAGS) $(INCLUDES)
 ASFLAGS		:= -datarota=2 $(INCLUDES)
-LDFLAGS		:= -codebase=1000 -datafloat $(APIARY)/lib/base.o
+LDFLAGS		:= -codebase=1000 -datafloat libc/base.o
 
 include shared/Makefrag
 
@@ -41,7 +41,13 @@ BINS	:= $(O)/hello.img  \
 	$(O)/barriertest.img   \
 	$(O)/coherencytest.img
 
-all: $(OBJDIRS) $(BINS)
+all: xxlibc $(OBJDIRS) $(BINS)
+
+xxlibc:
+	cd libc; make
+
+sim: $(O)/$(I).img
+	cd ../hwv51/Simulation; make simulate IMG=../../sw/$(O)/$(I).img
 
 $(O)/%.img: $(O)/%.out
 	@echo "IMG       $@"
@@ -49,11 +55,11 @@ $(O)/%.img: $(O)/%.out
 
 $(O)/%.out: $(O)/%.o $(SHAREDOBJS) $(LIBOBJS)
 	@echo "LD       $@"
-	$(LD) $(LDFLAGS) -map $@.map -o $@ $^ -L$(APIARY)/lib -lc -lgcc
+	$(LD) $(LDFLAGS) -map $@.map -o $@ $^ -Llibc -lc -lgcc
 
 $(O)/%.out: $(O)/test/%.o $(SHAREDOBJS) $(LIBOBJS)
 	@echo "LD       $@"
-	$(LD) $(LDFLAGS) -map $@.map -o $@ $^ -L$(APIARY)/lib -lc -lgcc
+	$(LD) $(LDFLAGS) -map $@.map -o $@ $^ -Llibc -lc -lgcc
 
 $(O)/%.o: $(O)/%.s
 	@echo "AS       $@"
@@ -80,6 +86,8 @@ copy: $(O)/$(I).img
 
 clean:
 	$(Q)rm -rf $(O)
+	$(Q)cd libc; make clean
+	$(Q)cd ../hwv51/Simulation/; make clean
 
 $(OBJDIRS): 
 	$(Q)mkdir -p $@

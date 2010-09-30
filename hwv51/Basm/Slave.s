@@ -22,8 +22,12 @@ linkAddr = $3
 addr     = $4
 rqCount  = $5
 
-invalWordAddress = 0x1ffffc00 //(2GB - 4KB)/4.  used for call
-invalByteAddress = 0x7ffff000 //used when building the table
+memsize = 0x80000000   // size of main memory = 2GB
+invalByteAddress = memsize - 0x1000 //used when building the table
+invalWordAddress = (invalByteAddress LSR 2) // used to call
+	
+//invalWordAddress = 0x1ffffc00 //(2GB - 4KB)/4.  
+//invalByteAddress = 0x7ffff000 //used when building the table
 
 // inv=0 cnt=127 line=0 dev=3
 FLUSHALL = (0 LSL 19) + (127 LSL 12) + (0 LSL 5) + (3 LSL 2) + 2

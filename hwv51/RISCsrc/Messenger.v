@@ -83,9 +83,12 @@ module Messenger(
   parameter Message = 8;
 
 //------------------End of Declarations-----------------------
-  //wire normalCore = (whichCore > 4'b1) & (whichCore < CopyCore - 4'b1);
+  wire normalCore = (whichCore > 4'b1) & (whichCore < CopyCore - 4'b1);
   assign firstMessageWord = 
-    ((SlotTypeIn == Message) & (RingIn[17:14] == whichCore)) & (inLen == 0);
+    (((SlotTypeIn == Message) & (RingIn[17:14] == whichCore)) | 
+     ((SlotTypeIn == Message) & (SourceIn != whichCore) & 
+      (RingIn[17:14] == RingIn[13:10]) & normalCore)) & 
+    (inLen == 0);
  
   always @(posedge clock) if (reset) inLen <= 0;
     else if (inLen != 0) inLen <= inLen - 1;

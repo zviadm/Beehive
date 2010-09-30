@@ -1,6 +1,7 @@
+ 
 // © Copyright Microsoft Corporation, 2008, 2009
 
-ARPipAddress =  0xc0a80001 //192.168.0.1 - TFTP on private network
+ARPipAddress =  0xc0a80001 //192.168.0.1 - local TFTPD
 	
 //register names:
 void   = $0
@@ -93,8 +94,12 @@ STARTMSG    = (0 LSL 15) + (4 LSL 2) + 2
 //reestablished whenever the master flushes its data
 //cache.
 
-invalWordAddress = 0x1ffffc00 //(2GB - 4KB)/4.  used to call
-invalByteAddress = 0x7ffff000 //used when building the table
+memsize = 0x80000000   // size of main memory = 2GB
+invalByteAddress = memsize - 0x1000 //used when building the table
+invalWordAddress = (invalByteAddress LSR 2) // used to call
+	
+//invalWordAddress = 0x1ffffc00 //(2GB - 4KB)/4.  
+//invalByteAddress = 0x7ffff000 //used when building the table
 
 
 
@@ -494,6 +499,11 @@ start:
     long_ld  stkp, stack            // initialize stkp
 	 ld       targetCore, 2          // initialize targetcore
 
+//cjt: store end of memory address in 0xffc
+    long_ld addr,0xffc
+    aqw_ld  void,addr
+    long_ld wq,invalByteAddress
+
 //read locations 0 - 0xffc and write them to themselves,
 //thereby making the data cache dirty.
     sub   addr, zero, 32
@@ -505,11 +515,13 @@ dirtyLoop:
     sub     count, count, 1
     jnz     dirtyLoop
 
-
+    // ensure Master D cache flush before slave starts	
+    aqw_long_ld  void,FLUSHALL
+	
 // ----------------------------------------
 // build a table of powers of 10
 // ----------------------------------------
-    long_ld  Base, dectable-datawordsize
+    long_ld	  Base, dectable-datawordsize
     ld       N, decwords
     ld       t3, 1
 decloop:
@@ -1272,7 +1284,6 @@ getNextWord:
     jnz        getNextWord
 
     j ret
-
     // If we transmitted an IP packet, check that the received packet
     // it is from the TFPT server (ARPipAddress).
     aqr_add		void, md2, (3 * datawordsize)
@@ -1651,9 +1662,8 @@ TFTPclient:
     ld         void, rq
     jm         ret    //failed. Return to caller
 	 
-	ld         N, 5
-	call       printNum
-
+	 ld         N, 5
+	 call       printNum
 
 //Now we fill in the TFTP request and ACK messages. Ethernet header first
     long_ld  t1, (packetBuffer - data) + (2 * datawordsize) //Sender hardware address becomes destination MAC address

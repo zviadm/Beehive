@@ -1,0 +1,53 @@
+<object file="basemc.o" coderota="0" datarota="2">
+  <segment name=".text" kind="code" rota="00000000" ibase="00000000" isize="0000000c" alignbic="00000000">
+    <w v="000000c5" />
+    <w v="07400a07" />
+    <w v="ee140300" />
+    <w v="c6003e85" />
+    <w v="c6140301" />
+    <w v="00000003" />
+    <w v="f7000305" />
+    <w v="e7006005" />
+    <w v="00000003" />
+    <w v="f0000308" />
+    <w v="00020105" />
+    <w v="f800064c" />
+    <ep i="00000005">
+      <bin op="bic">
+        <refseg name=".data" off="00004400" />
+        <val v="0000000f" />
+      </bin>
+    </ep>
+    <ep i="00000006">
+      <bin op="rol">
+        <bin op="bic">
+          <refseg name=".data" off="00004400" />
+          <val v="fffffff0" />
+        </bin>
+        <val v="0000000a" />
+      </bin>
+    </ep>
+    <ep i="00000008">
+      <bin op="bic">
+        <refsym name="_main" />
+        <val v="0000000f" />
+      </bin>
+    </ep>
+    <ep i="00000009">
+      <bin op="rol">
+        <bin op="bic">
+          <refsym name="_main" />
+          <val v="fffffff0" />
+        </bin>
+        <val v="0000000a" />
+      </bin>
+    </ep>
+  </segment>
+  <segment name=".data" kind="data" rota="00000002" ibase="00000000" isize="00001000" alignbic="0000007f" />
+  <segment name=".bss" kind="data" rota="00000002" ibase="00000000" isize="00000000" alignbic="00000000" />
+  <local name="." seg=".data" off="00004000" />
+  <globl name="_exit" seg=".text" off="0000000a" />
+  <extrn name="_main" />
+  <globl name="main" seg=".text" off="00000000" />
+  <local name="stack" seg=".data" off="00004000" />
+</object>

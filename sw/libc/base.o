@@ -1,0 +1,50 @@
+<object file="base.o" coderota="0" datarota="2">
+  <segment name=".text" kind="code" rota="00000000" ibase="00000000" isize="00002000" alignbic="0000007f">
+    <w v="000000c5" />
+    <w v="00000003" />
+    <w v="f7000305" />
+    <w v="00000003" />
+    <w v="f0000308" />
+    <w v="00020105" />
+    <w v="f800064c" />
+    <ep i="00000001">
+      <bin op="bic">
+        <refseg name=".data" off="00000320" />
+        <val v="0000000f" />
+      </bin>
+    </ep>
+    <ep i="00000002">
+      <bin op="rol">
+        <bin op="bic">
+          <refseg name=".data" off="00000320" />
+          <val v="fffffff0" />
+        </bin>
+        <val v="0000000a" />
+      </bin>
+    </ep>
+    <ep i="00000003">
+      <bin op="bic">
+        <refsym name="_main" />
+        <val v="0000000f" />
+      </bin>
+    </ep>
+    <ep i="00000004">
+      <bin op="rol">
+        <bin op="bic">
+          <refsym name="_main" />
+          <val v="fffffff0" />
+        </bin>
+        <val v="0000000a" />
+      </bin>
+    </ep>
+  </segment>
+  <segment name=".data" kind="data" rota="00000002" ibase="00000000" isize="000000c8" alignbic="00000000" />
+  <segment name=".bss" kind="data" rota="00000002" ibase="00000000" isize="00000000" alignbic="00000000" />
+  <local name="." seg=".data" off="00000320" />
+  <globl name="_exit" seg=".text" off="00000005" />
+  <extrn name="_main" />
+  <globl name="_saveArea" seg=".text" off="00000080" />
+  <globl name="main" seg=".text" off="00000000" />
+  <local name="saveAreaEnd" seg=".text" off="00002000" />
+  <local name="stack" seg=".data" off="00000320" />
+</object>

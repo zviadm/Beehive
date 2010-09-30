@@ -1,7 +1,7 @@
 all: simulate
 
 simulate: Mastercode.hex Slavecode.hex
-	python img2hex.py hello.img > main.hex
+	python img2hex.py $(IMG) > main.hex
 
 Mastercode.hex: Master.s
 	mono ../Basm/Basm.exe -code1 -data4 Master.s

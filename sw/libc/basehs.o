@@ -1,0 +1,31 @@
+<object file="basehs.o" coderota="0" datarota="2">
+  <segment name=".text" kind="code" rota="00000000" ibase="00000000" isize="00000006" alignbic="00000000">
+    <w v="000000c5" />
+    <w v="07001245" />
+    <w v="00000003" />
+    <w v="f0000308" />
+    <w v="00020105" />
+    <w v="f800064c" />
+    <ep i="00000002">
+      <bin op="bic">
+        <refsym name="_main" />
+        <val v="0000000f" />
+      </bin>
+    </ep>
+    <ep i="00000003">
+      <bin op="rol">
+        <bin op="bic">
+          <refsym name="_main" />
+          <val v="fffffff0" />
+        </bin>
+        <val v="0000000a" />
+      </bin>
+    </ep>
+  </segment>
+  <segment name=".data" kind="data" rota="00000002" ibase="00000000" isize="00000000" alignbic="00000000" />
+  <segment name=".bss" kind="data" rota="00000002" ibase="00000000" isize="00000000" alignbic="00000000" />
+  <local name="." seg=".text" off="00000006" />
+  <globl name="_exit" seg=".text" off="00000004" />
+  <extrn name="_main" />
+  <globl name="main" seg=".text" off="00000000" />
+</object>
