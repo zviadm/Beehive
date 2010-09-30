@@ -494,36 +494,40 @@ module beehive;
   */
 
   // follow execution in core N
-  localparam N = 1;
+  localparam N = 2;
   // true on cycles where core N is executing an instruction (not stalled, not anulled)
   wire exeN = !beehive.coreBlk[N].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
   always @(negedge clock) if (!reset) begin
-    $write("cycle=%5d ",cycle_count);
-    //$write("pcx=%x ",beehive.coreBlk[N].riscN.pcx);
-    //$write("instx=%x ",beehive.coreBlk[N].riscN.instx);
-    $write("pc=%x ",beehive.coreBlk[N].riscN.pc);
-    $write("inst=%x ",beehive.coreBlk[N].riscN.inst);
-    $write("outx=%x ",beehive.coreBlk[N].riscN.outx);
-    $write("out=%x/%x ",beehive.coreBlk[N].riscN.out,beehive.coreBlk[N].riscN.wwq);
-    $write("n/s=%x/%x ",beehive.coreBlk[N].riscN.nullify,beehive.coreBlk[N].riscN.stall);
-    //$write("aq=%x/%x/%x ",beehive.coreBlk[N].riscN.aqrd,beehive.coreBlk[N].riscN.aq,beehive.coreBlk[N].riscN.aqe);
-    //$write("wq=%x/%x%x%x ",beehive.coreBlk[N].riscN.wq,|beehive.coreBlk[N].riscN.rwq,beehive.coreBlk[N].riscN.wwq,beehive.coreBlk[N].riscN.wqe);
-    //$write("wq: %x%x%x %x %x %x ",beehive.coreBlk[N].riscN.writeQueue.rst,beehive.coreBlk[N].riscN.writeQueue.rd_en,beehive.coreBlk[N].riscN.writeQueue.wr_en,beehive.coreBlk[N].riscN.writeQueue.ra,beehive.coreBlk[N].riscN.writeQueue.wa,beehive.coreBlk[N].riscN.writeQueue.count);
-    //$write("state=%x ",beehive.coreBlk[N].riscN.lockUnit.state);
-    //$write("locked=%x ",beehive.coreBlk[N].riscN.lockUnit.locked);
-    //$write("rqe=%x ",beehive.coreBlk[N].riscN.rqe);
-    //$write("Ihit=%x ",beehive.coreBlk[N].riscN.Ihit);
-    //$write("writeDTag=%x ",beehive.coreBlk[N].riscN.dCacheN.writeDtag);
-    //$write("web=%x ",beehive.coreBlk[N].riscN.dCacheN.web);
-    //$write("cnt=%x ",beehive.coreBlk[N].riscN.dCacheN.cnt);
-    //$write("state=%x ",beehive.coreBlk[N].riscN.dCacheN.state);
-    //$write("lineCnt=%x ",beehive.coreBlk[N].riscN.dCacheN.lineCnt);
-    //$write("[1] pc=%x/%x/%x ",beehive.coreBlk[1].riscN.pc,beehive.coreBlk[1].riscN.nullify,beehive.coreBlk[1].riscN.stall);
-    //$write("[2] pc=%x/%x/%x ",beehive.coreBlk[2].riscN.pc,beehive.coreBlk[2].riscN.nullify,beehive.coreBlk[2].riscN.stall);
-    //$write("[3] pc=%x/%x/% ",beehive.coreBlk[3].riscN.pc,beehive.coreBlk[3].riscN.nullify,beehive.coreBlk[3].riscN.stall);
-    $write("Ring: type=%x, dest=%x, data=%x ",RingSlotType,RingSrcDest,RingData);
-    $write("RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
-    $display("");
+  /*
+    if (cycle_count % 10000 == 0) begin
+      $write("cycle=%5d ",cycle_count);
+      //$write("pcx=%x ",beehive.coreBlk[N].riscN.pcx);
+      //$write("instx=%x ",beehive.coreBlk[N].riscN.instx);
+      $write("pc=%x ",beehive.coreBlk[N].riscN.pc);
+      $write("inst=%x ",beehive.coreBlk[N].riscN.inst);
+      $write("outx=%x ",beehive.coreBlk[N].riscN.outx);
+      $write("out=%x/%x ",beehive.coreBlk[N].riscN.out,beehive.coreBlk[N].riscN.wwq);
+      $write("n/s=%x/%x ",beehive.coreBlk[N].riscN.nullify,beehive.coreBlk[N].riscN.stall);
+      //$write("aq=%x/%x/%x ",beehive.coreBlk[N].riscN.aqrd,beehive.coreBlk[N].riscN.aq,beehive.coreBlk[N].riscN.aqe);
+      //$write("wq=%x/%x%x%x ",beehive.coreBlk[N].riscN.wq,|beehive.coreBlk[N].riscN.rwq,beehive.coreBlk[N].riscN.wwq,beehive.coreBlk[N].riscN.wqe);
+      //$write("wq: %x%x%x %x %x %x ",beehive.coreBlk[N].riscN.writeQueue.rst,beehive.coreBlk[N].riscN.writeQueue.rd_en,beehive.coreBlk[N].riscN.writeQueue.wr_en,beehive.coreBlk[N].riscN.writeQueue.ra,beehive.coreBlk[N].riscN.writeQueue.wa,beehive.coreBlk[N].riscN.writeQueue.count);
+      //$write("state=%x ",beehive.coreBlk[N].riscN.lockUnit.state);
+      //$write("locked=%x ",beehive.coreBlk[N].riscN.lockUnit.locked);
+      //$write("rqe=%x ",beehive.coreBlk[N].riscN.rqe);
+      //$write("Ihit=%x ",beehive.coreBlk[N].riscN.Ihit);
+      //$write("writeDTag=%x ",beehive.coreBlk[N].riscN.dCacheN.writeDtag);
+      //$write("web=%x ",beehive.coreBlk[N].riscN.dCacheN.web);
+      //$write("cnt=%x ",beehive.coreBlk[N].riscN.dCacheN.cnt);
+      //$write("state=%x ",beehive.coreBlk[N].riscN.dCacheN.state);
+      //$write("lineCnt=%x ",beehive.coreBlk[N].riscN.dCacheN.lineCnt);
+      //$write("[1] pc=%x/%x/%x ",beehive.coreBlk[1].riscN.pc,beehive.coreBlk[1].riscN.nullify,beehive.coreBlk[1].riscN.stall);
+      //$write("[2] pc=%x/%x/%x ",beehive.coreBlk[2].riscN.pc,beehive.coreBlk[2].riscN.nullify,beehive.coreBlk[2].riscN.stall);
+      //$write("[3] pc=%x/%x/% ",beehive.coreBlk[3].riscN.pc,beehive.coreBlk[3].riscN.nullify,beehive.coreBlk[3].riscN.stall);
+      $write("Ring: type=%x, dest=%x, data=%x ",RingSlotType,RingSrcDest,RingData);
+      $write("RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
+      $display("");
+    end
+  */
   end
 
 

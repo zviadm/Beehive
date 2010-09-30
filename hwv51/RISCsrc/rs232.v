@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-// © Copyright Microsoft Corporation, 2008
+//  Copyright Microsoft Corporation, 2008
 
 module rs232 #(parameter bitTime = 868) (
 //signals common to all local I/O devices:
@@ -82,8 +82,9 @@ The character is ~sr[8:1].  When the system reads the character (readSR = 1), th
   a counter to count one bit time, and a 10 bit counter to send 10 bits (start, 8 data, stop)
   */
   always @(posedge clock)
-    if (writeTx) bitCnt <= 12;
-	 else if((bitCnt > 0) & (txCounter == bitTime)) bitCnt <= bitCnt - 1;
+    if (reset) bitCnt <= 0;	// cjt
+    else if (writeTx) bitCnt <= 12;
+    else if ((bitCnt > 0) & (txCounter == bitTime)) bitCnt <= bitCnt - 1;
 	 
     always @(posedge clock)
 	   if (writeTx | (txCounter == bitTime)) txCounter <= 0;
@@ -100,6 +101,6 @@ The character is ~sr[8:1].  When the system reads the character (readSR = 1), th
    assign txReady = (bitCnt == 0);
 
   // The cycle counter.  Just counts clock cyles since startup.
-  always @(posedge clock) cycleCounter <=  cycleCounter + 1;
-  
- endmodule
+  always @(posedge clock) cycleCounter <= reset ? 0 : cycleCounter + 1;
+
+endmodule

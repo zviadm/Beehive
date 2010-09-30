@@ -401,7 +401,11 @@ assign SrcDestOut = msgrDriveRing? msgrSrcDestOut :
 
   assign rrq =   (ra == 29) & ~rqe & ~nullify & ~stall;
   assign pcInc = pcx + 1;
-  assign pcMux = doJump ? outx[30:0] : pcInc;
+  // modified by cjt: make pcMux be *exactly* what will be loaded into pcx.
+  // this will make the Icache much happier during cache hits while stalled!
+  assign pcMux = (reset | zeroPCsetNullify) ? 0 :
+                 stall ? pcx :
+                 doJump ? outx[30:0] : pcInc;
 
   assign weRF = ~stall & ~nullify & ~lli & ~jumpOp & (wa != 0);
   assign fwdA = weRF & (wa == instx[31:27]);
@@ -423,10 +427,7 @@ assign SrcDestOut = msgrDriveRing? msgrSrcDestOut :
       if(fwdB) b <= outx; else b <= bx;
     end
   
-  always@ (posedge clock)
-    //pcx is the start of the pipeline, so it is zapped on a breakpoint.
-    if (reset | zeroPCsetNullify) pcx <= 0; 
-    else if(~stall) pcx <= pcMux;
+  always @(posedge clock) pcx <= pcMux;
   
   assign doLoadLink = ~stall & ~nullify &
     (lli |
