@@ -39,7 +39,8 @@ BINS	:= $(O)/hello.img  \
 	$(O)/meterstest.img    \
 	$(O)/bcasttest.img     \
 	$(O)/barriertest.img   \
-	$(O)/coherencytest.img
+	$(O)/coherencytest.img \
+	$(O)/simulationtest.img 
 
 all: xxlibc $(OBJDIRS) $(BINS)
 

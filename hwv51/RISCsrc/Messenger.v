@@ -86,7 +86,7 @@ module Messenger(
   wire normalCore = (whichCore > 4'b1) & (whichCore < CopyCore - 4'b1);
   assign firstMessageWord = 
     (((SlotTypeIn == Message) & (RingIn[17:14] == whichCore)) | 
-     ((SlotTypeIn == Message) & (SourceIn != whichCore) & 
+     ((SlotTypeIn == Message) & (RingIn[17:14] != whichCore) & 
       (RingIn[17:14] == RingIn[13:10]) & normalCore)) & 
     (inLen == 0);
  
@@ -119,7 +119,7 @@ module Messenger(
   assign msgrSlotTypeOut = Message;    
   assign msgrRingOut =     
     ((state == waitToken) & (msgrAcquireToken)) ? 
-      // Send Header, 4 bits of dest, 4 bits of source, 6 bits of length
+      // Send Header, 4 bits of dest, source and type, 6 bits of length
       {14'b0, aq[6:3], whichCore, aq[16:7]} :
     (state == sendWQ) ? wq : // Message Payload
     32'b0;

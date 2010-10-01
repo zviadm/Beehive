@@ -125,7 +125,7 @@ generate
 
     integer k;
     initial begin
-      for (k = 0; k < 1024; k = k + 1) instCache[k] = 0;
+      for (k = 0; k < 1024; k = k + 1) instCache[k] = 32'hDEADBEEF;
       $readmemh(I_INIT,instCache);
     end
   end
@@ -187,7 +187,7 @@ generate
 
     integer k;
     initial begin
-      for (k = 0; k < 1024; k = k + 1) dataCache[k] = 0;
+      for (k = 0; k < 1024; k = k + 1) dataCache[k] = 32'hDEADBEEF;
       $readmemh(D_INIT,dataCache);
     end
   end
