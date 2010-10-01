@@ -449,7 +449,7 @@ module beehive;
   wire exeN = 
     !beehive.coreBlk[N].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
   always @(negedge clock) if (!reset) begin
-    /*
+    if (cycle_count <= 1000) begin
       $write("cycle=%5d ",cycle_count);
       //$write("pcx=%x ",beehive.coreBlk[N].riscN.pcx);
       //$write("instx=%x ",beehive.coreBlk[N].riscN.instx);
@@ -478,7 +478,7 @@ module beehive;
       $write("Ring: type=%x, dest=%x, data=%x ", mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
       $write("RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
       $display("");
-    */
+    end
   end
 
   integer k;
@@ -496,7 +496,7 @@ module beehive;
     reset = 1;
 
     // initialize lower part of main memory, assume high part doesn't need it
-    for (k = 0; k < (1 << MBITS); k = k + 1) mem[k] = 0;
+    //for (k = 0; k < (1 << MBITS); k = k + 1) mem[k] = 0;
     $readmemh("../Simulation/main.hex", mem);
 
     // deassert reset after ring has cleared (ncores*10 + 5 time units)

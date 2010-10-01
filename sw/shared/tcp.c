@@ -55,7 +55,7 @@ typedef struct MSSOption {
   Uint16 mss;             // Maximum receive segment size.
 } MSSOption;
 
-#define maxRecvWindow 8000
+#define maxRecvWindow 32000
 
 typedef struct TransmitElem { // (re)transmission queue element
   IP *buf;
@@ -137,7 +137,7 @@ Uint16 payloadChecksum(IP *buf, Uint32 len);
 static void tcpInit();
 
 static void tcpSend(TCP tcp, IP *buf, Uint32 len, Uint32 bufSeq,
-        Uint16 flags) {
+                    Uint16 flags) {
   // Transmit the buffer as a TCP packet.
   // "len" is TCP payload length.
   // Assumes tcpMutex is held
@@ -162,8 +162,7 @@ static void tcpSend(TCP tcp, IP *buf, Uint32 len, Uint32 bufSeq,
   tcpHeader->misc = htons(flags | ((hSize >> 2) << 12));
   tcpHeader->window = htons(tcp->recvWindow);
   tcpHeader->checksum = 0;
-  tcpHeader->checksum = payloadChecksum((IP *)buf,
-          len + tcpHeaderSize(buf));
+  tcpHeader->checksum = payloadChecksum((IP *)buf, len + tcpHeaderSize(buf));
   ip_send(buf, len + tcpHeaderSize(buf), 0, 0);
 }
 
@@ -173,8 +172,8 @@ static void sendSmall(TCP tcp, Uint32 seq, Uint16 flags) {
   tcpSend(tcp, tcpSmallBuf, 0, seq, flags);
 }
 
-static TCP createTcp(TCPPort localPort, IPAddr remoteAddr,
-          TCPPort remotePort) {
+static TCP createTcp(TCPPort localPort, IPAddr remoteAddr, 
+                     TCPPort remotePort) {
   // Create a connection control block.
   // Assumes tcpMutex is held.
   // Defers allocation of tcp->recvBuf until we receive some data.
@@ -215,9 +214,9 @@ static void deleteTcp(TCP tcp) {
   for (this = tcpActive; this != NULL; this = this->nextActive) {
     if (this == tcp) {
       if (prev) {
-  prev->nextActive = this->nextActive;
+        prev->nextActive = this->nextActive;
       } else {
-  tcpActive = this->nextActive;
+        tcpActive = this->nextActive;
       }
       break;
     } else {
@@ -245,15 +244,15 @@ static void deleteTcp(TCP tcp) {
 }
 
 static TCP findTcp(TCPPort localPort, IPAddr remoteAddr,
-       TCPPort remotePort) {
+                   TCPPort remotePort) {
   // Find existing connection, if any.
   // Assumes tcpMutex is held.
   // TEMP: a hash table would be a good idea.
   TCP tcp;
   for (tcp = tcpActive; tcp != NULL; tcp = tcp->nextActive) {
     if (tcp->localPort == localPort &&
-  tcp->remoteAddr == remoteAddr &&
-  tcp->remotePort == remotePort) break;
+        tcp->remoteAddr == remoteAddr &&
+        tcp->remotePort == remotePort) break;
   }
   return tcp;
 }
@@ -291,7 +290,7 @@ static void pruneTransmitQueue(TCP tcp) {
 }
 
 void tcp_listen(TCPPort localPort, IPAddr remoteAddr, TCPPort remotePort,
-    int backlog) {
+                int backlog) {
   tcpInit();
   mutex_acquire(tcpMutex);
   Listener listener;
@@ -320,18 +319,18 @@ void tcp_listen(TCPPort localPort, IPAddr remoteAddr, TCPPort remotePort,
 }
 
 TCP tcp_accept(TCPPort localPort, IPAddr *remoteAddr, TCPPort *remotePort,
-         Microsecs microsecs) {
+               Microsecs microsecs) {
   tcpInit();
   TCP tcp = NULL;
   mutex_acquire(tcpMutex);
   while (!tcp) {
     Listener listener;
     while ((listener = tcpListeners[localPort]) &&
-     (!listener->pending ||
-      listener->pending->state == stateSynReceived)) {
+           (!listener->pending ||
+            listener->pending->state == stateSynReceived)) {
       if (condition_timedWait(tcpAcceptCond, tcpMutex, microsecs)) {
-  listener = NULL;
-  break;
+        listener = NULL;
+        break;
       }
     }
     if (!listener) break;
@@ -352,7 +351,7 @@ TCP tcp_accept(TCPPort localPort, IPAddr *remoteAddr, TCPPort *remotePort,
 }
 
 TCP tcp_connect(TCPPort localPort, IPAddr remoteAddr, TCPPort remotePort,
-    Microsecs microsecs) {
+                Microsecs microsecs) {
   tcpInit();
   if (remoteAddr == 0 || remotePort == 0) return NULL;
   // TEMP: should also reject broadcast and multicast addresses
@@ -361,7 +360,7 @@ TCP tcp_connect(TCPPort localPort, IPAddr remoteAddr, TCPPort remotePort,
     for (;;) {
       localPort = rand_r(&tcpSeed) & 65535;
       if (localPort > 1024 &&
-    !findTcp(localPort, remoteAddr, remotePort)) break;
+          !findTcp(localPort, remoteAddr, remotePort)) break;
     }
   }
   TCP tcp = createTcp(localPort, remoteAddr, remotePort);
@@ -423,24 +422,24 @@ static void retransmitter(void *arg) {
     for (TCP tcp = tcpActive; tcp != NULL; tcp = tcp->nextActive) {
       switch (tcp->state) {
       case stateSynSent:
-  sendSmall(tcp, tcp->sendInit, flagSyn);
-  break;
+        sendSmall(tcp, tcp->sendInit, flagSyn);
+        break;
       case stateSynReceived:
-  sendSmall(tcp, tcp->sendInit, flagSyn | flagAck);
-  break;
+        sendSmall(tcp, tcp->sendInit, flagSyn | flagAck);
+        break;
       case stateClosed:
-  break;
+        break;
       default: {
-    TransmitElem *elem = tcp->transmitHead;
-    if (elem != tcp->transmitTail) {
-      if (elem->sentAt - elem->firstSentAt > 20 * 1000 * 1000) {
-        abortInner(tcp);
-        break; // from loop
-      }
-      transmitElemNow(tcp, elem);
-    }
-    break;
-  }
+        TransmitElem *elem = tcp->transmitHead;
+        if (elem != tcp->transmitTail) {
+          if (elem->sentAt - elem->firstSentAt > 20 * 1000 * 1000) {
+            abortInner(tcp);
+            break; // from loop
+          }
+          transmitElemNow(tcp, elem);
+        }
+        break;
+        }
       }
     }
   }
@@ -477,25 +476,25 @@ int tcp_send(TCP tcp, Octet *buf, Uint32 len) {
       Uint32 offset = sizeof(TCPHeader) + elem->len;
       Uint32 amount = ipPayloadSize - offset;
       if (amount == 0) {
-  sendData(tcp);
+        sendData(tcp);
       } else {
-  if (amount > len) amount = len;
-  Uint32 limit = elem->seq + elem->len + amount;
-  if (seqComp(limit, tcp->sendUnack + tcp->sendWindow) > 0) {
-    printf("Send blocked at %d for %d\n",
-     tcp->sendUnack + tcp->sendWindow - tcp->sendInit,
-     limit - tcp->sendInit);
-    // TEMP: we need to do zero-window probing
-    condition_wait(tcpSendCond, tcpMutex);
-  } else {
-    bcopy(buf, (Octet *)&(elem->buf->data) + offset, amount);
-    len -= amount;
-    buf += amount;
-    elem->len += amount;
-    elem->sentAt = 0;
-    tcp->sendNext += amount;
-    sent += amount;
-  }
+        if (amount > len) amount = len;
+        Uint32 limit = elem->seq + elem->len + amount;
+        if (seqComp(limit, tcp->sendUnack + tcp->sendWindow) > 0) {
+          printf("Send blocked at %d for %d\n",
+          tcp->sendUnack + tcp->sendWindow - tcp->sendInit,
+          limit - tcp->sendInit);
+          // TEMP: we need to do zero-window probing
+          condition_wait(tcpSendCond, tcpMutex);
+        } else {
+          bcopy(buf, (Octet *)&(elem->buf->data) + offset, amount);
+          len -= amount;
+          buf += amount;
+          elem->len += amount;
+          elem->sentAt = 0;
+          tcp->sendNext += amount;
+          sent += amount;
+        }
       }
       break;
     }
@@ -538,7 +537,7 @@ void tcp_shutdown(TCP tcp) {
     tcp->transmitTail->flag = flagFin;
     sendData(tcp);
     tcp->state = (tcp->state == stateCloseWait ? stateLastAck :
-      stateFinWait1);
+                  stateFinWait1);
     break;
   }
   mutex_release(tcpMutex);
@@ -560,16 +559,16 @@ int tcp_recv(TCP tcp, Octet *buf, Uint32 len) {
       case stateTimeWait:
       case stateTimeWaitClosed:
       case stateClosed:
-  len = 0; // force eventual exit from loop
-  if (tcp->failed) recvd = tcpConnectionDied;
-  break;
+        len = 0; // force eventual exit from loop
+        if (tcp->failed) recvd = tcpConnectionDied;
+          break;
       default:
-  condition_wait(tcpRecvCond, tcpMutex);
-  break; // from switch, not loop
+        condition_wait(tcpRecvCond, tcpMutex);
+        break; // from switch, not loop
       }
     } else {
       if (tcp->recvBufStart + amount > maxRecvWindow) {
-  amount = maxRecvWindow - tcp->recvBufStart;
+        amount = maxRecvWindow - tcp->recvBufStart;
       }
       bcopy(tcp->recvBuf + tcp->recvBufStart, buf, amount);
       tcp->recvBufStart += amount;
@@ -579,10 +578,10 @@ int tcp_recv(TCP tcp, Octet *buf, Uint32 len) {
       len -= amount;
       recvd += amount;
       if (tcp->recvWindow < 1460 &&
-    maxRecvWindow - tcp->recvBufCount >= 1460) {
-  // update the other end's transmit window if it was too small
-  tcp->recvWindow = maxRecvWindow - tcp->recvBufCount;
-  sendSmall(tcp, tcp->transmitted, flagAck);
+          maxRecvWindow - tcp->recvBufCount >= 1460) {
+        // update the other end's transmit window if it was too small
+        tcp->recvWindow = maxRecvWindow - tcp->recvBufCount;
+        sendSmall(tcp, tcp->transmitted, flagAck);
       }
     }
   }
@@ -609,8 +608,8 @@ void tcp_close(TCP tcp) {
   mutex_acquire(tcpMutex);
   // Wait for ack of our FIN, if we've sent one.
   while (tcp->state == stateFinWait1 ||
-   tcp->state == stateClosing ||
-   tcp->state == stateLastAck) {
+         tcp->state == stateClosing ||
+         tcp->state == stateLastAck) {
     condition_wait(tcpCloseCond, tcpMutex);
   }
   switch (tcp->state) {
@@ -691,12 +690,12 @@ static int tcpProcessData(TCP tcp, IP *buf) {
       if (dest1 >= maxRecvWindow) dest1 -= maxRecvWindow;
       int part1 = amount;
       if (dest1 + part1 > maxRecvWindow) {
-  part1 = maxRecvWindow - dest1;
+        part1 = maxRecvWindow - dest1;
       }
       Octet *data = tcpPayload(buf) + base;
       bcopy(data, tcp->recvBuf + dest1, part1);
       if (part1 < amount) {
-  bcopy(data + part1, tcp->recvBuf, amount - part1);
+        bcopy(data + part1, tcp->recvBuf, amount - part1);
       }
       tcp->recvBufCount += amount;
       tcp->recvNext += amount;
@@ -714,11 +713,11 @@ static int tcpProcessData(TCP tcp, IP *buf) {
   if (flags & flagFin) {
     if (seq == tcp->recvNext) { // if we consumed all the data bytes
       if (tcp->state == stateEstablished) {
-  tcp->state = stateCloseWait;
+        tcp->state = stateCloseWait;
       } else if (tcp->state == stateFinWait1) {
-  tcp->state = stateClosing;
+        tcp->state = stateClosing;
       } else if (tcp->state == stateFinWait2) {
-  tcp->state = stateTimeWait;
+        tcp->state = stateTimeWait;
       } // else ignore it
       tcp->recvNext++;
       condition_broadcast(tcpRecvCond);
@@ -748,15 +747,15 @@ static int tcpProcessIncoming(TCP tcp, IP *buf) {
     // Update our transmission state according to acknowledged seq.
     //
     if (seqComp(tcp->sendUnack, ack) <= 0 &&
-  seqComp(ack, tcp->transmitted) <= 0) {
+      seqComp(ack, tcp->transmitted) <= 0) {
       tcp->sendUnack = ack;
       pruneTransmitQueue(tcp);
     } else if (tcp->state == stateSynSent ||
-         tcp->state == stateSynReceived) {
+               tcp->state == stateSynReceived) {
       // Unacceptable ack while not yet synchronized: reset and ignore
       printf("TCP unacceptable ACK before established\n");
       if (!(flags & flagReset)) {
-  sendSmall(tcp, ntoh(tcpHeader->ack), flagReset);
+        sendSmall(tcp, ntoh(tcpHeader->ack), flagReset);
       }
       tcp = NULL;
     } else {
@@ -789,13 +788,13 @@ static int tcpProcessIncoming(TCP tcp, IP *buf) {
     if (tcp->state == stateSynSent) {
       tcp->recvInit = seq;
       if (tcp->sendUnack == tcp->sendInit) {
-  // Either we've sent our SYN but it hasn't yet been acked (active
-  // open with simultaneous open from the other end), or we've made
-  // it look that way we because we're really doing a passive open and
-  // responding to an incoming SYN.  In either case, (re)transmit our
-  // SYN, piggy-backing an ACK.
-  sendSmall(tcp, tcp->sendInit, flagAck | flagSyn);
-  shouldAck = 0;
+        // Either we've sent our SYN but it hasn't yet been acked (active
+        // open with simultaneous open from the other end), or we've made
+        // it look that way we because we're really doing a passive open and
+        // responding to an incoming SYN.  In either case, (re)transmit our
+        // SYN, piggy-backing an ACK.
+        sendSmall(tcp, tcp->sendInit, flagAck | flagSyn);
+        shouldAck = 0;
       }
       tcp->state = stateSynReceived;
       // which then moves to established, below, if our SYN has been acked
@@ -816,29 +815,29 @@ static int tcpProcessIncoming(TCP tcp, IP *buf) {
       break;
     case stateSynReceived:
       if (tcp->sendUnack != tcp->sendInit) {
-  tcp->state = stateEstablished;
-  condition_signal(tcpAcceptCond);
-  condition_broadcast(tcpConnectCond);
+        tcp->state = stateEstablished;
+        condition_signal(tcpAcceptCond);
+        condition_broadcast(tcpConnectCond);
       } else {
-  shouldAck = 0;
+        shouldAck = 0;
       }
       break;
     case stateFinWait1:
       if (tcp->sendUnack == tcp->sendNext) {
-  tcp->state = stateFinWait2;
-  condition_broadcast(tcpCloseCond);
+        tcp->state = stateFinWait2;
+        condition_broadcast(tcpCloseCond);
       }
       break;
     case stateClosing:
       if (tcp->sendUnack == tcp->sendNext) {
-  tcp->state = stateTimeWait;
-  condition_broadcast(tcpCloseCond);
+        tcp->state = stateTimeWait;
+        condition_broadcast(tcpCloseCond);
       }
       break;
     case stateLastAck:
       if (tcp->sendUnack == tcp->sendNext) {
-  tcp->state = stateClosed;
-  condition_broadcast(tcpCloseCond);
+        tcp->state = stateClosed;
+        condition_broadcast(tcpCloseCond);
       }
       shouldAck = 0;
       break;
@@ -865,16 +864,16 @@ static int tcpProcessIncoming(TCP tcp, IP *buf) {
     case stateFinWait1:
     case stateFinWait2:
       if (!tcpProcessData(tcp, buf)) {
-  // Enqueue a copy on outOfOrderHead, in arrival order.
-  IP *ooo = (IP *)enet_alloc();
-  *ooo = *buf;
-  ooo->next = NULL;
-  if (tcp->outOfOrderHead) {
-    tcp->outOfOrderTail->next = ooo;
-  } else {
-    tcp->outOfOrderHead = ooo;
-  }
-  tcp->outOfOrderTail = ooo;
+        // Enqueue a copy on outOfOrderHead, in arrival order.
+        IP *ooo = (IP *)enet_alloc();
+        *ooo = *buf;
+        ooo->next = NULL;
+        if (tcp->outOfOrderHead) {
+          tcp->outOfOrderTail->next = ooo;
+        } else {
+          tcp->outOfOrderHead = ooo;
+        }
+        tcp->outOfOrderTail = ooo;
       }
       break;
     }
@@ -895,8 +894,7 @@ static void tcpReceiver(IP *buf, Uint32 len, int broadcast) {
     return;
   }
   if (payloadChecksum(buf, len) != 0xffff) {
-    printf("Bad TCP checksum %04x, len %d\n",
-     payloadChecksum(buf, len), len);
+    printf("Bad TCP checksum %04x, len %d\n", payloadChecksum(buf, len), len);
     return;
   }
   TCPPort localPort = ntohs(tcpHeader->dest);
@@ -910,18 +908,18 @@ static void tcpReceiver(IP *buf, Uint32 len, int broadcast) {
     if (flags == flagSyn) {
       Listener listener = tcpListeners[localPort];
       if (listener) {
-  // Create a TCP in stateSynSent, as if we had sent a SYN already;
-  // this will make tcpProcessIncoming send a SYN-ACK and move to
-  // stateSynReceived.
-  tcp = createTcp(localPort, remoteAddr, remotePort);
-  tcp->sendNext++;
-  tcp->transmitted = tcp->sendNext;
-  tcp->state = stateSynSent;
-  appendTransmitElem(tcp);
-  tcp->nextPending = listener->pendingTail;
-  listener->pendingTail = tcp;
-  if (!listener->pending) listener->pending = tcp;
-  listener->pendingCount++;
+        // Create a TCP in stateSynSent, as if we had sent a SYN already;
+        // this will make tcpProcessIncoming send a SYN-ACK and move to
+        // stateSynReceived.
+        tcp = createTcp(localPort, remoteAddr, remotePort);
+        tcp->sendNext++;
+        tcp->transmitted = tcp->sendNext;
+        tcp->state = stateSynSent;
+        appendTransmitElem(tcp);
+        tcp->nextPending = listener->pendingTail;
+        listener->pendingTail = tcp;
+        if (!listener->pending) listener->pending = tcp;
+        listener->pendingCount++;
       }
     }
   }
@@ -941,27 +939,27 @@ static void tcpReceiver(IP *buf, Uint32 len, int broadcast) {
     while (progress) {
       progress = 0;
       if (tcp->state == stateEstablished ||
-    tcp->state == stateFinWait1 ||
-    tcp->state == stateFinWait2) {
-  IP *this = tcp->outOfOrderHead;
-  IP *prev = NULL;
-  while (this) {
-    IP *next = this->next;
-    if (tcpProcessData(tcp, this)) {
-      if (prev) {
-        prev->next = this->next;
-      } else {
-        tcp->outOfOrderHead = this->next;
-      }
-      if (this == tcp->outOfOrderTail) tcp->outOfOrderTail = prev;
-      enet_free((Enet *)this);
-      shouldAck = 1;
-      progress = 1;
-    } else {
-      prev = this;
-    }
-    this = next;
-  }
+          tcp->state == stateFinWait1 ||
+          tcp->state == stateFinWait2) {
+        IP *this = tcp->outOfOrderHead;
+        IP *prev = NULL;
+        while (this) {
+          IP *next = this->next;
+          if (tcpProcessData(tcp, this)) {
+            if (prev) {
+              prev->next = this->next;
+            } else {
+              tcp->outOfOrderHead = this->next;
+            }
+            if (this == tcp->outOfOrderTail) tcp->outOfOrderTail = prev;
+            enet_free((Enet *)this);
+            shouldAck = 1;
+            progress = 1;
+          } else {
+            prev = this;
+          }
+          this = next;
+        }
       }
     }
     if (tcp->sendNagled && tcp->sendUnack == tcp->transmitted) {
@@ -987,6 +985,7 @@ static void tcpInit() {
     tcpSmallBuf = (IP *)enet_alloc();
     tcpActive = NULL;
     tcpListeners = malloc(65536 * sizeof(Listener *));
+    for (int i = 0; i < 65536; i++) tcpListeners[i] = NULL;
     tcpSeed = *cycleCounter;
     ip_register(ipProtocolTCP, tcpReceiver);
     thread_fork(retransmitter, NULL);

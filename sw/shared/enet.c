@@ -291,7 +291,7 @@ void enet_init() {
     sendInProgress = 0;
     pendingHead = NULL;
     pendingTail = NULL;
-    enetRecvBuf = cacheAlign(malloc(enetRecvBufSize) + 31);
+    enetRecvBuf = cacheAlign(malloc(enetRecvBufSize + 31));
     enetReceiveRequest();
     thread_fork(enetDeliver, NULL);
     IntercoreMessage msg;

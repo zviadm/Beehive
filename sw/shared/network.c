@@ -181,7 +181,6 @@ static void ipDiscard(IP *buf, Uint32 len, int broadcast) {
   icmp_bounce(buf, broadcast,
         icmpTypeDestinationUnreachable,
         icmpCodeProtocolUnreachable);
-  printf("Unexpected IP protocol %d\n", buf->ip.protocol);
 }
 
 static Uint16 ipChecksum(Uint32 res, Octet *buf, Uint32 len) {
@@ -838,7 +837,9 @@ static void readDhcpOptions(Octet *optData,
           IPAddr *router,
           IPAddr *subnetMask,
           DNSAddrs *dnsAddr) {
-  for (int i = 0; i < maxServers; i++) (*dnsAddr)[i] = 0;
+  if (dnsAddr) {
+    for (int i = 0; i < maxServers; i++) (*dnsAddr)[i] = 0;
+  }
   int pos = 0;
   for (;;) {
     if (pos >= optLen) {

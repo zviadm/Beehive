@@ -285,6 +285,7 @@ int thread_id(Thread t) {
   return t->id;
 }
 
+extern int stacksize;
 Thread thread_fork(void forkee(void *), void * forkArg) {
   // Public: create a thread executing "forkee(forkArg)"
   thread_init();
@@ -296,8 +297,8 @@ Thread thread_fork(void forkee(void *), void * forkArg) {
     target->tqNext = NULL;
     target->tqPrev = NULL;
     target->tqWakeup = 0;
-    target->stackBase = malloc(100000);
-    target->stackTop = target->stackBase + 100000;
+    target->stackBase = malloc(stacksize);
+    target->stackTop = target->stackBase + stacksize;
     target->joiner = sem_create();
   } else {
     // recycle an old one

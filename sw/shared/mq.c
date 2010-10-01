@@ -15,7 +15,6 @@
 
 static Mutex mqMutex = NULL;
 static MQReceiver *mqHandlers;
-static MQReceiver *mqTypeHandlers;
 
 static void mqInit();
 
@@ -60,7 +59,6 @@ static void mqInit() {
   if (!mqMutex) {
     mqMutex = mutex_create();
     mqHandlers = malloc(64 * sizeof(MQReceiver));
-    mqTypeHandlers = malloc(64 * sizeof(MQReceiver));
     for (int i = 0; i < 64; i++) mqHandlers[i] = mqDiscard;
     thread_fork(mqReceiver, NULL);
     printf("%u: mqinit\n", corenum());
