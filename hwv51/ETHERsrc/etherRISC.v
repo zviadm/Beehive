@@ -28,8 +28,8 @@ another pipeline stage for the DMA units.
 When msgrDriveRing is asserted when a Token is on SlotTypeIn,
  the Ethernet module will drive RingOut with 
 the Messenger's data (plus the count for any data it has to send from
-the other units), and will drive the node number on SrcDestOut and the
-SlotTypeOut with the Messenger's SlotType. 
+the other units), and will drive the node number on SourceOut and the
+SlotTypeOut with the Messenger's SourceOut and SlotType. 
 
 It will wait for the end of the train (including any
 message coming from the Messenger) before sending any data it has ready from
@@ -43,12 +43,13 @@ the read and write units.
  input  [3:0]  CopyCore,
  input  [31:0] RingIn,
  input  [3:0]  SlotTypeIn,
- input  [3:0]  SrcDestIn,
+ input  [3:0]  SourceIn,
  output [31:0] msgrRingOut,
  output [3:0]  msgrSlotTypeOut,
- output [3:0]  msgrSrcDestOut,
+ output [3:0]  msgrSourceOut,
  output msgrDriveRing,
- output msgrWaiting,
+ output msgrWantsToken,
+ input msgrAcquireToken,
  input  RxD,
  output TxD,
  output SCLx,
@@ -262,15 +263,16 @@ assign selMsgr = ~aqe & aq[31] & (aq[2:0] == 4);
   .done(done[4]),
   .selMsgr(selMsgr),
   .whichCore(whichCore),
-  .copyCore(CopyCore),
+  .CopyCore(CopyCore),
   .RingIn(RingIn),
   .SlotTypeIn(SlotTypeIn),
-  .SrcDestIn(SrcDestIn),
+  .SourceIn(SourceIn),
   .msgrRingOut(msgrRingOut),
   .msgrSlotTypeOut(msgrSlotTypeOut),
-  .msgrSrcDestOut(msgrSrcDestOut),
+  .msgrSourceOut(msgrSourceOut),
   .msgrDriveRing(msgrDriveRing),
-  .msgrWaiting(msgrWaiting)
+  .msgrWantsToken(msgrWantsToken),
+  .msgrAcquireToken(msgrAcquireToken)
   );
 
  //local I/O device 5 provides write-only access to the SMACaddr register

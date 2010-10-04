@@ -21,19 +21,18 @@ void mc_main(void)
   // Small Broadcast test
   if (corenum() == 2) {
     unsigned int x = 13;
-    xprintf("[%02u]: broadcast message %u of type %u\n", 
-      corenum(), x, msgTypeDefault);
-    //hw_bcast_send(msgTypeDefault, 1, &x);
-    IntercoreMessage msg;
-    msg[0] = 13;
-    message_send(3, msgTypeDefault, &msg, 1);
+    xprintf("[%02u]: bcast x: %u t: %u\n", corenum(), x, msgTypeDefault);
+    hw_bcast_send(msgTypeDefault, 1, &x);
+    //IntercoreMessage msg;
+    //msg[0] = 13;
+    //Message_send(3, msgTypeDefault, &msg, 1);
   } else {
     IntercoreMessage msg;    
     unsigned int st;
     while ((st = message_recv(&msg)) == 0) { 
       icSleep(100);
     }
-    xprintf("[%02u]: receive message %u from %u of type %u\n", 
+    xprintf("[%02u]: rcv src: %u x: %u t: %u\n", 
       corenum(), message_srce(st), msg[0], message_type(st));
   }
 }

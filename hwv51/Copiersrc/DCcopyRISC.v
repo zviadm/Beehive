@@ -16,15 +16,13 @@ Differences are:
  input  [3:0]  whichCore,  //the number of this core
  input  [31:0] RingIn,
  input  [3:0]  SlotTypeIn,
- input  [3:0]  SrcDestIn,
+ input  [3:0]  SourceIn,
  output [31:0] msgrRingOut,
  output [3:0]  msgrSlotTypeOut,
- output [3:0]  msgrSrcDestOut,
+ output [3:0]  msgrSourceOut,
  output msgrDriveRing,
-// input  RxD,
-// output TxD,
-// output reg    releaseRS232,
- output msgrWaiting,
+ output msgrWantsToken,
+ input msgrAcquireToken,
  output [31:0] wq,   //write queue output
  output loadSA,  //write strobes for registers in the DMA controller
  output loadDA,
@@ -200,15 +198,16 @@ assign selMsgr = ~aqe & aq[31] & (aq[2:0] == 4);
   .done(done[4]),
   .selMsgr(selMsgr),
   .whichCore(whichCore),
-  .copyCore(whichCore),
+  .CopyCore(whichCore),
   .RingIn(RingIn),
   .SlotTypeIn(SlotTypeIn),
-  .SrcDestIn(SrcDestIn),
+  .SourceIn(SourceIn),
   .msgrRingOut(msgrRingOut),
   .msgrSlotTypeOut(msgrSlotTypeOut),
-  .msgrSrcDestOut(msgrSrcDestOut),
+  .msgrSourceOut(msgrSourceOut),
   .msgrDriveRing(msgrDriveRing),
-  .msgrWaiting(msgrWaiting)
+  .msgrWantsToken(msgrWantsToken),
+  .msgrAcquireToken(msgrAcquireToken)
   );
 
 assign raq = | done;

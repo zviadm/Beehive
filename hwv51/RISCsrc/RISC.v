@@ -39,12 +39,7 @@ and may be instantiated several times on a single chip.
 
   localparam Null = 7; //Slot Types
   localparam Token = 1;
-  
-  //FSM that handles interactions with the ring
-  reg state;
-  localparam idle = 0;  
-  localparam tokenHeld = 1;
- 
+   
   //signals to and from local I/O devices
   wire [31:0] rqIn;  //RISC's read queue
   
@@ -391,7 +386,11 @@ and may be instantiated several times on a single chip.
                 32'b0;
 
   //State Machine that handles Interactions with the ring
-  assign coreHasToken = (SlotTypeIn == Token) | (state == tokenHeld);  
+  reg state;
+  localparam idle = 0;  
+  localparam tokenHeld = 1;
+  
+  wire coreHasToken = (SlotTypeIn == Token) | (state == tokenHeld);  
   assign msgrAcquireToken = (coreHasToken & msgrWantsToken);
   assign lockAcquireToken = (coreHasToken & ~msgrDriveRing & lockWantsToken);
   assign barrierAcquireToken = (coreHasToken & ~msgrDriveRing & 

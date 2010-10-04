@@ -193,7 +193,7 @@ endmodule
 
 // fifo of specified width and depth
 module beehive;
-  localparam nCores = 3;  //Number of RISC cores in the design
+  localparam nCores = 5;  //Number of RISC cores in the design
   localparam MBITS = 24;  //log2(Size) of main memory (must match Master.s)
   localparam bitTime = 20;  // fast serial transmit when simulating
 
@@ -449,6 +449,18 @@ module beehive;
   wire exeN = 
     !beehive.coreBlk[N].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
   always @(negedge clock) if (!reset) begin
+    if (beehive.coreBlk[1].riscN.msgrN.msgrFifoFull == 1) begin
+      $write("core 1 msgr Fifo Full");
+      $display("");
+    end
+    if (beehive.coreBlk[2].riscN.msgrN.msgrFifoFull == 1) begin
+      $write("core 2 msgr Fifo Full");
+      $display("");
+    end
+    if (beehive.coreBlk[1].riscN.msgrN.msgrFifoFull == 1) begin
+      $write("core 3 msgr Fifo Full");
+      $display("");
+    end
     /*
     if (cycle_count <= 1000) begin
       $write("cycle=%5d ",cycle_count);

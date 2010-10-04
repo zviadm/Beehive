@@ -28,10 +28,10 @@ module copier(
   //Ring signals
   input  [31:0] RingIn,
   input  [3:0]  SlotTypeIn,
-  input  [3:0]  SrcDestIn,
+  input  [3:0]  SourceIn,
   output [31:0] RingOut,
   output [3:0]  SlotTypeOut,
-  output [3:0]  SrcDestOut,
+  output [3:0]  SourceOut,
   input  [31:0] RDreturn,
   input  [3:0]  RDdest,
 
@@ -67,11 +67,22 @@ module copier(
   wire loadD;
   wire loadL;
   wire [16:0] chkBusy;    //controller is busy
+  
   wire [31:0] msgrRingOut;
   wire [3:0] msgrSlotTypeOut;
-  wire [3:0] msgrSrcDestOut;
+  wire [3:0] msgrSourceOut;
   wire msgrDriveRing;
-  wire msgrWaiting;
+  wire msgrWantsToken;
+  wire msgrAcquireToken;
+  
+  wire [31:0] copierRingOut;
+  wire [3:0] copierSlotTypeOut;
+  wire [3:0] copierSourceOut;
+  wire copierDriveRing;
+  wire copierWantsToken;
+  wire copierAcquireToken;
+  
+  
   wire readRequest;
   wire writeRequest;
   wire decBcnt;
@@ -180,58 +191,58 @@ module copier(
     else if(RDdest == whichCore) rcnt <= rcnt + 1;
 
 //The ring controller is identical to the one in the Ethernet
-//-------------------The ring controller FSM:----------------------
-always @(posedge clock)
-  if(reset) RCfsm <= RCidle;
-  else case(RCfsm)
-    RCidle:if(readRequest | writeRequest) begin
-	    readRequested <= readRequest;
-		 writeRequested <= writeRequest;
-   	 RCfsm <= RCwaitToken; //have something to do
-    end
+//-------------------The ring controller FSM:----------------------  
+  assign readAddress = 
+    ((state == fetchD) | (state == fetchD1)) ?  {4'b0001, D[30:3]} : 
+                                                {4'b0001, S[30:3]};
+  assign writeAddress = {4'b0000, D[30:3]};
 
-	 RCwaitToken: if((SlotTypeIn == Token) & ~msgrWaiting) begin
-       if(RingIn[7:0] == 0) begin  //empty train
-         if(readRequested & ~writeRequested) RCfsm <= RCsendRAonly;
-			else if(writeRequested & ~readRequested) begin
-			  burstLength <= 8;
-           RCfsm <= RCsendData;
-			end else RCfsm <= RCsendBoth; //read and write
-		 end else begin  //must wait.
-			burstLength <= RingIn[7:0];
-			RCfsm <= RCwaitN;
-		 end
-    end
+  assign copierWantsToken = (RCfsm == RCwaitToken);
+  assign copierDriveRing = 
+    ((RCfsm == RCwaitToken) & copierAcquireToken) | 
+    (RCfsm == RCsendBoth) | (RCfsm == RCsendData) | (RCfsm == RCsendWA);
 
-    RCwaitN: begin  //wait for the end of the train
-	   burstLength <= burstLength - 1;
-		if(burstLength == 1) begin
-        if(readRequested & ~writeRequested) RCfsm <= RCsendRAonly;
-		  else if(writeRequested & ~readRequested) begin
-		    burstLength <= 8;
-          RCfsm <= RCsendData;
-        end else RCfsm <= RCsendBoth;
-      end		  
-    end
-	 
-	 RCsendRAonly: RCfsm <= RCidle; //send RA, idle
+  assign copierSourceOut = whichCore;
+  assign copierSlotTypeOut = 
+    (((RCfsm == RCwaitToken) & copierAcquireToken & readRequested) | 
+     (RCfsm == RCsendBoth) | (RCfsm == RCsendWA)) ? Address : 
+                                                    WriteData;
+  assign copierRingOut = 
+    (((RCfsm == RCwaitToken) & copierAcquireToken & readRequested) | 
+     (RCfsm == RCsendBoth)) ? readAddress :
+    (RCfsm == RCsendWA)     ? writeAddress :
+                              bufData;
 
-	 RCsendBoth: begin
-	    burstLength <= 8;
-       RCfsm <= RCsendData; //send RA, then send WD and WA
-	 end
-	 
-	 RCsendData: begin
-	   burstLength <= burstLength - 1;
-		if(burstLength == 1) RCfsm <= RCsendWA;
-	 end
-	 
-	 RCsendWA: begin
-		RCfsm <= RCidle;
-	 end
-  endcase
+  always @(posedge clock)
+    if (reset) RCfsm <= RCidle;
+    else case(RCfsm)
+      RCidle: if(readRequest | writeRequest) begin
+        readRequested <= readRequest;
+        writeRequested <= writeRequest;
+        RCfsm <= RCwaitToken; //have something to do
+      end
 
+      RCwaitToken: if (copierAcquireToken) begin
+        if (readRequested & ~writeRequested) RCfsm <= RCidle; //send RA, idle
+        else if(writeRequested & ~readRequested) begin
+          burstLength <= 7;
+          RCfsm <= RCsendData;        
+        end else RCfsm <= RCsendBoth;      
+      end
 
+      RCsendBoth: begin
+        burstLength <= 8;
+        RCfsm <= RCsendData; //send RA, then send WD and WA
+      end
+
+      RCsendData: begin
+        burstLength <= burstLength - 1;
+        if(burstLength == 1) RCfsm <= RCsendWA;
+      end
+
+      RCsendWA: RCfsm <= RCidle;
+    endcase
+    
 //------------------The main FSM------------------
 always @(posedge clock) 
   if(reset) state <= idle;
@@ -327,34 +338,57 @@ at the end of the cycle).
   if (bCnt == 0) state <= idle;
   
   endcase
-  
-//-------------Ring contents-------------------------------------
-  assign readAddress = ((state == fetchD) | (state == fetchD1)) ?  {4'b0001, D[30:3]}: {4'b0001, S[30:3]};
-  
-  assign writeAddress = {4'b0000, D[30:3]};
-  
-  assign SrcDestOut =
-      msgrDriveRing ? msgrSrcDestOut :
-     ((RCfsm == RCsendRAonly) | 
-	  (RCfsm == RCsendBoth) | 
-	  (RCfsm == RCsendWA) |
-	  (RCfsm == RCsendData)) ? whichCore :
-     SrcDestIn;
-	  
-  assign RingOut =
-     msgrDriveRing ? msgrRingOut :
-     ((RCfsm == RCwaitToken) & (SlotTypeIn == Token)) ? (RingIn + (writeRequested? 9 : 0) + readRequested) :
-     ((RCfsm == RCsendRAonly) | (RCfsm == RCsendBoth)) ? readAddress :
-	  (RCfsm == RCsendWA) ? writeAddress :
-	  (RCfsm == RCsendData) ? bufData :
-      RingIn;
-		
-  assign SlotTypeOut =
-     msgrDriveRing ? msgrSlotTypeOut : 
-    ((RCfsm == RCsendRAonly) | (RCfsm == RCsendBoth) | (RCfsm == RCsendWA))? Address :
-    (RCfsm == RCsendData) ? WriteData :	 
-     SlotTypeIn;
 
+//-----Overall core interaction with the ring similar as in Risc.v-------------
+  // since state idle are already used, use different names, big todo
+  // is to move all this in one module that all cores will use
+  reg state_;
+  localparam idle_ = 0;  
+  localparam tokenHeld = 1;
+
+  wire coreHasToken = (SlotTypeIn == Token) | (state_ == tokenHeld);  
+  assign msgrAcquireToken = (coreHasToken & msgrWantsToken);
+  assign copierAcquireToken = 
+    (coreHasToken & ~msgrDriveRing & copierWantsToken);
+  wire coreSendNewToken = (coreHasToken & ~msgrDriveRing & ~copierDriveRing);
+
+  always @(posedge clock) begin
+    if (reset) state_ <= idle_;
+    else case(state_)
+      idle_: if(SlotTypeIn == Token) begin
+        if (msgrWantsToken | copierWantsToken)
+          state_ <= tokenHeld;
+      end
+    
+      tokenHeld: if (coreSendNewToken) state_ <= idle_;
+    endcase
+  end
+
+  // This handles when core needs to drive the ring to either send new token
+  // or Nullify messages
+  wire coreDriveRing = coreSendNewToken | (SlotTypeIn == Token) | 
+                      (SourceIn == whichCore & SlotTypeIn != Null);
+  wire [31:0] coreRingOut = 32'b0;
+  wire [3:0]  coreSourceOut = whichCore;
+  wire [3:0]  coreSlotTypeOut = coreSendNewToken ? Token : Null;
+  
+  assign SourceOut =
+      msgrDriveRing  ? msgrSourceOut :
+      copierDriveRing ? copierSourceOut :
+      coreDriveRing  ? coreSourceOut  :
+      SourceIn;
+
+  assign RingOut =
+     msgrDriveRing  ? msgrRingOut  :
+     copierDriveRing ? copierRingOut :
+     coreDriveRing  ? coreRingOut  :
+     RingIn;
+
+  assign SlotTypeOut =
+     msgrDriveRing  ? msgrSlotTypeOut  : 
+     copierDriveRing ? copierSlotTypeOut :
+     coreDriveRing  ? coreSlotTypeOut  :
+     SlotTypeIn;
 
 //instantiate the buffer
 bufRAM64x32 buffer (
@@ -374,12 +408,13 @@ DCcopyRISC controlRisc(
  .whichCore(whichCore),
  .RingIn(RingIn),
  .SlotTypeIn(SlotTypeIn),
- .SrcDestIn(SrcDestIn),
+ .SourceIn(SourceIn),
  .msgrSlotTypeOut(msgrSlotTypeOut),
- .msgrSrcDestOut(msgrSrcDestOut),
+ .msgrSourceOut(msgrSourceOut),
  .msgrRingOut(msgrRingOut),
  .msgrDriveRing(msgrDriveRing),
- .msgrWaiting(msgrWaiting),
+ .msgrWantsToken(msgrWantsToken),
+ .msgrAcquireToken(msgrAcquireToken),
 // .RxD(RxD),
 // .TxD(TxD),
 // .releaseRS232(releaseRS232),

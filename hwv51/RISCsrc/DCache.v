@@ -50,7 +50,6 @@ module DCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   reg [2:0] cnt;  //counts word transfers to and from DDR2
   wire incCnt;    //time to increment cnt
   wire [2:0] cacheAddr;
-  reg [7:0] burstLength;  //length of the burst following a token
   reg [3:0] state;  //state machine
   // reg[31:0] memData; //data from memory
   wire[31:0] cacheData; //output of dataCache memory

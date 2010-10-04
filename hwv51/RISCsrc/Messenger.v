@@ -192,6 +192,7 @@ module Messenger(
     endcase
   end
 
+  wire msgrFifoFull;
   //The FIFO for received messages
   FIFO36 #(
     .SIM_MODE("SAFE"), // Simulation: "SAFE" vs. "FAST", 
@@ -213,7 +214,7 @@ module Messenger(
     .DO(MQdata), // 32-bit data output
     .DOP(), // 4-bit parity data output
     .EMPTY(MQempty), // 1-bit empty output flag
-    .FULL(), // 1-bit full output flag
+    .FULL(msgrFifoFull), // 1-bit full output flag
     .RDCOUNT(), // 13-bit read count output
     .RDERR(), // 1-bit read error output
     .WRCOUNT(), // 13-bit write count output

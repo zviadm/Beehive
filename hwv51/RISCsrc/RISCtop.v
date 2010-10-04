@@ -205,7 +205,7 @@ endgenerate
   always@(posedge clock) begin
     RingOut[0] <= tempMCtrlRingOut;
     SlotTypeOut[0] <= tempMCtrlSlotTypeOut;
-    SourceOut[0] <= tempMCtrlSourceDestOut;
+    SourceOut[0] <= tempMCtrlSourceOut;
   end
 
   //Instantiate the Ethernet Controller
