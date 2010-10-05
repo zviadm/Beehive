@@ -33,14 +33,15 @@ LIBOBJS	:= $(LIBS)
 LIBOBJS	:= $(patsubst %.S, $(O)/%.o, $(LIBOBJS))
 LIBOBJS	:= $(patsubst %.c, $(O)/%.o, $(LIBOBJS))
 
-OBJDIRS	:= $(O) $(O)/lib $(O)/shared $(O)/test
+OBJDIRS	:= $(O) $(O)/lib $(O)/shared $(O)/test $(O)/test/tsp
 
 BINS	:= $(O)/hello.img  \
 	$(O)/meterstest.img    \
 	$(O)/bcasttest.img     \
 	$(O)/barriertest.img   \
 	$(O)/coherencytest.img \
-	$(O)/simulationtest.img 
+	$(O)/bcastsim.img      \
+	$(O)/seqtsp.img
 
 all: xxlibc $(OBJDIRS) $(BINS)
 
@@ -59,6 +60,10 @@ $(O)/%.out: $(O)/%.o $(SHAREDOBJS) $(LIBOBJS)
 	$(LD) $(LDFLAGS) -map $@.map -o $@ $^ -Llibc -lc -lgcc
 
 $(O)/%.out: $(O)/test/%.o $(SHAREDOBJS) $(LIBOBJS)
+	@echo "LD       $@"
+	$(LD) $(LDFLAGS) -map $@.map -o $@ $^ -Llibc -lc -lgcc
+
+$(O)/%.out: $(O)/test/tsp/%.o $(SHAREDOBJS) $(LIBOBJS)
 	@echo "LD       $@"
 	$(LD) $(LDFLAGS) -map $@.map -o $@ $^ -Llibc -lc -lgcc
 
