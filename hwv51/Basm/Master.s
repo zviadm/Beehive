@@ -590,7 +590,8 @@ chLoop:
     jz       chLoop
 //we need the message length and the source core
 gotMessage:
-    lsr      md1, Char, 10         //source core
+    lsr      md1, Char, 10 
+    and      md1, md1, 0x3f        //source core
     and      md2, Char, 0x3f       //length
     ld       ma1, rq               //first word of the payload
     and      Char, Char, 0x3f
@@ -1061,12 +1062,13 @@ doCore1:
 waitMsgs:
    aqr_ld    void, IO_MSGR
    ld        Temp, rq
-   lsr       Addr, Temp, 10        //source core (we don't use the type)
-   and       Temp, Temp,0x3f        //mask length
+   lsr       Addr, Temp, 10 
+   and       Addr, Addr, 0xf        //source core (we don't use the type)
+   and       Temp, Temp, 0x3f       //mask length
    jz        waitMsgs
-   ld        Temp2, rq             //the message word
+   ld        Temp2, rq              //the message word
    sub       void, Temp, 1
-   jnz       .-1                     //incorrect length
+   jnz       .-1                    //incorrect length
    call      printCRLF
    ld        N, Addr
    call      printNum
@@ -1130,8 +1132,9 @@ receiveMessage:
 rmLoop:
    aqr_ld    void, IO_MSGR
    ld        result, rq
-   lsr       t1, result, 10        //source core (we don't use the type)
-   and       result, result, 0x3f  //mask length
+   lsr       t1, result, 10 
+   and       t1, t1, 0xf            //source core (we don't use the type)
+   and       result, result, 0x3f   //mask length
    jnz       t3
    sub       count, count, 1
    jz        t3

@@ -1,4 +1,4 @@
-                      `timescale 1ns / 1ps
+`timescale 1ns / 1ps
   
 /*
   A 1Gbit full-duplex Ethernet controller using the 
@@ -232,21 +232,24 @@ next frame.
   assign RXwriteAddress = {4'b0000, RXwrAddr};
   
   assign etherWantsToken = (RCfsm == RCwaitToken);
-  assign etherDriveRing = 
-    ((RCfsm == RCwaitToken) & etherAcquireToken) | 
-    (RCfsm == RCsendBoth) | (RCfsm == RCsendData) | (RCfsm == RCsendWA);
+  assign etherDriveRing = ((RCfsm == RCwaitToken) & etherAcquireToken) | 
+                           (RCfsm == RCsendData) | (RCfsm == RCsendWA);
+    
+  wire RCsendingRA = 
+    (RCfsm == RCwaitToken) & etherAcquireToken & readRequested;
+
+  wire RCsendingWA = (RCfsm == RCsendWA);
+  
+  wire RCsendingData = 
+    ((RCfsm == RCwaitToken) & etherAcquireToken & ~readRequested) |
+    (RCfsm == RCsendData);
 
   assign etherSourceOut = whichCore;
-  assign etherSlotTypeOut = 
-    (((RCfsm == RCwaitToken) & etherAcquireToken & readRequested) | 
-     (RCfsm == RCsendBoth) | (RCfsm == RCsendWA)) ? Address : 
-                                                    WriteData;
-  assign etherRingOut = 
-    (((RCfsm == RCwaitToken) & etherAcquireToken & readRequested) | 
-     (RCfsm == RCsendBoth)) ? TXreadAddress :
-    (RCfsm == RCsendWA)     ? RXwriteAddress :
-                              stageData;
-
+  assign etherSlotTypeOut = (RCsendingRA | RCsendingWA) ? Address : WriteData;
+  assign etherRingOut = (RCsendingRA) ? TXreadAddress :
+                        (RCsendingWA) ? RXwriteAddress : 
+                                        stageData;
+                                        
   always @(posedge clock)
     if (reset) RCfsm <= RCidle;
     else case(RCfsm)
@@ -259,14 +262,14 @@ next frame.
       RCwaitToken: if (etherAcquireToken) begin
         if (readRequested & ~writeRequested) RCfsm <= RCidle; //send RA, idle
         else if(writeRequested & ~readRequested) begin
+          // send data + WA
           burstLength <= 7;
           RCfsm <= RCsendData;        
-        end else RCfsm <= RCsendBoth;      
-      end
-
-      RCsendBoth: begin
-        burstLength <= 8;
-        RCfsm <= RCsendData; //send RA, then send WD and WA
+        end else begin
+          // send RA then send data + WA
+          burstLength <= 8; 
+          RCfsm <= RCsendData;      
+        end
       end
 
       RCsendData: begin
@@ -295,7 +298,7 @@ next frame.
 		  RDfsm <= RDrequest;
       end
 		
-		RDrequest: if((RCfsm == RCsendRAonly) | (RCfsm == RCsendBoth))
+		RDrequest: if (RCsendingRA)
 		  RDfsm <= RDdecAddr;  //the ring controller is fetching the data
 		  
 		RDdecAddr: begin
@@ -350,7 +353,7 @@ always @(posedge clock)
 assign writeStage = dataReady & ~memoryData[32] & ~stageFull;
 assign stageFull = stageCnt[5];  //rxStageFifo is 64 deep, so this is safe
 assign stageOK = stageCnt >= 8;  //stage has enough words to request a transfer
-assign readStage =  ((RCfsm == RCsendData) & ~stageEmpty) | 
+assign readStage =  (RCsendingData & ~stageEmpty) | 
                     ((WRfsm == WRdiscard) & ~stageEmpty);
 assign writeRequest = (WRfsm == WRrequest) & (stageOK | (~stageEmpty & memoryData[32]));
 assign readWord = writeStage | (WRfsm == WRsendLength) | (WRfsm == WRlastDiscard);
@@ -370,7 +373,7 @@ always @(posedge clock) begin
 	 end
 	 
 	 WRrequest: begin
-	   if  (RCfsm == RCsendWA) RXwrAddr <= RXwrAddr + 1;   //(RCfsm == RCsendData) & (burstCnt == 3)) RXwrAddr <= RXwrAddr + 1;
+	   if (RCsendingWA) RXwrAddr <= RXwrAddr + 1;   
 		if((stageEmpty) & memoryData[32]) WRfsm <= WRsendLength;
 	 end	
 	 WRsendLength: WRfsm <= WRidle;
@@ -386,17 +389,20 @@ end
   localparam idle = 0;  
   localparam tokenHeld = 1;
 
-  wire coreHasToken = (SlotTypeIn == Token) | (state == tokenHeld);  
-  assign msgrAcquireToken = (coreHasToken & msgrWantsToken);
-  assign etherAcquireToken = (coreHasToken & ~msgrDriveRing & etherWantsToken);
-  wire coreSendNewToken = (coreHasToken & ~msgrDriveRing & ~etherDriveRing);
+  wire coreHasToken = (SlotTypeIn == Token);// | (state == tokenHeld);  
+  wire coreSendNewToken = 
+    ((coreHasToken | (state == tokenHeld)) & ~msgrDriveRing & ~etherDriveRing);
+
+  assign msgrAcquireToken = 
+    (coreHasToken & msgrWantsToken);
+  assign etherAcquireToken = 
+    (coreHasToken & ~msgrWantsToken & etherWantsToken);
 
   always @(posedge clock) begin
     if (reset) state <= idle;
     else case(state)
       idle: if(SlotTypeIn == Token) begin
-        if (msgrWantsToken | etherWantsToken)
-          state <= tokenHeld;
+        if (msgrWantsToken | etherWantsToken) state <= tokenHeld;
       end
     
       tokenHeld: if (coreSendNewToken) state <= idle;

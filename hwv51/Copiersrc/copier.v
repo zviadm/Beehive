@@ -81,7 +81,8 @@ module copier(
   wire copierDriveRing;
   wire copierWantsToken;
   wire copierAcquireToken;
-  
+  wire RCreadingRequest;
+  wire RCsendingData;
   
   wire readRequest;
   wire writeRequest;
@@ -150,7 +151,7 @@ module copier(
       (state == fetchD1)
     );
 
-  assign readIssued = (RCfsm == RCsendRAonly) | (RCfsm == RCsendBoth);
+  assign readIssued = RCreadingRequest;
 
   always @(posedge clock) if(loadS) wa <= 0;
     else if((state == fetchS) & readIssued) 
@@ -158,7 +159,7 @@ module copier(
     else if(writeBuf) 
       wa <= wa + 1;
 
-  assign readBuf = (RCfsm == RCsendData);
+  assign readBuf = RCsendingData;
  
   always @(posedge clock) if(loadS) ra <= 0;
     else if(readBuf) ra <= ra + 1;
@@ -200,18 +201,24 @@ module copier(
   assign copierWantsToken = (RCfsm == RCwaitToken);
   assign copierDriveRing = 
     ((RCfsm == RCwaitToken) & copierAcquireToken) | 
-    (RCfsm == RCsendBoth) | (RCfsm == RCsendData) | (RCfsm == RCsendWA);
+     (RCfsm == RCsendData) | (RCfsm == RCsendWA);
+
+  assign RCreadingRequest = 
+    (RCfsm == RCwaitToken) & copierAcquireToken & readRequested;
+
+  assign RCsendingData = 
+    ((RCfsm == RCwaitToken) & copierAcquireToken & ~readRequested) |
+    (RCfsm == RCsendData);
 
   assign copierSourceOut = whichCore;
   assign copierSlotTypeOut = 
     (((RCfsm == RCwaitToken) & copierAcquireToken & readRequested) | 
-     (RCfsm == RCsendBoth) | (RCfsm == RCsendWA)) ? Address : 
-                                                    WriteData;
+     (RCfsm == RCsendWA)) ? Address : WriteData;
   assign copierRingOut = 
-    (((RCfsm == RCwaitToken) & copierAcquireToken & readRequested) | 
-     (RCfsm == RCsendBoth)) ? readAddress :
-    (RCfsm == RCsendWA)     ? writeAddress :
-                              bufData;
+    ((RCfsm == RCwaitToken) & 
+     copierAcquireToken & readRequested) ? readAddress :
+    (RCfsm == RCsendWA)                  ? writeAddress :
+                                           bufData;
 
   always @(posedge clock)
     if (reset) RCfsm <= RCidle;
@@ -225,14 +232,14 @@ module copier(
       RCwaitToken: if (copierAcquireToken) begin
         if (readRequested & ~writeRequested) RCfsm <= RCidle; //send RA, idle
         else if(writeRequested & ~readRequested) begin
+          // send data + WA
           burstLength <= 7;
           RCfsm <= RCsendData;        
-        end else RCfsm <= RCsendBoth;      
-      end
-
-      RCsendBoth: begin
-        burstLength <= 8;
-        RCfsm <= RCsendData; //send RA, then send WD and WA
+        end else begin
+          // send RA then send data + WA
+          burstLength <= 8; 
+          RCfsm <= RCsendData;      
+        end
       end
 
       RCsendData: begin
@@ -346,11 +353,13 @@ at the end of the cycle).
   localparam idle_ = 0;  
   localparam tokenHeld = 1;
 
-  wire coreHasToken = (SlotTypeIn == Token) | (state_ == tokenHeld);  
+  wire coreHasToken = (SlotTypeIn == Token);// | (state_ == tokenHeld);  
+  wire coreSendNewToken = 
+    ((coreHasToken | (state_ == tokenHeld)) & ~msgrDriveRing & ~copierDriveRing);
+
   assign msgrAcquireToken = (coreHasToken & msgrWantsToken);
   assign copierAcquireToken = 
-    (coreHasToken & ~msgrDriveRing & copierWantsToken);
-  wire coreSendNewToken = (coreHasToken & ~msgrDriveRing & ~copierDriveRing);
+    (coreHasToken & ~msgrWantsToken & copierWantsToken);
 
   always @(posedge clock) begin
     if (reset) state_ <= idle_;

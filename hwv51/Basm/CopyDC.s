@@ -96,7 +96,8 @@ start:
    j     .     //halt
 
 getFBvalue:
-   lsr   FBclient, MsgHdr, 10      //source core
+   lsr   FBclient, MsgHdr, 10 
+   and   FBclient, FBclient, 0xf //source core
    lsl   pendingFB, rq, 2          //the FB address aligned to the displayAddress register
    and   void, Flags, vfpPending   //if vfpPending is true, the D.C. hasn't taken an earlier address
    jz    waitNoVfp
@@ -135,7 +136,8 @@ waitVfp:
    j     waitNoVfp
        
 doCopy:
-   lsr   MsgHdr, MsgHdr, 10  //the source core
+   lsr   MsgHdr, MsgHdr, 10
+   and   MsgHdr, MsgHdr, 0xf //source core
    ld    wq, rq  //S
    ld    wq, rq  //D
    ld    wq, rq  //L

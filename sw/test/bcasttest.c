@@ -8,7 +8,7 @@
 #include "lib/meters.h"
 #include "lib/msg.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 void mc_init(void);
 void mc_main(void);

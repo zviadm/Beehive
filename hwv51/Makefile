@@ -70,3 +70,6 @@ Basm/RISCtestcode.mem Basm/RISCtestdata.mem: Basm/RISCtest.s
 
 Basm/CopyDCcode.mem: Basm/CopyDC.s
 	mono Basm/Basmv1.exe -code1 -data1 Basm/CopyDC.s
+
+clean:
+	@rm Basm/*.mem Basm/*.lst 

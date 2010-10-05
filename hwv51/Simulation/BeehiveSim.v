@@ -193,7 +193,7 @@ endmodule
 
 // fifo of specified width and depth
 module beehive;
-  localparam nCores = 5;  //Number of RISC cores in the design
+  localparam nCores = 4;  //Number of RISC cores in the design
   localparam MBITS = 24;  //log2(Size) of main memory (must match Master.s)
   localparam bitTime = 20;  // fast serial transmit when simulating
 

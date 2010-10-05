@@ -85,16 +85,23 @@ module Messenger(
 //------------------End of Declarations-----------------------
   wire normalCore = (whichCore > 4'b1) & (whichCore < CopyCore - 4'b1);
   assign firstMessageWord = 
-    (((SlotTypeIn == Message) & (RingIn[17:14] == whichCore)) | 
+    (((SlotTypeIn == Message) & (RingIn[17:14] == whichCore) & 
+      (RingIn[17:14] != RingIn[13:10])) | 
      ((SlotTypeIn == Message) & (RingIn[17:14] != whichCore) & 
       (RingIn[17:14] == RingIn[13:10]) & normalCore)) & 
     (inLen == 0);
  
-  always @(posedge clock) if (reset) inLen <= 0;
-    else if (inLen != 0) inLen <= inLen - 1;
-    else if (SlotTypeIn == Message) begin 
-      inLen <= RingIn[5:0];
-      putMessageInMQ <= firstMessageWord;
+  always @(posedge clock) 
+    if (reset) begin 
+      inLen <= 0;
+      putMessageInMQ <= 0;
+    end
+    else begin
+      if (inLen != 0) inLen <= inLen - 1;
+      else if (SlotTypeIn == Message) begin 
+        inLen <= RingIn[5:0];
+        putMessageInMQ <= firstMessageWord;
+      end
     end
 
   //Write the first message word into MQ unless the message length is zero
@@ -121,8 +128,7 @@ module Messenger(
     ((state == waitToken) & (msgrAcquireToken)) ? 
       // Send Header, 4 bits of dest, source and type, 6 bits of length
       {14'b0, aq[6:3], whichCore, aq[16:7]} :
-    (state == sendWQ) ? wq : // Message Payload
-    32'b0;
+    (state == sendWQ) ? wq : 32'b0; // Message Payload
 
   //data between the queues                      
   assign rqMsgr = 
@@ -141,7 +147,7 @@ module Messenger(
   assign done = 
     (((state == idle) & selMsgr & read & MQempty)) | 
     ((state == waitToken) & (msgrAcquireToken) & (aq[12:7] == 0)) |
-    ((state == sendWQ) & (length == 1) & (aq[6:3] != CopyCore)) |  //normal message
+    ((state == sendWQ) & (length == 1) & (aq[6:3] != CopyCore)) |
     ((state == copyMQ) & (length == 1)) | 
     (state == doCopy);   //reply arrived from copier
 
@@ -196,7 +202,6 @@ module Messenger(
   //The FIFO for received messages
   FIFO36 #(
     .SIM_MODE("SAFE"), // Simulation: "SAFE" vs. "FAST", 
-                       // see "Synthesis and Simulation Design Guide" for details
     .ALMOST_FULL_OFFSET(13'h0080), // Sets almost full threshold
     .ALMOST_EMPTY_OFFSET(13'h0080), // Sets the almost empty threshold
     .DATA_WIDTH(36), // Sets data width to 4, 9, 18 or 36

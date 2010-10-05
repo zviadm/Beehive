@@ -581,7 +581,8 @@ doProcessMsg:
 //If it is 2, it is a receive buffer allocation,
 //otherwise it is a transmit message.
    and   Temp, MsgHdr, 0x3f //get the length
-   lsr   MsgHdr, MsgHdr, 10  //the source core
+   lsr   MsgHdr, MsgHdr, 10 
+   and   MsgHdr, MsgHdr, 0xf //source core
    sub   void, Temp, 1
    jz    sendMACaddress
    sub   void, Temp, 2

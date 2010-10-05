@@ -390,15 +390,20 @@ and may be instantiated several times on a single chip.
   localparam idle = 0;  
   localparam tokenHeld = 1;
   
-  wire coreHasToken = (SlotTypeIn == Token) | (state == tokenHeld);  
-  assign msgrAcquireToken = (coreHasToken & msgrWantsToken);
-  assign lockAcquireToken = (coreHasToken & ~msgrDriveRing & lockWantsToken);
-  assign barrierAcquireToken = (coreHasToken & ~msgrDriveRing & 
-                                ~lockDriveRing & barrierWantsToken);
-  assign dcAcquireToken = (coreHasToken & ~msgrDriveRing & ~lockDriveRing &
-                           ~barrierDriveRing & dcWantsToken);
-  wire coreSendNewToken = (coreHasToken & ~msgrDriveRing & ~lockDriveRing & 
-                           ~barrierDriveRing & ~dcDriveRing);
+  wire coreHasToken = (SlotTypeIn == Token);// | (state == tokenHeld);  
+  wire coreSendNewToken = 
+    ((coreHasToken | (state == tokenHeld)) & 
+     ~msgrDriveRing & ~lockDriveRing & ~barrierDriveRing & ~dcDriveRing);
+
+  assign msgrAcquireToken = 
+    (coreHasToken & msgrWantsToken);
+  assign lockAcquireToken = 
+    (coreHasToken & ~msgrWantsToken & lockWantsToken);
+  assign barrierAcquireToken = 
+    (coreHasToken & ~msgrWantsToken & ~lockWantsToken & barrierWantsToken);
+  assign dcAcquireToken = 
+    (coreHasToken & ~msgrWantsToken & ~lockWantsToken & ~barrierWantsToken & 
+     dcWantsToken);
 
   always @(posedge clock) begin
     if(reset) state <= idle;
