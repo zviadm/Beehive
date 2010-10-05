@@ -1,5 +1,7 @@
 *.lst
 *.o
+libc.a
+libbee.a
 bee_core_clock.s
 bee_core_eth.s
 bee_core_i.s
