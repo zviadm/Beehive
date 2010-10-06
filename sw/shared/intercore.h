@@ -35,6 +35,10 @@ static unsigned int enetCorenum() {
   return (*rs232 >> 14) & 15;
 }
 
+static unsigned int nCores() {
+  return enetCorenum() - 1;
+}
+
 static unsigned int clockFrequency() {
   // Return the CPU clock frequency, in MHz
   return (*rs232 >> 18) & 127;

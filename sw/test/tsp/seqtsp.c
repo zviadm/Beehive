@@ -4,6 +4,7 @@
 #include <string.h>
 #include "shared/intercore.h"
 #include "lib/lib.h"
+#include "lib/barrier.h"
 
 #include "12_cities.h"
 
@@ -22,6 +23,7 @@ void mc_init(void)
 void mc_main(void) 
 {
   xprintf("[%02u]: mc_main\n", corenum());
+  hw_barrier();
   
   if (corenum() == 2) {
     int path[NRTOWNS];     // current (partial) tour path
@@ -32,24 +34,23 @@ void mc_main(void)
     // initialization
     min = 10000;
     for (unsigned int i = 0; i < NRTOWNS; i++) visited[i] = 0;
-    path[0] = 0;  // starting town, TSP is cycle so just choose town 0
+    path[0] = 0; // starting town, we are finidng a cycle so just choose town 0
 
-    printf("Starting TSP ...n");
+    printf("Starting TSP ...\n");
         
     const unsigned int start_cycle = *cycleCounter;
     tsp(1, 0, path, visited, best_path, &min); // find a min cost tour
     const unsigned int end_cycle = *cycleCounter;
 
     // print results
+    printf("computation time (in CPU cycles): %u\n", end_cycle - start_cycle);
     printf("shortest path length is %d\n", min);
-    printf("computation time (in CPU cycles): %d\n", end_cycle - start_cycle);
-
-    printf("level\tvisited\n");
-    for (unsigned int i = 0; i < NRTOWNS; i++) printf("%d\t%d\n",i,visited[i]);
-
     printf("a best path found: ");
     for (unsigned int i = 0; i < NRTOWNS; i++) printf("%d ", best_path[i]);
     printf("\n");  
+    
+    printf("level\tvisited\n");
+    for (unsigned int i = 0; i < NRTOWNS; i++) printf("%d\t%d\n",i,visited[i]);
   }
 }
 
@@ -59,9 +60,9 @@ void mc_main(void)
 void tsp(int len, int cost, int path[], int visited[], 
          int best_path[], int *min)
 {
-  const int me = path[len-1];	// current end town
+  const int me = path[len - 1];	// current end town
   // remember how many times we saw a tour of this length
-  visited[len-1]++;
+  visited[len - 1]++;
 
   if (len == NRTOWNS) {
     const int new_cost = cost + distance[me][path[0]];
