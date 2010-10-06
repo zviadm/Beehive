@@ -1,0 +1,14 @@
+--- Class Ring Architecture (13 Cores) ---
+
+
+--- New Ring Architecture v1 (13 Cores) ---
+
+*** Sequential TSP ***
+computation time (in CPU cycles): 162107147 + (2^32 - 1)
+shortest path length is 312
+a best path found: 0 5 2 1 8 11 10 4 9 6 3 7 
+
+*** Parallel TSP ***
+computation time (in CPU cycles): 394974891
+shortest path length is 312
+a best path found: 0 7 3 6 9 4 10 11 8 1 2 5 

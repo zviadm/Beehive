@@ -75,7 +75,7 @@ void tsp_master(int best_path[], int *min)
   IntercoreMessage msg;
   IntercoreMessage work_msg;
   
-  srand(1989); // initialize with fixed random seed for repeatability
+  srand(2010); // initialize with fixed random seed for repeatability
   
   // Generate a random ordering of three node paths, this helps us find
   // best path faster no matter what the best path is. Random will work better

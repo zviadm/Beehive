@@ -45,9 +45,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   output [31:0] instx,
   output reg Ihit,
   output reg decLineAddr,
-  input msgrWaiting,
-  input lockerWaiting,
-  input barrierWaiting
 );
   
   //Slot Types
