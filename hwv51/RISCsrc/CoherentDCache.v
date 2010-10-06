@@ -13,10 +13,10 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   input [30:0] aq,   //the CPU address queue output.  Bit 31 not used
   input read,        //request in AQ is a read
   input [31:0] wq,   //the CPU write queue output
-  output reg rwq,    //read the write queue
+  output rwq,        //read the write queue
   output [31:0] rqDCache, //the CPU read queue input
-  output reg wrq,    //write the read queue
-  output reg done,   //operation is finished. 
+  output wrq,        //write the read queue
+  output done,       //operation is finished. 
                      //Read the AQ, read WQ if operation was write
   input selDCache,
   input selDCacheIO, //invalidate or flush operation
@@ -24,81 +24,62 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   input [3:0] EtherCore,
 
   //ring signals
-  input  [31:0] RingIn,
-  input  [3:0] SlotTypeIn,
-  input  [3:0] SrcDestIn,
+  input [31:0] RingIn,
+  input [3:0] SlotTypeIn,
+  input [3:0] SrcDestIn,
 
   //addition for separate read data return ring.
   //cache never modifies the data or dest, so there are no outputs
   input [31:0] RDreturn,
   input [3:0] RDdest,
 
-  output reg [31:0] dcRingOut,
-  output reg [3:0] dcSlotTypeOut,
-  output reg [3:0] dcSrcDestOut,
-  output reg dcDriveRing,
+  output [31:0] dcRingOut,
+  output [3:0] dcSlotTypeOut,
+  output [3:0] dcSrcDestOut,
+  output dcDriveRing,
+  output dcWantsToken,
+  input  dcAcquireToken,  
 
   //instruction cache signals
   input [9:0] pcMux,
   input [30:0] pcx,
   input stall,
   output [31:0] instx,
-  output reg Ihit,
-  output reg decLineAddr,
+  output Ihit,
+  output decLineAddr,
 );
   
   //Slot Types
-  parameter Null = 4'd7;
-  parameter Token = 4'd1;
-  parameter Address = 4'd2;
-  parameter WriteData = 4'd3;
-  parameter AddressRequest = 4'd5;  
-  parameter GrantExclusive = 4'd6;   
+  parameter Null           = 7;
+  parameter Token          = 1;
+  parameter Address        = 2;
+  parameter WriteData      = 3;
+  parameter AddressRequest = 5;  
+  parameter GrantExclusive = 6;   
   
   // DCache Line Status values
-  localparam INVALID  = 0;
-  localparam SHARED   = 1;
+  localparam INVALID   = 0;
+  localparam SHARED    = 1;
   localparam EXCLUSIVE = 2;  // Not Used for now
   localparam MODIFIED  = 3;
   
   // FSM States
   localparam idle = 0;
-  localparam wait_token = 1;
-  localparam waitN = 2;
-  localparam sendRA = 3;
-  localparam read_cache = 4;
-  localparam sendWA = 5;
-  localparam setup = 6;
-  localparam dcacheio_invalidate = 7;
-  localparam dcacheio_flush = 8;
-  
-  // Select Possibilites
-  localparam handle_dcache_request = 1;
-  localparam update_dcache = 2;
-  localparam handle_icache_request = 3;
-  localparam handle_requestQ = 4;
-  localparam handle_dcacheio_request = 5;
-    
-  // Wires for request queue
-  reg wrRequestQ;
-  reg [31:0] requestQin;
-  reg rdRequestQ;
-  wire requestQempty;
-  wire requestQalmostEmpty;
-  wire [31:0] requestQout;
-    
-  // FSM State and Next State
-  reg [3:0] state, next_state;
-  reg [2:0] select, set_select;
-  reg [7:0] burstLength, set_burstLength;
-  reg doReadRequest, set_doReadRequest;
-  reg doNotRequestRD, set_doNotRequestRD;
-  reg doFlushAfterRead, set_doFlushAfterRead;
-  reg [31:0] flushRequest, set_flushRequest;
-  reg [9:0] flushAddr, set_flushAddr;
-  reg [2:0] readCnt, set_readCnt;
-  reg [6:0] lineCnt, set_lineCnt;
-  reg ioFlushing, set_ioFlushing;
+  localparam sendRAWaitToken = 1;
+  localparam sendCacheDataWaitToken = 2;
+  localparam sendCacheData = 3;
+  localparam sendWA = 4;
+  localparam setup = 5;
+          
+  // FSM State
+  reg [3:0] state;
+  reg [31:0] readRequest;
+  reg doFlush;
+  reg [31:0] flushRequest;
+  reg [9:0] flushAddr;
+  reg [2:0] readCnt;
+  reg ioFlushing;
+  reg [6:0] lineCnt;
 
   // This holds state when we are waiting for ReadData
   // 0 - not waiting for RD
@@ -108,380 +89,262 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   // 4 - waiting for RD for ICache 
   // 5, 6 - waste two cycles after resolving ICache miss
   // this probably can be changed so those 2 cycles are not wasted
-  reg [2:0] waitingForReadData, set_waitingForReadData;
-    
-  // Cache Line that we want Status and Tag for
-  wire [6:0] requestLine;
+  reg [2:0] waitForReadDataState;
   
-  // Wires for DCache Tag
-  reg wrDCacheTag;
+  // Wires from request queue
+  wire requestQempty;
+  wire [31:0] requestQout;
+
+  // Wires from DCache Tag
   wire [20:0] requestLineTag, ringLineTag;
   
-  // Wires for DCache Status
-  reg wrDCacheStatus;
-  reg [1:0] newStatus;
+  // Wires from DCache Status
   wire [1:0] requestLineStatus, ringLineStatus;
   
-  // Wires for DCache
-  reg wrDCache;
-  wire [9:0] dcacheAddr;
+  // Wires from DCache
   wire [31:0] dcacheReadData;
   
-  // Wire for ICache
-  reg [9:0] Iaddr;
-  reg writeItag, set_writeItag;
+  // Wires for ICache
+  wire [9:0] Iaddr;
+  reg writeItag;
   wire [20:0] Itag;
   // ------------------END OF DECLARATIONS---------------------------
+
+  // Since our DCache BRAM is registered selDCache needs to be asserted at
+  // least for one extra cycle so that address from AQ does propagate to our
+  // DCache BRAM.
+  reg delayedSelDCache
+  always @(posedge clock) 
+    if (reset) delayedSelDCache <= 0;
+    else delayedSelDCache <= done ? 0 : selDCache;
     
+  // Logic for DCache
+  wire handleRequestQ = (state == idle) & (~requestQempty)
+  wire handleAQ = (~handleRequestQ) & (state == idle) & 
+    (delayedSelDCache) & (waitReadDataState == 0);
+  wire handleICacheRequest = (~handleRequestQ) & (~handleAQ) & 
+    (state == idle) & (waitReadDataState == 0) & ~Ihit;
+  wire resolveDCacheMiss = (~handleRequestQ) & (~handleAQ) & 
+    (~handleICacheRequest) & (state == idle) & (waitReadDataState == 3);
+  wire handleIO = (~handleRequestQ) & (~handleAQ) & 
+    (~handleICacheRequest) & (~resolveDCacheMiss) & (state == idle) & 
+    (selDCacheIO);
+  
+  wire AQReadHit = (handleAQ) & (read) & 
+    (requestLineTag == aq[30:10]) & (requestLineStatus != INVALID)
+  wire AQWriteHit = (handleAQ) & (~read) & 
+    (requestLineTag == aq[30:10]) & (requestLineStatus == MODIFIED)
+  // When we have DCache Write Miss but we already have data, we do not 
+  // request data from Memory Controller to speed up the process
+  wire doNotRequestRD = 
+    (~read) & (requestLineTag == aq[30:10]) & (requestLineStatus == SHARED);
+
+  // When some other core requested something that we have in MODIFIED state
+  wire doRequestedFlush = (handleRequestQ) &
+    (requestLineStatus == MODIFIED) & (requestLineTag == requestQout[27:7]);
+    
+  // Cache Line that we want Status and Tag for
+  wire [6:0] requestLine = handleRequestQ   ? requestQout[6:0] :
+                           (state == setup) ? lineCnt[6:0]     :
+                                              aq[9:3];
+  // IO Module outputs
+  assign wrq = AQReadHit | (read & resolveDCacheMiss);  
   assign rqDCache = dcacheReadData;
-  // DCache Address logic
-  assign dcacheAddr = (next_state == idle) ? aq[9:0] : set_flushAddr;
-  // Request Line Logic
-  assign requestLine = 
-    (state == idle && select == handle_requestQ) ? requestQout[6:0] :
-                                (state == setup) ? lineCnt[6:0]     :
-                                                   aq[9:3];
+  assign rwq = AQWriteHit | (~read & resolveDCacheMiss);
+  assign done = 
+    (AQReadHit | AQWriteHit) | (resolveDCacheMiss) | ;
+
+  // Logic for instruction cache
+  assign Ihit = (Itag[20:0] == pcx[30:10]);
+  assign [9:0] Iaddr = Ihit ? pcMux[9:0] : pcx[9:0];
+  assign preWriteItag = 
+    (waitReadDataState == 4) & (readCnt == 7) & (RDdest == whichCore);
+  always @(posedge clock) writeItag <= preWriteItag;
+
+  // Ring Interactions
+  assign dcWantsToken = 
+    (state == sendRAWaitToken) | (state == sendCacheDataWaitToken);
+  assign dcDriveRing = 
+    (state == sendRAWaitToken & dcAcquireToken) | 
+    (state == sendCacheDataWaitToken & dcAcquireToken) | 
+    (state == sendCacheData) | (state == sendWA);
+    
+  assign dcSourceOut = whichCore;
+  assign dcSlotTypeOut = 
+    (state == sendRAWaitToken | state == sendWA) ? Address : 
+    (state == sendCacheDataWaitToken | state == sendCacheData) ? WriteData : 
+    4'b0;
+  assign dcRingOut = 
+    (state == sendRAWaitToken)        ? readRequest    :
+    (state == sendCacheDataWaitToken | 
+     state == sendCacheData)          ? dcacheReadData :
+    (state == sendWA)                 ? flushRequest   : 32'b0;
+    
   always @(posedge clock) begin
     if (reset) begin
       state <= setup;
-      select <= idle;      
-      burstLength <= 0;
-      
-      waitingForReadData <= 0;
-      readCnt <= 0;
+      waitForReadDataState <= 0;
       lineCnt <= 0;
-      
-      doReadRequest <= 0;
-      doNotRequestRD <= 0;
-      doFlushAfterRead <= 0;      
-      flushRequest <= 0;
-      flushAddr <= 0;
-      ioFlushing <= 0;
-      
-      writeItag <= 0;
-    end 
-    else begin
-      state <= next_state;
-      select <= set_select;
-      burstLength <= set_burstLength;
-
-      waitingForReadData <= set_waitingForReadData;    
-      readCnt <= set_readCnt;
-      lineCnt <= set_lineCnt;
-      
-      doReadRequest <= set_doReadRequest;
-      doNotRequestRD <= set_doNotRequestRD;
-      doFlushAfterRead <= set_doFlushAfterRead;      
-      flushRequest <= set_flushRequest;
-      flushAddr <= set_flushAddr;
-      ioFlushing <= set_ioFlushing;
-      
-      writeItag <= set_writeItag;
-    end
-  end
-  
-  always @(*) begin   
-    // Default values
-    next_state = state;
-    set_burstLength = burstLength;
-    set_waitingForReadData = waitingForReadData;    
-
-    set_lineCnt = lineCnt;
-    set_readCnt = readCnt;
-    
-    set_doReadRequest = doReadRequest;
-    set_doNotRequestRD = doNotRequestRD;
-    set_doFlushAfterRead = doFlushAfterRead;    
-    set_flushRequest = flushRequest;
-    set_flushAddr = flushAddr;
-    set_ioFlushing = ioFlushing;
-    
-    wrDCache = 0;
-    wrDCacheTag = 0;
-    wrDCacheStatus = 0;
-    newStatus = 0;
-
-    rdRequestQ = 0;
-    wrRequestQ = 0;
-    requestQin = 0;            
-    
-    dcRingOut = RingIn;
-    dcSlotTypeOut = SlotTypeIn;
-    dcSrcDestOut = SrcDestIn;
-    dcDriveRing = (state == wait_token || state == sendRA || 
-                   state == read_cache || state == sendWA);
-
-    wrq = 0;
-    rwq = 0;
-    done = 0;
-    decLineAddr = 0;
-    
-    // Logic for instruction cache
-    Ihit = (Itag[20:0] == pcx[30:10]);
-    Iaddr = Ihit ? pcMux[9:0] : pcx[9:0];
-    set_writeItag = (waitingForReadData == 4) && (readCnt == 7) && 
-                    (RDdest == whichCore);    
-        
-    // Check incoming AddressRequest-s on the ring and if someone is 
-    // requesting a read or exclusive read on an Address that we have in our 
-    // cache schedule in Request Queue to deal with it.
-    if ((SlotTypeIn == Address || SlotTypeIn == AddressRequest) &&
-       (SrcDestIn > 0) && (SrcDestIn < EtherCore) &&
-       (ringLineTag == RingIn[27:7]) && (ringLineStatus != INVALID)) begin
-      // Handle stuff that comes on the ring from other cores
-      // Address Request from some other core, the tag is valid and matches
-      if ((RingIn[29:28] == 2'b01 && (ringLineStatus == MODIFIED)) || 
-         (RingIn[29:28] == 2'b11)) begin
-        // it is a read request and wehave it in MODIFIED state or it is 
-        // an exclusive read request, we need to add it to our queue of 
-        // things to process
-        wrRequestQ = 1;
-        requestQin = RingIn;
-      end      
-    end
-        
-    case (state)
+    end else case (state)
       idle: begin
-        case (select)
-          handle_dcache_request: begin
-            // Handle DCache access request from AQ
-            if ((requestLineTag == aq[30:10]) &&
-                ((read && requestLineStatus != INVALID) || 
-                 (~read && requestLineStatus == MODIFIED))) begin
-              // We have a data cache hit
-              if (read) wrq = 1;
-              else begin
-                rwq = 1;
-                wrDCache = 1;
-              end
-              done = 1;              
-            end
-            else begin
-              // We have a data cache miss
-              next_state = wait_token;
-              set_waitingForReadData = 1;
-              
-              set_doReadRequest = 1;
-              set_doNotRequestRD = (~read) && (requestLineTag == aq[30:10]) && 
-                                   (requestLineStatus == SHARED);
-              set_doFlushAfterRead = (requestLineStatus == MODIFIED);
-              set_ioFlushing = 0;
-              set_flushAddr = {aq[9:3], 3'b000};
-              set_flushRequest = {4'b0000, requestLineTag, aq[9:3]};
-              
-              wrDCacheTag = 1;
-              wrDCacheStatus = 1;
-              if (read) newStatus = SHARED;
-              else newStatus = INVALID;
-            end            
+        if (handleRequestQ) begin
+          if (doRequestedFlush) begin
+            // if some other core requested the line that we have in MODIFIED
+            // state we need to flush it            
+            state <= sendCacheDataWaitToken;
+            ioFlushing <= 0;
+            flushAddr <= {requestQout[6:0], 3'b000};
+            // requested flush, hence 29th bit is set
+            flushRequest <= {4'b0010, requestQout[27:0]};            
           end
-          
-          update_dcache: begin
-            // Resolve DCache miss, after we have already received
-            // RD from memory and update DCache with it
-            set_waitingForReadData = 0;            
-            if (read) wrq = 1;
-            else begin
-              rwq = 1;
-              wrDCache = 1;
-            end
-            done = 1;              
-          
-            // After receiving RD return need to update STATUS
-            // only if we issued an exclusive read.
-            if (~read) begin
-              wrDCacheStatus = 1;
-              newStatus = MODIFIED;
-            end
-          end
-          
-          handle_icache_request: begin
-            // Handle ICache miss
-            next_state = wait_token;          
-            set_doReadRequest = 1;
-            set_doFlushAfterRead = 0;
-            set_waitingForReadData = 4;
-          end
-          
-          handle_requestQ: begin
-            // Handle requests from other cores            
-            rdRequestQ = 1;
+        end else if (handleAQ) begin
+          if (~AQReadHit & ~AQWriteHit) begin
+            state <= sendRA;
+            readRequest <= {1'b0, doNotRequestRD, ~read, 1'b1, aq[30:3]}; 
             
-            if ((requestLineStatus != INVALID) && 
-                (requestLineTag == requestQout[27:7])) begin
-              // If requested address line still contains correct tag and is 
-              // not invalid
-              if (requestLineStatus == MODIFIED) begin
-                // if the line is in modified state we need to flush it
-                next_state = wait_token;
-                set_doReadRequest = 0;
-                set_ioFlushing = 0;
-                set_flushAddr = {requestQout[6:0], 3'b000};
-                // requested flush, hence 29th bit is set
-                set_flushRequest = {4'b0010, requestQout[27:0]};
-              end
-              
-              wrDCacheStatus = 1;
-              if (~requestQout[29]) newStatus = SHARED;
-              else newStatus = INVALID;
-            end
+            ioFlushing <= 0;
+            doFlush <= (requestLineStatus == MODIFIED);
+            flushAddr <= {aq[9:3], 3'b000};
+            flushRequest <= {4'b0000, requestLineTag, aq[9:3]};
           end
-          
-          handle_dcacheio_request: begin
+        end else if (handleICacheRequest) begin
+          state <= sendRA;
+          readRequest <= {4'b0001, pcx[30:3]};
+          doFlush <= 0;
+        end else if (resolveDCacheMiss) begin
+          // Nothing to do here
+        end else if (handleIO) begin
+          // Nothing to do here yet, just assert done
+          /*
             // Handle DCache IO requests
             set_lineCnt = {aq[16:10]};
             if (aq[17]) next_state = dcacheio_invalidate;
             else next_state = dcacheio_flush;
-          end
-        endcase
-      end 
-
-      wait_token: begin
-        // wait for token on the ring to attach read/flush requests at the end
-        if ((SlotTypeIn == Token) & ~msgrWaiting & 
-            ~lockerWaiting & ~barrierWaiting) begin
-          if(RingIn[7:0] == 0) begin
-            if (doReadRequest) next_state = sendRA;
-            else next_state = read_cache;
-          end
-          else begin
-            set_burstLength = RingIn[7:0];
-            next_state = waitN;
-          end
-          dcRingOut = 
-            RingIn + (doReadRequest ? (doFlushAfterRead ? 10 : 1) : 9);
+          */
         end
       end
       
-      waitN: begin
-        // wait till the end of the token "train"
-        if (burstLength == 1) begin
-          if (doReadRequest) next_state = sendRA;
-          else next_state = read_cache;
+      sendRAWaitToken: begin
+        if (dcAcquireToken) begin
+          if (doFlush) state <= sendCacheData;
+          else state <= idle;
         end
-        set_burstLength = burstLength - 1;
       end
       
-      sendRA: begin
-        // send read request on the ring, for DCache or ICache miss
-        // depending on value of waitingForReadData
-        if (doFlushAfterRead) next_state = read_cache;
-        else next_state = idle;      
-        dcSlotTypeOut = Address;
-        dcSrcDestOut = whichCore;        
-        if (waitingForReadData == 1) 
-          dcRingOut = {1'b0, doNotRequestRD, ~read, 1'b1, aq[30:3]}; 
-        else if (waitingForReadData == 4) 
-          dcRingOut = {4'b0001, pcx[30:3]};
+      sendCacheDataWaitToken: begin
+        if (dcAcquireToken) begin
+          flushAddr <= flushAddr + 1;
+          state <= sendCacheData;
+        end
       end
       
-      read_cache: begin
-        // flush contents of DCache on the ring for given cache line 
-        // (8 words total)
+      sendCacheData: begin
+        flushAddr <= flushAddr + 1;
         if (flushAddr[2:0] == 7) next_state = sendWA;
-        set_flushAddr = flushAddr + 1;        
-        dcSlotTypeOut = WriteData;
-        dcSrcDestOut = whichCore;
-        dcRingOut = dcacheReadData;
       end
       
       sendWA: begin
-        // send flush request on the ring
-        if (!ioFlushing) next_state = idle;
-        else next_state = dcacheio_flush;
-        dcSlotTypeOut = Address;
-        dcSrcDestOut = whichCore;
-        dcRingOut = flushRequest;
-      end      
+        if (!ioFlushing) state <= idle;
+        //else state <= dcacheio_flush;
+      end
       
       setup: begin
         // setup initial dcache state. For Master Core (1) all cache
         // lines are in MODIFIED state initially.
-        if (whichCore != 1) next_state = idle;
+        if (whichCore != 4'b1) state <= idle;
         else begin
-          if (lineCnt == 127) next_state = idle;
-          set_lineCnt = lineCnt + 1;
-          wrDCacheStatus = 1;
-          newStatus = MODIFIED;
+          if (lineCnt == 7'h7F) state <= idle;
+          lineCnt <= lineCnt + 1;
         end
-      end
-      
-      dcacheio_invalidate: begin        
-        if (lineCnt == 0) begin
-          next_state = idle;
-          done = 1;
-        end
-        else begin
-          set_lineCnt = lineCnt - 1;
-          decLineAddr = 1;
-        end
-        
-        if (requestLineStatus != MODIFIED) begin
-          // lines in MODIFIED state can not be invalidated because
-          // MODIFIED lines need to be flushed first so they become available
-          // in memory directory
-          wrDCacheStatus = 1;
-          newStatus = INVALID;
-        end
-      end
-      
-      dcacheio_flush: begin                
-        if (lineCnt == 0) begin
-          next_state = idle;
-          done = (requestLineStatus != MODIFIED);
-        end
-        else begin
-          set_lineCnt = lineCnt - 1;
-          decLineAddr = 1;
-        end
-        
-        if (requestLineStatus == MODIFIED) begin
-          wrDCacheStatus = 1;
-          newStatus = SHARED;
-          
-          next_state = wait_token;
-          set_doReadRequest = 0;
-          set_ioFlushing = 1;
-          set_flushAddr = {aq[9:3], 3'b000};
-          set_flushRequest = {4'b0000, requestLineTag, aq[9:3]};
-        end        
-      end
+      end      
     endcase
-        
-    // Wait for RDReturn data and when receive it update the DCache or ICache
-    // or if we receive GrantExclusive we do not need to wait for RD anymore.
-    if (waitingForReadData == 1 && SlotTypeIn == GrantExclusive && 
-        SrcDestIn == whichCore) begin
-      set_waitingForReadData = 3;
-    end 
-    else if ((waitingForReadData == 1) || (waitingForReadData == 4)) begin
-      if (RDdest == whichCore) begin
-        if (readCnt == 7) set_waitingForReadData = waitingForReadData + 1;
-        set_readCnt = readCnt + 1;
-      end       
-    end
-    else if (waitingForReadData == 2 || waitingForReadData == 5) begin
-      set_waitingForReadData = waitingForReadData + 1;
-    end
-    else if (waitingForReadData == 6) begin
-      set_waitingForReadData = 0;
-    end
-    else set_readCnt = 0;
-    
-    // Logic to set select
-    if (~requestQempty && (~rdRequestQ || ~requestQalmostEmpty)) 
-      set_select = handle_requestQ;
-    else if ((set_waitingForReadData == 0) && selDCache && ~done) 
-      set_select = handle_dcache_request;
-    else if ((set_waitingForReadData == 0) && ~Ihit) 
-      set_select = handle_icache_request;
-    else if (set_waitingForReadData == 3) 
-      set_select = update_dcache;
-    else if (selDCacheIO && ~done) 
-      set_select = handle_dcacheio_request;
-    else 
-      set_select = idle;
   end
+  
+  always @(posedge clock)
+    // Wait for RDReturn data and when receive it update the DCache or ICache
+    // or if we receive GrantExclusive we do not need to wait for RD anymore.    
+    if (reset) begin
+      waitReadDataState <= 0;
+      readCnt <= 0;
+    end
+    else begin
+      if (waitReadDataState == 1 & SlotTypeIn == GrantExclusive & 
+          SourceIn == whichCore) begin
+        waitReadDataState <= 3;
+      end else if ((waitReadDataState == 1) | (waitReadDataState == 4)) begin
+        if (RDdest == whichCore) begin
+          if (readCnt == 7) waitReadDataState <= waitReadDataState + 1;
+          readCnt <= readCnt + 1;
+        end
+      end else if ((waitReadDataState == 2) | (waitReadDataState == 5)) begin
+        waitReadDataState <= waitReadDataState + 1;
+      end else if ((waitReadDataState == 3 & resolveDCacheMiss) | 
+                   (waitReadDataState == 6)) begin
+        waitReadDataState <= 0;
+      end
+    end
+  end
+  
+  itagmemX instTag (
+    .a(pcx[9:3]), 
+    .d(pcx[30:10]),
+    .clk(clock),
+    .we(writeItag),
+    .spo(Itag)
+  ); 
+  
+  wire wrDCacheTag = handleAQ & (~AQReadHit & ~AQWriteHit);  
+  dcacheTag DataCacheTag (
+    .a(requestLine), // Bus [6 : 0] 
+    .d(aq[30:10]), // Bus [20 : 0] 
+    .dpra(RingIn[6:0]), // Bus [6 : 0] 
+    .clk(clock),
+    .we(wrDCacheTag),
+    .spo(requestLineTag), // Bus [20 : 0] 
+    .dpo(ringLineTag)     // Bus [20 : 0] 
+  ); 
+
+  wire [1:0] wrDCacheStatus = 
+    (state == setup & whichCore == 4'b1) | (handleRequestQ) | 
+    (handleAQ & (~AQReadHit & ~AQWriteHit)) | (resolveDCacheMiss & ~read);
+  wire newStatus = 
+    (state == setup)            ? MODIFIED :
+    (handleRequestQ)            ? (~requestQout[29] ? SHARED : INVALID) :
+    (resolveDCacheMiss & ~read) ? MODIFIED : 
+    (handleAQ & read)           ? SHARED   : INVALID;
+  dcacheStatus DataCacheStatus (
+    .a(requestLine), // Bus [6 : 0] 
+    .d(newStatus), // Bus [1 : 0] 
+    .dpra(RingIn[6:0]), // Bus [6 : 0] 
+    .clk(clock),
+    .we(wrDCacheStatus),
+    .spo(requestLineStatus), // Bus [1 : 0] 
+    .dpo(ringLineStatus)     // Bus [1 : 0] 
+  ); 
+  
+  wire rdRequestQ = handleRequestQ;
+  // Check incoming AddressRequest-s on the ring and if someone is 
+  // requesting a read or exclusive read on an Address that we have in our 
+  // cache schedule in Request Queue to deal with it.
+  wire wrRequestQ = 
+    // Handle stuff that comes on the ring from other cores
+    // Address Request from some other core, the tag is valid and matches
+    ((SlotTypeIn == Address | SlotTypeIn == AddressRequest) & 
+     (SourceIn > 0) & (SrcDestIn < SourceIn) & 
+     (ringLineTag == RingIn[27:7]) & (ringLineStatus != INVALID)) &
+    ((RingIn[29:28] == 2'b01 & (ringLineStatus == MODIFIED)) | 
+     (RingIn[29:28] == 2'b11));
+  dcacheRequestQ DataCacheRequestQueue (
+    .clk(clock),
+    .rst(reset),
+    .din(RingIn), // Bus [31 : 0] 
+    .wr_en(wrRequestQ),
+    .rd_en(rdRequestQ),
+    .dout(requestQout), // Bus [31 : 0] 
+    .full(),
+    .empty(requestQempty),
+    .almost_empty(requestQalmostEmpty)
+  );    
 
 generate
   if (I_INIT == "NONE") begin : icache_synth
@@ -495,7 +358,7 @@ generate
       .rdb(),
       .wdb(RDreturn), //the data from memory 
       .ab({pcx[9:3], readCnt}), //line address , cnt 
-      .web((waitingForReadData == 4) && (RDdest == whichCore)), //write enable 
+      .web((waitReadDataState == 4) && (RDdest == whichCore)), //write enable 
       .enb(1'b1),
       .clkb(clock)
     );
@@ -505,7 +368,7 @@ generate
     reg [9:0] instAddr;
     always @(posedge clock) begin
       if (~stall | ~Ihit) instAddr <= Iaddr;  // sync read for BRAM	
-      if ((waitingForReadData == 4) && (RDdest == whichCore))
+      if ((waitReadDataState == 4) && (RDdest == whichCore))
         instCache[{pcx[9:3], readCnt}] <= RDreturn;
     end
     assign instx = instCache[instAddr];
@@ -513,35 +376,13 @@ generate
     initial $readmemh(I_INIT,instCache);
   end
 endgenerate
-  
-  itagmemX instTag (
-    .a(pcx[9:3]), 
-    .d(pcx[30:10]),
-    .clk(clock),
-    .we(writeItag),
-    .spo(Itag)
-  ); 
-  
-  dcacheTag DataCacheTag (
-    .a(requestLine), // Bus [6 : 0] 
-    .d(aq[30:10]), // Bus [20 : 0] 
-    .dpra(RingIn[6:0]), // Bus [6 : 0] 
-    .clk(clock),
-    .we(wrDCacheTag),
-    .spo(requestLineTag), // Bus [20 : 0] 
-    .dpo(ringLineTag)     // Bus [20 : 0] 
-  ); 
 
-  dcacheStatus DataCacheStatus (
-    .a(requestLine), // Bus [6 : 0] 
-    .d(newStatus), // Bus [1 : 0] 
-    .dpra(RingIn[6:0]), // Bus [6 : 0] 
-    .clk(clock),
-    .we(wrDCacheStatus),
-    .spo(requestLineStatus), // Bus [1 : 0] 
-    .dpo(ringLineStatus)     // Bus [1 : 0] 
-  ); 
 
+  wire wrDCache = AQWriteHit | (~read & resolveDCacheMiss);
+  wire [9:0] dcacheAddr =
+    ((state == sendRAWaitToken & doFlush) | (doRequestedFlush) | 
+     (state == sendCacheDataWaitToken) | (state == sendCacheData)) ? 
+    flushAddr : aq[9:0];
 generate
   if (D_INIT == "NONE") begin : dcache_synth
     dpbram32 dataCache (
@@ -556,7 +397,7 @@ generate
       .rdb(),               // second read port is unused
       .wdb(RDreturn),       // the data from memory 
       .ab({aq[9:3], readCnt}), // line address, cnt 
-      .web((waitingForReadData == 1) && (RDdest == whichCore)),
+      .web((waitReadDataState == 1) && (RDdest == whichCore)),
       .enb(1'b1),
       .clkb(clock)
     );
@@ -567,7 +408,7 @@ generate
     always @(posedge clock) begin
       dAddrA <= dcacheAddr;  // sync read for BRAM	
       if (wrDCache) dataCache[dcacheAddr] <= wq;
-      if ((waitingForReadData == 1) && (RDdest == whichCore)) 
+      if ((waitReadDataState == 1) && (RDdest == whichCore)) 
         dataCache[{aq[9:3], readCnt}] <= RDreturn;
     end
     assign dcacheReadData = dataCache[dAddrA];
@@ -576,15 +417,4 @@ generate
   end
 endgenerate
     
-  dcacheRequestQ DataCacheRequestQueue (
-    .clk(clock),
-    .rst(reset),
-    .din(requestQin), // Bus [31 : 0] 
-    .wr_en(wrRequestQ),
-    .rd_en(rdRequestQ),
-    .dout(requestQout), // Bus [31 : 0] 
-    .full(),
-    .empty(requestQempty),
-    .almost_empty(requestQalmostEmpty)
-  );    
 endmodule

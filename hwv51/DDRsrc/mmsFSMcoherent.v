@@ -9,44 +9,44 @@
 */
 
 module mmsFSMcoherent (
-   input clock,
-   input reset,
-   
-   // mem op queue
-   input memOpQempty,
-   output reg rdMemOp,
-   input [3:0] memOpDest,
-   input [31:0] memOpData,
+  input clock,
+  input reset,
 
-   // mem op write data queue
-   input writeDataQempty,
-   output reg rdWriteData,
-   input[127:0] writeDataIn,
-   
-	// resend queue
-	output reg wrResend,
-	output reg [39:0] resendOut,
-	
-   // wires from DDR read data buffer
-   input rbEmpty,
-   output reg rdRB,
-   input [127:0] readData,
-      
-   // wires to DDR controller
-   input wbFull,
-   input afFull,
-   output reg wrAF,
-   output reg [25:0] afAddress,
-   output reg afRead,
-   output reg wrWB,
-   output reg [127:0] writeData,
+  // mem op queue
+  input memOpQempty,
+  output reg rdMemOp,
+  input [3:0] memOpDest,
+  input [31:0] memOpData,
 
-   // RD outputs   
-   output [31:0] RDreturn,  //separate path for read data return
-   output [3:0] RDdest,
-   
-   output reg [127:0] RDtoDC,
-   output reg wrRDtoDC
+  // mem op write data queue
+  input writeDataQempty,
+  output reg rdWriteData,
+  input[127:0] writeDataIn,
+
+  // resend queue
+  output reg wrResend,
+  output reg [39:0] resendOut,
+
+  // wires from DDR read data buffer
+  input rbEmpty,
+  output reg rdRB,
+  input [127:0] readData,
+    
+  // wires to DDR controller
+  input wbFull,
+  input afFull,
+  output reg wrAF,
+  output reg [25:0] afAddress,
+  output reg afRead,
+  output reg wrWB,
+  output reg [127:0] writeData,
+
+  // RD outputs   
+  output [31:0] RDreturn,  //separate path for read data return
+  output [3:0] RDdest,
+
+  output reg [127:0] RDtoDC,
+  output reg wrRDtoDC
 );
 
    parameter nCores = 0;       // THIS is set in RISCTop.v

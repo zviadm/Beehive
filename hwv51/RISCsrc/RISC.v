@@ -255,7 +255,7 @@ and may be instantiated several times on a single chip.
   assign selDCache = ~aqe & ~aq[31] & (aqrd | ~wqe);  
   assign selDCacheIO = ~aqe & aq[31] & aq[2:0] == 3;
  
-  DCache #(.I_INIT(I_INIT),.D_INIT(D_INIT)) dCacheN(
+  CoherentDCache #(.I_INIT(I_INIT),.D_INIT(D_INIT)) dCacheN(
     .clock(clock),
     .reset(reset),
     .aq(aq[30:0]),
@@ -267,8 +267,10 @@ and may be instantiated several times on a single chip.
     .done(done[3]),
     .selDCache(selDCache),
     .selDCacheIO(selDCacheIO),
+    .decLineAddr(decLineAddr),
+    
     .whichCore(whichCore),
-    //.EtherCore(EtherCore),
+    .EtherCore(EtherCore),
     
     //Ring Signals
     .RingIn(RingIn),
@@ -287,7 +289,6 @@ and may be instantiated several times on a single chip.
     .stall(stall),
     .instx(instx),
     .Ihit(Ihit),
-    .decLineAddr(decLineAddr),
     
     //RDreturn ring
     .RDreturn(RDreturn),
