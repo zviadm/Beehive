@@ -40,6 +40,9 @@ STOPACKMSG = (1 LSL 15) + (1 LSL 9) + (1 LSL 5) + (4 LSL 2) + 2
 
 
  ld       zero, 0 //nop at location 0.
+//loop_forever:
+//  ld       void, 0
+//  j        loop_forever
 
 // long_ld  link, 300000000  //wait 10 seconds
 //memLoop:

@@ -52,9 +52,9 @@ module mmsFSMcoherent (
    parameter nCores = 0;       // THIS is set in RISCTop.v
    parameter DELAY_ON_HIT = 0;
    
-	// we need 2^26 entries, each 2 bits 
-	localparam MEM_DIR_PREFIX = {6'b001111};
-	localparam MEM_DIR_ENTRY_BITS = 2;
+   // we need 2^26 entries, each 2 bits 
+   localparam MEM_DIR_PREFIX = {6'b001111};
+   localparam MEM_DIR_ENTRY_BITS = 2;
    
    localparam MEM_CLEAN = 0;
    localparam MEM_WAITING = 1;

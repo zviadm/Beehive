@@ -39,8 +39,8 @@ INVALALL = (1 LSL 19) + (127 LSL 12) + (0 LSL 5) + (3 LSL 2) + 2
 STOPACKMSG = (1 LSL 15) + (1 LSL 9) + (1 LSL 5) + (4 LSL 2) + 2
 
 
- ld       zero, 0 //nop at location 0.
-
+  ld       zero, 0 //nop at location 0.
+  
 // long_ld  link, 300000000  //wait 10 seconds
 //memLoop:
 //  sub      link, link, 1

@@ -1,9 +1,7 @@
  
 // © Copyright Microsoft Corporation, 2008, 2009
 
-//ARPipAddress =  0x9d39321d //157.57.50.29 - cpthp5
-ARPipAddress =  0xc0a80001 //192.168.0.1 - Cambridge TFTP
-//ARPipAddress =  0x121a0425 // - beectl.csail.mit.edu
+ARPipAddress =  0xc0a80001 //192.168.0.1 - local TFTPD
 	
 //register names:
 void   = $0
@@ -96,12 +94,9 @@ STARTMSG    = (0 LSL 15) + (4 LSL 2) + 2
 //reestablished whenever the master flushes its data
 //cache.
 
-memsize = 0x4000000   // size of main memory = 16MB (must match MBITS in beehive.c)
+memsize = 0x4000000 //size of main memory = 16MB (must match MBITS in beehive.c)
 invalByteAddress = memsize - 0x1000 //used when building the table
 invalWordAddress = (invalByteAddress LSR 2) // used to call
-	
-//invalWordAddress = 0x1ffffc00 //(2GB - 4KB)/4.  
-//invalByteAddress = 0x7ffff000 //used when building the table
 
   ld       zero, 0 //nop at location 0.
   
@@ -174,27 +169,27 @@ rqSaved:
 //save is now complete
 
 //build the table of instructions at invalIcache
-long_ld    addr, invalByteAddress
-sub        addr, addr, 32
-ld         count, 127  //first 127 entries (8 words apart) get the jump instruction
+  long_ld    addr, invalByteAddress
+  sub        addr, addr, 32
+  ld         count, 127  //first 127 entries (8 words apart) get the jump instruction
 
 buildTable:
-long_ld    wq, 0xf800220c //j .+8
-aqw_add    addr, addr, 32
-sub        count, count, 1
-jnz        .-3
-long_ld    wq, 0xf000030c  //j link
-aqw_add    addr, addr, 32
- 
+  long_ld    wq, 0xf800220c //j .+8
+  aqw_add    addr, addr, 32
+  sub        count, count, 1
+  jnz        .-3
+  long_ld    wq, 0xf000030c  //j link
+  aqw_add    addr, addr, 32
+   
 // flush and invalidate the data cache
  
   aqw_long_ld  void,FLUSHALL
   aqw_long_ld  void,INVALALL
  
-// send a message to the master, indicating we've stopped
-//       j7      2  // link <- savedPC
-//       ld      wq,link      // message payload
-//       aqw_long_ld  void,STOPACKMSG
+  // send a message to the master, indicating we've stopped
+  //j7      2  // link <- savedPC
+  //ld      wq,link      // message payload
+  //aqw_long_ld  void,STOPACKMSG
  
 // ------------------------------------------------------------
 // wait for the master to start us
@@ -517,11 +512,11 @@ dirtyLoop:
 
     // ensure Master D cache flush before slave starts	
     aqw_long_ld  void,FLUSHALL
-
+	
 // ----------------------------------------
 // build a table of powers of 10
 // ----------------------------------------
-    long_ld  Base, dectable-datawordsize
+    long_ld	  Base, dectable-datawordsize
     ld       N, decwords
     ld       t3, 1
 decloop:
@@ -545,8 +540,44 @@ hexloop:
     lsl      t3, t3, 4            // X16
     sub      N, N, 1
     jnz      hexloop
-		
-    call 0x1000	
+
+// ------------------------------------------------------------
+// Simulation Code
+// ------------------------------------------------------------
+    
+  call     0x1000
+  ld       t1, 0xfff
+sleep_a_bit:
+  sub      t1, t1, 1
+  jnz      sleep_a_bit
+  
+  ld       Char, "S"
+  call     printCh
+  aqr_ld   void, 0x0
+  ld       N, rq
+  call     printNum
+  
+  ld       wq, 0xFAF
+  aqw_ld   void, 0x0
+  
+  ld       Char, "S"
+  call     printCh
+  aqr_ld   void, 0x1000
+  ld       N, rq
+  call     printNum
+  
+  ld       Char, "S"
+  call     printCh
+  aqr_ld   void, 0x0
+  ld       N, rq
+  call     printNum
+  //aqr_ld   void, 0x1040
+  //ld       N, rq
+  //call     printNum
+  
+loop_forever:
+  ld       void, 0
+  j        loop_forever
 // ------------------------------------------------------------
 // Shell initialization.
 // ------------------------------------------------------------
@@ -559,6 +590,7 @@ shell:
     and      CoreID, CoreID, 0xf
     lsr      EtherCore, Temp, 14
     and      EtherCore, EtherCore, 0xf	 
+
 
 //    j       memTest
 
@@ -589,7 +621,8 @@ chLoop:
     jz       chLoop
 //we need the message length and the source core
 gotMessage:
-    lsr      md1, Char, 10         //source core
+    lsr      md1, Char, 10 
+    and      md1, md1, 0x3f        //source core
     and      md2, Char, 0x3f       //length
     ld       ma1, rq               //first word of the payload
     and      Char, Char, 0x3f
@@ -1060,12 +1093,13 @@ doCore1:
 waitMsgs:
    aqr_ld    void, IO_MSGR
    ld        Temp, rq
-   lsr       Addr, Temp, 10        //source core (we don't use the type)
-   and       Temp, Temp,0x3f        //mask length
+   lsr       Addr, Temp, 10 
+   and       Addr, Addr, 0xf        //source core (we don't use the type)
+   and       Temp, Temp, 0x3f       //mask length
    jz        waitMsgs
-   ld        Temp2, rq             //the message word
+   ld        Temp2, rq              //the message word
    sub       void, Temp, 1
-   jnz       .-1                     //incorrect length
+   jnz       .-1                    //incorrect length
    call      printCRLF
    ld        N, Addr
    call      printNum
@@ -1129,8 +1163,9 @@ receiveMessage:
 rmLoop:
    aqr_ld    void, IO_MSGR
    ld        result, rq
-   lsr       t1, result, 10        //source core (we don't use the type)
-   and       result, result, 0x3f  //mask length
+   lsr       t1, result, 10 
+   and       t1, t1, 0xf            //source core (we don't use the type)
+   and       result, result, 0x3f   //mask length
    jnz       t3
    sub       count, count, 1
    jz        t3
@@ -1282,6 +1317,7 @@ getNextWord:
     sub        result, result, 1
     jnz        getNextWord
 
+    j ret
     // If we transmitted an IP packet, check that the received packet
     // it is from the TFPT server (ARPipAddress).
     aqr_add		void, md2, (3 * datawordsize)
@@ -1656,13 +1692,13 @@ TFTPclient:
     long_ld    Addr, ARPipAddress 
     call       sendARP
 	 
-	 ld         N, 5
-	 call       printNum
-
     aqr_ld     void, (rcvBuffer - data)  //check that the exchange worked
     ld         void, rq
     jm         ret    //failed. Return to caller
 	 
+	 ld         N, 5
+	 call       printNum
+
 //Now we fill in the TFTP request and ACK messages. Ethernet header first
     long_ld  t1, (packetBuffer - data) + (2 * datawordsize) //Sender hardware address becomes destination MAC address
     aqr_ld     void, t1

@@ -23,10 +23,10 @@ module CoherentMemMux (
   //interface signals to the ring
   input[31:0] RingIn,
   input [3:0] SlotTypeIn,
-  input [3:0] SrcDestIn,
+  input [3:0] SourceIn,
   output [31:0] RingOut,
   output [3:0] SlotTypeOut,
-  output [3:0] SrcDestOut,
+  output [3:0] SourceOut,
 
   output [31:0] RDreturn,  //separate path for read data return
   output [3:0] RDdest,
@@ -92,17 +92,7 @@ module CoherentMemMux (
   wire wbFull, afFull;
   
   // FSM state, and wires that queues up messages in MQ
-  reg [7:0] burstLength;
-  reg [2:0] state;
-  //wire MQmainEmpty;
-  //wire MQsdEmpty;
-  //wire MQempty;
-  //reg MQloaded;  //MQ was loaded
-  //wire [31:0] MQout;
-  //wire [3:0] MQtype;
-  //wire [3:0] MQsrcDest;
-  //wire rdMQ;
-  //wire wrMQ;  
+  reg [1:0] state;
   
   // resend queue wires
   wire [39:0] resendQin;
@@ -136,13 +126,8 @@ module CoherentMemMux (
   wire WDQalmostFull;
     
   parameter idle = 0; //States
-  parameter sendToken = 1;
+  parameter dumpResendQ = 1;
   parameter waitToken = 2;
-  parameter waitData = 3;
-  //parameter waitMQnonEmpty = 4;
-  //parameter readMQ = 5;
-  //parameter readRB = 6;
-  parameter readResendQ = 4;
 
   parameter Null = 7; //Slot Types
   parameter Token = 1;
@@ -158,70 +143,44 @@ module CoherentMemMux (
 //---------------------End of Declarations-----------------
 
   always @(posedge clock) 
-    if(SlotTypeIn == Token) burstLength <= RingIn[7:0];
-    else if(burstLength != 0) burstLength <= burstLength - 1;
-
-  //assign rdMQ = (state == readMQ) & ~MQempty;
-  //assign wrMQ = 
-  //  (SlotTypeIn[3] & (SrcDestIn != 0)) ||                 // Type >= NULL    
-  //  (SlotTypeIn == Address && RingIn[28] && ~RingIn[31]); // Fresh read address request
-  assign rdResendQ = (state == readResendQ) & ~resendQempty;
-
-  always @(posedge clock) if(reset) state <= idle;
+    if(reset) state <= idle;
     else case(state)
-      idle: if(~InhibitDDR & ~ResetDDR & ~WDQalmostFull) state <= sendToken;
+      idle: if(~InhibitDDR & ~ResetDDR & ~WDQalmostFull) state <= dumpResendQ;
 
-      sendToken: state <= waitToken;
+      dumpResendQ: if (resendQempty) state <= waitToken;
 
-      waitToken: if(SlotTypeIn == Token) state <= waitData;
-
-      waitData: if(burstLength == 0) begin
-        if (~MQloaded & resendQempty &
-           ~InhibitDDR & ~ResetDDR & ~WDQalmostFull) state <= sendToken; //MQ not loaded this round         
-        else if (MQloaded) state <= waitMQnonEmpty; //drain MQ first
-        else if (~resendQempty) state <= readResendQ; // drain resendQ if not empty
-        else state <= idle;
-      end
-
-      waitMQnonEmpty: if(~MQempty) state <= readMQ; //wait for nonEmpty to go through the fifo.
-
-      readMQ: if(MQempty) begin
-        if (~resendQempty) state <= readResendQ;
-        else if (~InhibitDDR & ~ResetDDR & ~WDQalmostFull) state <= sendToken;
-        else state <= idle;
-      end
-      
-      readResendQ: if (resendQempty) begin
-        if(~InhibitDDR & ~ResetDDR & ~WDQalmostFull) state <= sendToken;
-        else state <= idle;
-      end
+      waitToken: 
+        if(SlotTypeIn == Token) begin
+          if(~InhibitDDR & ~ResetDDR & ~WDQalmostFull) state <= dumpResendQ;
+          else state <= idle;
+        end
     endcase
     
-  always@(posedge clock)
-    if(reset | rdMQ) MQloaded <= 0;
-    else if(wrMQ) MQloaded <= 1;
-    
+  wire nullifyMessage = (SlotTypeIn == Token) | (SourceIn == 4'b0) | 
+    (SlotTypeIn == Address & RingIn[31]);
+  
   assign SlotTypeOut =
-    (state == sendToken) ? Token :
-    ((state == readMQ) & ~MQempty) ? ((MQtype == Address) ? AddressRequest : MQtype) :
-    (state == readResendQ & ~resendQempty) ? resendQtype :
-    Null;
+    (state == dumpResendQ & resendQempty)    ? Token :
+    (state == dumpResendQ & ~resendQempty)   ? resendQtype :
+    nullifyMessage                           ? Null : SlotTypeIn;
 
   assign RingOut = 
-    ((state == readMQ) & ~MQempty) ? MQout :
-    (state == readResendQ & ~resendQempty) ? resendQout :
-    32'b0;
+    (state == dumpResendQ & resendQempty)    ? 32'b0 :
+    (state == dumpResendQ & ~resendQempty)   ? resendQout :
+    nullifyMessage                           ? 32'b0 : RingIn;
 
-  assign SrcDestOut = 
-    ((state == readMQ) & ~MQempty) ? MQsrcDest :
-    (state == readResendQ & ~resendQempty) ? resendQdest :
-    4'b0000; 
+  assign SourceOut = 
+    (state == dumpResendQ & resendQempty)    ? 4'b0 :
+    (state == dumpResendQ & ~resendQempty)   ? resendQdest :
+    nullifyMessage                           ? 4'b0 : SourceIn;
 
+  //Ack display controller's address.
+  assign readAck = ~(SlotTypeIn == Address) & readReq & memOpQempty; 
+  
   // decided what should go into memOpQ, stuff from ring or from DC
-  assign readAck = ~(SlotTypeIn == Address) & readReq & memOpQempty; //Ack display controller's address.
-  assign memOpQIn = (SlotTypeIn == Address) ? 
-    {SrcDestIn, SlotTypeIn, RingIn} : {4'b0000, 4'b0010, {6'b000100, RA}};
   assign wrMemOpQ = (SlotTypeIn == Address) | readAck;
+  assign memOpQIn = (SlotTypeIn == Address) ? 
+    {SourceIn, SlotTypeIn, RingIn} : {4'b0000, 4'b0010, {6'b000100, RA}};
   
   // write to writeDataQ, also count number of elements in writeDataQ
   always @(posedge clock) begin
@@ -243,40 +202,19 @@ module CoherentMemMux (
       if (wcnt == 3 && (SlotTypeIn == WriteData)) wrWriteDataQ <= 1;
       else wrWriteDataQ <= 0;
       
-      if (wrWriteDataQ && ~rdWriteDataQ) writeDataQelts <= writeDataQelts + 1;
-      else if (~wrWriteDataQ && rdWriteDataQ) writeDataQelts <= writeDataQelts - 1;
+      if (wrWriteDataQ && ~rdWriteDataQ) 
+        writeDataQelts <= writeDataQelts + 1;
+      else if (~wrWriteDataQ && rdWriteDataQ) 
+        writeDataQelts <= writeDataQelts - 1;
     end
   end
   
-  // check if writeDataQ is almost full in this case we should not release new token
-  // this might not be necessary but just to be safe wo do it, so that WDQ does not overflow.
-  // also depth of WDQ now is 1024 if that is changed, then this 900 will need to be changed too.
-  assign WDQalmostFull = (writeDataQelts > 900);
+  // check if writeDataQ is almost full in this case we should not release new 
+  // token. This might not be necessary but just to be safe we do it, so that 
+  // WDQ does not overflow. also depth of WDQ now is 1024.
+  assign WDQalmostFull = writeDataQelts[9];
 
-  //the message queue.  Contains messages, lock requests and lock fails
-  assign MQempty = MQmainEmpty | MQsdEmpty;
-
-  newMQ MQ (
-    .clk(clock),
-    .rst(reset),
-    .din(RingIn), // Bus [31 : 0] 
-    .wr_en(wrMQ),
-    .rd_en(rdMQ),
-    .dout(MQout), // Bus [31 : 0] 
-    .full(),
-    .empty(MQmainEmpty)
-  );
-
-  newMQsrcDest MQsrcDestQ (
-    .clk(clock),
-    .rst(reset),
-    .din({SrcDestIn, SlotTypeIn}), // Bus [7 : 0] 
-    .wr_en(wrMQ),
-    .rd_en(rdMQ),
-    .dout({MQsrcDest, MQtype}), // Bus [7 : 0] 
-    .full(),
-    .empty(MQsdEmpty));
-    
+  assign rdResendQ = (state == dumpResendQ) & ~resendQempty;    
   resendQ resendQueue (
     .clk(clock),
     .rst(reset),
@@ -296,7 +234,8 @@ module CoherentMemMux (
     .rd_en(rdMemOpQ),
     .dout({memOpQdest, memOpQtype, memOpQout}),
     .full(),
-    .empty(memOpQempty));
+    .empty(memOpQempty)
+  );
   
   // Queue to store write data
   writeDataQ writeDataQueue (
@@ -311,7 +250,7 @@ module CoherentMemMux (
 
   mmsFSMcoherent mmsFSM (
     .clock(clock),
-    .reset(reset),	
+    .reset(reset),
     // mem op queue
     .memOpQempty(memOpQempty),
     .rdMemOp(rdMemOpQ),
@@ -342,7 +281,8 @@ module CoherentMemMux (
     .RDreturn(RDreturn),
     .RDdest(RDdest), 
     .RDtoDC(RDtoDC),
-    .wrRDtoDC(RDready));
+    .wrRDtoDC(RDready)
+  );
     
   //Instantiate the TC5
   TinyComp TC5(
