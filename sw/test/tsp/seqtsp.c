@@ -17,7 +17,7 @@ int present(int e, int len, int path[]);
 
 void mc_init(void) 
 {
-  printf("[%02u]: mc_init\n", corenum());
+  xprintf("[%02u]: mc_init\n", corenum());
 }
 
 void mc_main(void) 
@@ -36,20 +36,21 @@ void mc_main(void)
     for (unsigned int i = 0; i < NRTOWNS; i++) visited[i] = 0;
     path[0] = 0; // starting town, we are finidng a cycle so just choose town 0
 
-    printf("Starting TSP ...\n");
+    xprintf("[%02u]: Starting TSP ...\n", corenum());
         
     const unsigned int start_cycle = *cycleCounter;
     tsp(1, 0, path, visited, best_path, &min); // find a min cost tour
     const unsigned int end_cycle = *cycleCounter;
 
     // print results
-    printf("computation time (in CPU cycles): %u\n", end_cycle - start_cycle);
-    printf("shortest path length is %d\n", min);
-    printf("a best path found: ");
+    xprintf("[%02u]: computation time (in CPU cycles): %u\n", 
+      corenum(), end_cycle - start_cycle);
+    xprintf("[%02u]: shortest path length is %d\n", corenum(), min);
+    xprintf("[%02u]: best path found: ", corenum());
     for (unsigned int i = 0; i < NRTOWNS; i++) printf("%d ", best_path[i]);
-    printf("\n");  
+    xprintf("\n");  
     
-    printf("level\tvisited\n");
+    xprintf("level\tvisited\n");
     for (unsigned int i = 0; i < NRTOWNS; i++) printf("%d\t%d\n",i,visited[i]);
   }
 }

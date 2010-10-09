@@ -61,6 +61,6 @@ static void mqInit() {
     mqHandlers = malloc(64 * sizeof(MQReceiver));
     for (int i = 0; i < 64; i++) mqHandlers[i] = mqDiscard;
     thread_fork(mqReceiver, NULL);
-    printf("%u: mqinit\n", corenum());
+    printf("[%02u]: mqInit\n", corenum());
   }
 }

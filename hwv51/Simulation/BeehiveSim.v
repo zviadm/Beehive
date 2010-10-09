@@ -1,6 +1,5 @@
 // this file replaces RISCsrc/RISCtop.v for simulation
 `timescale 1ns / 1ps
-//`default_nettype none
 
 // fifo of specified width and depth
 module fifo #(parameter width = 1, logsize = 6, lut = 1) (
@@ -119,7 +118,7 @@ module rs232_sim #(parameter bitTime = 868) (input clock,reset,RxD);
       8'h3A: $write(":");
       8'h3B: $write(";");
       8'h3C: $write("<");
-      8'h3D: $write("-");
+      8'h3D: $write("=");
       8'h3E: $write(">");
       8'h3F: $write("?");
       8'h40: $write("@");
@@ -191,7 +190,6 @@ module rs232_sim #(parameter bitTime = 868) (input clock,reset,RxD);
   end
 endmodule
 
-// fifo of specified width and depth
 module beehive;
   localparam nCores = 3;  //Number of RISC cores in the design
   localparam MBITS = 24;  //log2(Size) of main memory (must match Master.s)

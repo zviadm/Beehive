@@ -10,10 +10,10 @@ void mc_main(void);
 
 void mc_init(void) 
 {
-  printf("corenum %u\n", corenum());
+  xprintf("[%02u]: mc_init\n", corenum());
 }
 
 void mc_main(void) 
 {
-  xprintf("corenum %u\n", corenum());
+  xprintf("[%02u]: mc_main\n", corenum());
 }

@@ -217,6 +217,7 @@ static void cache_invalidateMem(void *addr, unsigned int len) {
 // read one of the performance meters (n in range 0 to 63).
 // meters are at cache lines 0xFFFFFF8 through 0xFFFFFFF.
 static unsigned int read_meter(unsigned int n) {
+  /*
   n &= 0x3f;
   cache_invalidate(120 + (n >> 3),1);  // invalidate cache line holding meter
 
@@ -227,6 +228,8 @@ static unsigned int read_meter(unsigned int n) {
   // our address to be 2'b01.
   unsigned int a = 0xFFFFFF01 + (n << 2);
   return *((volatile unsigned int *)a);
+  */
+  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////

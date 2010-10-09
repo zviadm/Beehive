@@ -4,26 +4,17 @@
 #include <string.h>
 #include "shared/intercore.h"
 #include "lib/lib.h"
+#include "lib/barrier.h"
 
 void mc_init(void);
 void mc_main(void);
-void barrier(void);
 
-#define DEBUG           0
-#define core_id         corenum() - 2
+#define DEBUG 0
 
-const unsigned int BARRIER_MUTEX = 5;
-
-const unsigned int BARRIER_TEST_ITERATIONS = 1000;
 const unsigned int TEST_1_ITERATIONS       = 1000;
 const unsigned int TEST_2_ITERATIONS       = 50;
 const unsigned int TEST_3_ITERATIONS       = 1000;
 const unsigned int TEST_4_ITERATIONS       = 100000;
-
-// Barrier variables
-unsigned int ncores;
-volatile unsigned int barrier_val_1;
-volatile unsigned int barrier_val_2;
 
 // some test variables
 volatile int done_val[16];
@@ -36,106 +27,91 @@ char* mem_block;
 
 void mc_init(void) 
 {
-  // initialize some global variables
-  ncores = enetCorenum() - 2;
-  barrier_val_1 = ncores;
-  barrier_val_2 = ncores;
-}
-
-// Barrier implemented without messageing
-void barrier(void)
-{
-  // Make sure everyone enters barrier
-  icSema_P(BARRIER_MUTEX);
-  if (barrier_val_1 == ncores) barrier_val_1 = 1;
-  else barrier_val_1++;
-  if (DEBUG) xprintf("[%u]: barrier_val_1 %u\n", core_id, barrier_val_1);  
-  icSema_V(BARRIER_MUTEX);
-  while (barrier_val_1 != ncores) { };
-  
-  // Make sure everyone leaves barrier
-  icSema_P(BARRIER_MUTEX);
-  if (barrier_val_2 == ncores) barrier_val_2 = 1;
-  else barrier_val_2++;
-  if (DEBUG) xprintf("[%u]: barrier_val_2 %u\n", core_id, barrier_val_2);  
-  icSema_V(BARRIER_MUTEX);
-  while (barrier_val_2 != ncores) { };
+  xprintf("[%02u]: mc_init\n", corenum());
 }
 
 void mc_main(void) 
 {
-  xprintf("[%u]: starting mc_main, number of cores %u\n", core_id, ncores);  
-  barrier();
-    
-  // Test Barriers
-  if (core_id == 0) {
-    xprintf("[%u]: barrier stress test 1, iterations: %u\n", core_id, BARRIER_TEST_ITERATIONS);
-  }
-  for (unsigned int iter = 0; iter < BARRIER_TEST_ITERATIONS; iter++) {
-    barrier();
-  }
-  
+  xprintf("[%02u]: mc_main\n", corenum());  
+  hw_barrier();
+      
   // Simple Coherency Test 1
-  if (core_id == 0) {
-    xprintf("[%u]: starting coherency test 1, iterations: %u\n", core_id, TEST_1_ITERATIONS);  
+  if (corenum() == 2) {
+    xprintf("[%02u]: test 1, iterations: %u\n", corenum(), TEST_1_ITERATIONS);  
   }
   for (unsigned int iter = 0; iter < TEST_1_ITERATIONS; iter++) {
-    if (core_id == 0) {
-      for (unsigned int i = 0; i < ncores; i++) {
+    if (corenum() == 2) {
+      for (unsigned int i = 2; i <= nCores(); i++) {
         done_val[i] = 0;             // reset dones
         test_val[i] = *cycleCounter; // a random value
       }
     }
-    barrier();
-    if (core_id == 0) {
-      test_val[0] = 1;
-      done_val[0] = 1;
+    hw_barrier();
+    if (corenum() == 2) {
+      test_val[2] = 1;
+      done_val[2] = 1;
     }else {
-      while (done_val[core_id - 1] == 0) { };
-      test_val[core_id] = 1;
-      for (unsigned int i = 0; i < core_id; i++) {
-        test_val[core_id] += test_val[i];
+      while (done_val[corenum() - 1] == 0) { };
+      test_val[corenum()] = 1;
+      for (unsigned int i = 2; i < corenum(); i++) {
+        test_val[corenum()] += test_val[i];
       }
-      assert(test_val[core_id] == (1 << core_id));
-      done_val[core_id] = 1;
+      // vals in cores should be: 
+      // 1, 1 + 1 = 2, 1 + 1 + 2 = 4, 1 + 1 + 2 + 4 = 8, ...
+      assert(test_val[corenum()] == (1 << (corenum() - 2)));
+      done_val[corenum()] = 1;
     }
-    barrier();
+    hw_barrier();
   }
+  if (corenum() == 2) {
+    xprintf("[%02u]: test 1 PASSED\n", corenum());  
+  }
+  hw_barrier();
   
   // Simple Coherency Test 2
-  if (core_id == 0) {
-    xprintf("[%u]: starting coherency test 2 (takes little longer), iterations: %u\n", core_id, TEST_2_ITERATIONS);  
+  if (corenum() == 2) {
+    xprintf("[%02u]: test 2 (takes little longer), iterations: %u\n", 
+      corenum(), TEST_2_ITERATIONS);  
   }
   for (unsigned int iter = 0; iter < TEST_2_ITERATIONS; iter++) {
-    test_val[core_id] = core_id;
+    test_val[corenum()] = corenum();
     for (unsigned int i = 0; i < 3000; i++) {
-      test_val[core_id]++;
+      test_val[corenum()]++;
     }
-    barrier();
+    hw_barrier();
     // check test_val-s
-    for (unsigned int i = 0; i < ncores; i++) {
+    for (unsigned int i = corenum(); i <= nCores(); i++) {
       assert(test_val[i] == (int)(i + 3000));
     }
-    barrier();
+    hw_barrier();
   }
+  if (corenum() == 2) {
+    xprintf("[%02u]: test 2 PASSED\n", corenum());  
+  }
+  hw_barrier();
 
   // Simple Coherency Test 3
-  if (core_id == 0) {
-    xprintf("[%u]: starting coherency test 3, iterations: %u\n", core_id, TEST_3_ITERATIONS);  
+  if (corenum() == 2) {
+    xprintf("[%02u]: test 3, iterations: %u\n", corenum(), TEST_3_ITERATIONS);  
   }
   for (unsigned int iter = 0; iter < TEST_3_ITERATIONS; iter++) {
-    aligned_test_val[core_id].val = core_id;
+    aligned_test_val[corenum()].val = corenum();
     for (unsigned int i = 0; i < 3000; i++) {
-      aligned_test_val[core_id].val++;
+      aligned_test_val[corenum()].val++;
     }
-    barrier();
+    hw_barrier();
     // check test_val-s
-    for (unsigned int i = 0; i < ncores; i++) {
+    for (unsigned int i = 2; i <= nCores(); i++) {
       assert(aligned_test_val[i].val == (int)(i + 3000));
     }
-    barrier();
+    hw_barrier();
   }
+  if (corenum() == 2) {
+    xprintf("[%02u]: test 3 PASSED\n", corenum());  
+  }
+  hw_barrier();
   
+/*
   // Test L2 cache simulation
   if (core_id == 0) {
     xprintf("[%u]: Testing L2 cache simulation for single core\n", core_id);
@@ -179,4 +155,5 @@ void mc_main(void)
     }
     barrier();
   }
+  */
 }

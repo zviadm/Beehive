@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 /*
   Coherent DCache
   TODO: write more description here
@@ -71,9 +70,11 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   localparam sendCacheData          = 3;
   localparam sendWA                 = 4;
   localparam setup                  = 5;
+  localparam ioInvalidate           = 6;
+  localparam ioFlush                = 7;
           
   // FSM State
-  reg [3:0] state;
+  reg [2:0] state;
   reg [31:0] readRequest;
   reg doFlush;
   reg [31:0] flushRequest;
@@ -144,15 +145,20 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (requestLineStatus == MODIFIED) & (requestLineTag == requestQout[27:7]);
     
   // Cache Line that we want Status and Tag for
-  wire [6:0] requestLine = handleRequestQ   ? requestQout[6:0] :
-                           (state == setup) ? lineCnt[6:0]     :
-                           (selDCache | selDCacheIO) ? aq[9:3] : 7'b0;
+  wire [6:0] requestLine = handleRequestQ            ? requestQout[6:0] :
+                           (state == setup)          ? lineCnt[6:0]     :
+                           (selDCache | selDCacheIO) ? aq[9:3]          : 7'b0;
   // IO Module outputs
   assign wrq = AQReadHit | (read & resolveDCacheMiss);  
   assign rqDCache = dcacheReadData;
   assign rwq = AQWriteHit | (~read & resolveDCacheMiss);
   assign done = 
-    (AQReadHit | AQWriteHit) | (resolveDCacheMiss) | (handleIO);
+    (AQReadHit | AQWriteHit) | (resolveDCacheMiss) | 
+    (state == ioInvalidate & lineCnt == 0) | 
+    (state == ioFlush & lineCnt == 0 & requestLineStatus != MODIFIED);
+    
+  assign decLineAddr = 
+    (state == ioInvalidate | state == ioFlush) & (lineCnt > 0);
 
   // Logic for instruction cache
   assign Ihit = (Itag[20:0] == pcx[30:10]);
@@ -199,7 +205,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
             ioFlushing <= 0;
             flushAddr <= {requestQout[6:0], 3'b000};
             // requested flush, hence 29th bit is set
-            flushRequest <= {4'b0010, requestQout[27:0]};            
+            flushRequest <= {4'b0010, requestQout[27:0]};
           end
         end else if (handleAQ) begin
           if (~AQReadHit & ~AQWriteHit) begin
@@ -218,13 +224,10 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
         end else if (resolveDCacheMiss) begin
           // Nothing to do here
         end else if (handleIO) begin
-          // Nothing to do here yet, just assert done
-          /*
-            // Handle DCache IO requests
-            set_lineCnt = {aq[16:10]};
-            if (aq[17]) next_state = dcacheio_invalidate;
-            else next_state = dcacheio_flush;
-          */
+          // Handle DCache IO requests
+          lineCnt <= aq[16:10];
+          if (aq[17]) state <= ioInvalidate;
+          else state <= ioFlush;            
         end
       end
       
@@ -252,7 +255,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       
       sendWA: begin
         if (!ioFlushing) state <= idle;
-        //else state <= dcacheio_flush;
+        else state <= ioFlush;
       end
       
       setup: begin
@@ -263,11 +266,29 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
           if (lineCnt == 7'h7F) state <= idle;
           lineCnt <= lineCnt + 1;
         end
-      end      
+      end
+      
+      ioInvalidate: begin
+        if (lineCnt == 0) state <= idle;
+        else lineCnt <= lineCnt - 1;        
+      end
+      
+      ioFlush: begin
+        if (lineCnt > 0) lineCnt <= lineCnt - 1;
+        
+        if (lineCnt == 0 & requestLineStatus != MODIFIED) begin
+          state <= idle;
+        end else if (requestLineStatus == MODIFIED) begin
+          state <= sendCacheDataWaitToken;
+          ioFlushing <= 1;
+          flushAddr <= {aq[9:3], 3'b000};
+          flushRequest <= {4'b0000, requestLineTag, aq[9:3]};
+        end
+      end
     endcase
   end
   
-  always @(posedge clock)
+  always @(posedge clock) begin
     // Wait for RDReturn data and when receive it update the DCache or ICache
     // or if we receive GrantExclusive we do not need to wait for RD anymore.    
     if (reset) begin
@@ -294,6 +315,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
         waitReadDataState <= 0;
       end
     end
+  end
   
   itagmemX instTag (
     .a(pcx[9:3]), 
@@ -316,12 +338,16 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
 
   wire wrDCacheStatus = 
     (state == setup & whichCore == 4'b1) | (handleRequestQ) | 
-    (handleAQ & (~AQReadHit & ~AQWriteHit)) | (resolveDCacheMiss & ~read);
+    (handleAQ & (~AQReadHit & ~AQWriteHit)) | (resolveDCacheMiss & ~read) |
+    (state == ioInvalidate & requestLineStatus != MODIFIED) |
+    (state == ioFlush & requestLineStatus == MODIFIED);
   wire [1:0] newStatus = 
     (state == setup)            ? MODIFIED :
     (handleRequestQ)            ? (~requestQout[29] ? SHARED : INVALID) :
     (resolveDCacheMiss & ~read) ? MODIFIED : 
-    (handleAQ & read)           ? SHARED   : INVALID;
+    (handleAQ & read)           ? SHARED   : 
+    (state == ioInvalidate)     ? INVALID  : 
+    (state == ioFlush)          ? SHARED   : INVALID;
   dcacheStatus DataCacheStatus (
     .a(requestLine), // Bus [6 : 0] 
     .d(newStatus), // Bus [1 : 0] 

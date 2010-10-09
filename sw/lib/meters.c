@@ -31,8 +31,7 @@ const char *slot_type[] = {
 void meters_start()
 {
   int i;
-  for (i = 0; i < NMETERS; i++)
-    meters[i] = read_meter(i);
+  for (i = 0; i < NMETERS; i++) meters[i] = read_meter(i);
 }
 
 // report on changes in meter values since the
@@ -43,8 +42,7 @@ void meters_report()
   int delta[NMETERS];
 
   // compute the delta for each meter
-  for (i = 0; i < NMETERS; i++)
-    delta[i] = read_meter(i) - meters[i];
+  for (i = 0; i < NMETERS; i++) delta[i] = read_meter(i) - meters[i];
 
   xprintf("\n**** METERING REPORT ****\n");
 

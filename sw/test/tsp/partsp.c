@@ -31,7 +31,7 @@ const unsigned int WorkPathSize = 4;
 
 void mc_init(void) 
 {
-  printf("[%02u]: mc_init\n", corenum());
+  xprintf("[%02u]: mc_init\n", corenum());
 }
 
 void mc_main(void) 
@@ -40,7 +40,7 @@ void mc_main(void)
   hw_barrier();
   
   if (corenum() == 2) {
-    printf("Starting TSP ...\n");
+    xprintf("[%02u]: Starting TSP ...\n", corenum());
   }
   
   int best_path[NRTOWNS]; 
@@ -58,11 +58,12 @@ void mc_main(void)
 
   if (corenum() == 2) {
     // print results
-    printf("computation time (in CPU cycles): %u\n", end_cycle - start_cycle);
-    printf("shortest path length is %d\n", min);
-    printf("a best path found: ");
+    xprintf("[%02u]: computation time (in CPU cycles): %u\n", 
+      corenum(), end_cycle - start_cycle);
+    xprintf("[%02u]: shortest path length is %d\n", corenum(), min);
+    xprintf("[%02u]: best path found: ", corenum());
     for (unsigned int i = 0; i < NRTOWNS; i++) printf("%d ", best_path[i]);
-    printf("\n");  
+    xprintf("\n");  
   }
 }
 

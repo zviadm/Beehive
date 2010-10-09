@@ -41,6 +41,7 @@ BINS	:= $(O)/hello.img  \
 	$(O)/barriertest.img   \
 	$(O)/coherencytest.img \
 	$(O)/bcastsim.img      \
+	$(O)/coherencysim.img  \
 	$(O)/seqtsp.img        \
 	$(O)/partsp.img
 

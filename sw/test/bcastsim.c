@@ -11,7 +11,7 @@ void mc_main(void);
 
 void mc_init(void) 
 {
-  printf("[%02u]: mc_init\n", corenum());
+  xprintf("[%02u]: mc_init\n", corenum());
 }
 
 __noret__ void mc_main(void) 

@@ -36,12 +36,12 @@ const unsigned int kTestMsg[63] = {
 
 void mc_init(void) 
 {
-  xprintf("core #%u mc_init\n", corenum());  
+  xprintf("[%02u]: mc_init\n", corenum());  
 }
 
 void mc_main(void) 
 {
-  xprintf("core #%u mc_main\n", corenum());  
+  xprintf("[%02u]: mc_main\n", corenum());  
 
   const unsigned int kSleepTime = 200000 * (enetCorenum() - 1);
   // Spin for kSleepTime cycles between every test, since 
@@ -71,14 +71,14 @@ void waitdone(unsigned nwait)
 {
   IntercoreMessage msg;  
 
-  if (DEBUG) xprintf("%u: start waitdone %d\n", corenum(), nwait);
+  if (DEBUG) xprintf("[%02u]: start waitdone %d\n", corenum(), nwait);
   unsigned int ndone = 0;
   while (ndone < nwait) {    
     unsigned int st;
     while ((st = message_recv(&msg)) == 0) {
       icSleep(100);
     }
-    if (DEBUG) xprintf("%u: received message from core %u, type %u\n", 
+    if (DEBUG) xprintf("[%02u]: received message from core %u, type %u\n", 
                         corenum(), message_srce(st), message_type(st));
     assert(message_srce(st) != 2);
     assert(message_type(st) == MSG_BCAST);
@@ -95,7 +95,7 @@ void incdone()
 {
   IntercoreMessage msg;
 
-  if (DEBUG) xprintf("%u: incdone\n", corenum());
+  if (DEBUG) xprintf("[%02u]: incdone\n", corenum());
   msg[0] = 1;
   message_send(2, MSG_BCAST, &msg, 1);
 }
@@ -103,14 +103,14 @@ void incdone()
 void test1(int hw, unsigned int msg_len) 
 {
   if (corenum() == 2) { 
-    xprintf("test1: start hw=%d, msg_len=%d\n", hw, msg_len);
+    xprintf("[%02u]: test1 start hw=%d, msg_len=%d\n", corenum(), hw, msg_len);
   }
 
   if (corenum() == 2) {
     if (!hw) bcast_send(MSG_BCAST, msg_len, &kTestMsg[0]);
     else hw_bcast_send(MSG_BCAST, msg_len, &kTestMsg[0]);
     waitdone(enetCorenum() - 3);
-    xprintf("test1: passed\n");
+    xprintf("[%02u]: test1 passed\n", corenum());
   } else {
     test1_slave(msg_len);
   }
@@ -123,7 +123,7 @@ void test1_slave(unsigned int msg_len)
   while ((st = message_recv(&msg)) == 0) { 
     icSleep(100);
   }
-  if (DEBUG) xprintf("%u: received message from core %u, type %u\n", 
+  if (DEBUG) xprintf("[%02u]: received message from core %u, type %u\n", 
                       corenum(), message_srce(st), message_type(st));
   assert(message_type(st) == MSG_BCAST);
   assert(message_len(st) == msg_len);
@@ -136,7 +136,7 @@ void test1_slave(unsigned int msg_len)
 void test2(int hw) 
 {
   if (corenum() == 2) { 
-    xprintf("test2: start hw=%d\n", hw);
+    xprintf("[%02u]: test2 start hw=%d\n", corenum(), hw);
   }
 
   IntercoreMessage msg;
@@ -152,7 +152,7 @@ void test2(int hw)
     while ((st = message_recv(&msg)) == 0) {
       icSleep(100);
     }
-    if (DEBUG) xprintf("%u: received message from core %u, type %u\n", 
+    if (DEBUG) xprintf("[%02u]: received message from core %u, type %u\n", 
                         corenum(), message_srce(st), message_type(st));  
     assert(message_type(st) == MSG_BCAST);
     assert(broadcast_core[message_srce(st)] == 0);
@@ -165,7 +165,7 @@ void test2(int hw)
   
   if (corenum() == 2) { 
     waitdone(enetCorenum() - 3);
-    xprintf("test2: passed\n");
+    xprintf("[%02u]: test2 passed\n", corenum());
   } else {
     incdone();
   }
@@ -206,5 +206,5 @@ void test3_hw()
       message_recv(&msg);
     }
   }
-  xprintf("test3_hw: %d done after %d iterations\n", corenum(), kIters);
+  xprintf("[%02u]: test3_hw done after %d iterations\n", corenum(), kIters);
 }

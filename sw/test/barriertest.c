@@ -22,12 +22,12 @@ struct state {
 
 void mc_init(void) 
 {
-  xprintf("core #%u mc_init\n", corenum());  
+  xprintf("[%02u]: mc_init\n", corenum());  
 }
 
 void mc_main()
 {
-  xprintf("core #%u started\n", corenum());
+  xprintf("[%02u]: mc_main\n", corenum());
   test1(sm_barrier, "shared memory");
   test1(hw_barrier, "hardware");
 }
@@ -35,7 +35,7 @@ void mc_main()
 void test1(void (*barrier)(void), const char *type) 
 {
   if (corenum() == 2) { 
-    xprintf("test1 for %s barrier start\n", type);    
+    xprintf("[%02u]: test1 for %s barrier start\n", corenum(), type);
     barrier();
     meters_start();
   } else {
@@ -50,7 +50,7 @@ void test1(void (*barrier)(void), const char *type)
     cache_flushMem(&c_[corenum()], sizeof(struct state));
 
     if (DEBUG) 
-      xprintf("%02u: passed barier and increased state %u\n", corenum(), i);
+      xprintf("[%02u]: passed barier and increased state %u\n", corenum(), i);
       
     barrier();
 
@@ -59,7 +59,7 @@ void test1(void (*barrier)(void), const char *type)
       cache_invalidateMem(&c_[j], sizeof(struct state));
       jinstance = c_[j].instance;
       if (jinstance != c_[corenum()].instance) {
-        xprintf("%02u: %s barrier failed: my instance is %d and %d's is %d\n", 
+        xprintf("[%02u]: %s barrier failed: my instance is %d and %d's is %d\n", 
           corenum(), type, c_[corenum()].instance, j, jinstance);
         assert(0);
       }
@@ -69,7 +69,7 @@ void test1(void (*barrier)(void), const char *type)
   if (corenum() == 2) {
     meters_report();
     barrier();
-    xprintf("test1 for %s barrier passed\n", type);
+    xprintf("[%02u]: test1 for %s barrier passed\n", corenum(), type);
   } else {
     barrier();
   }
