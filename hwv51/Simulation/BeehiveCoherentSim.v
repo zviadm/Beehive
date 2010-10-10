@@ -237,8 +237,9 @@ module beehiveCoherent;
 
   always @(posedge clock) begin
     // complain if address falls outside range we cover
-    //if (!reset && mcount < 8 && ma_addr[27:MBITS-3] != 0) 
-    //  $display("**** ma_addr not valid: %x, ma_dest: %x",ma_addr, ma_dest);
+    if (!reset && mem_state == readAddress && 
+        ~ma_empty && ma_addr[27:MBITS-3] != 0) 
+      $display("**** ma_addr not valid: %x, ma_dest: %x", ma_addr, ma_dest);
     
     RDreturn[0] <= rd_return;
     RDdest[0] <= rd_dest;
@@ -321,6 +322,7 @@ module beehiveCoherent;
   // (not stalled, not anulled)
   //wire exeN = 
   //  !beehive.coreBlk[2].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
+  reg delayedSelDCache;
   always @(negedge clock) if (!reset) begin
     if (coreBlk[1].riscN.msgrN.msgrFifoFull == 1) begin
       $write("core 1 msgr Fifo Full");
@@ -339,11 +341,7 @@ module beehiveCoherent;
       $display("Ring: type=%x, dest=%x, data=%x",
                 mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
     end */
-    
-    if (RDdest[0] != 0) begin
-      //$display("RDdest=%x RDreturn=%x", RDdest[0], RDreturn[0]);
-    end
-    
+
     /*
     if (coreBlk[2].riscN.dCacheN.selDCache == 1) begin
       $write("cycle=%5d ", cycle_count);
@@ -362,9 +360,12 @@ module beehiveCoherent;
       $display("");
     end
     */
-    
+        
     /*
-    if (cycle_count > 76400 & cycle_count < 77000) begin
+    delayedSelDCache <= coreBlk[2].riscN.dCacheN.selDCache;
+    if (//delayedSelDCache | coreBlk[2].riscN.dCacheN.dcDriveRing
+        && coreBlk[2].riscN.dCacheN.aq[30:27] != 0
+        (cycle_count > 174800 && cycle_count < 175000)) begin
       $write("cycle=%5d ",cycle_count);
       $write("pc=%x ",coreBlk[2].riscN.pc);
       $write("pcx=%x ",coreBlk[2].riscN.pcx);
@@ -373,18 +374,19 @@ module beehiveCoherent;
       $write("out=%x/%x ",coreBlk[2].riscN.out,coreBlk[2].riscN.wwq);
       $write("n/s=%x/%x ",coreBlk[2].riscN.nullify,coreBlk[2].riscN.stall);
       $write("aq=%x/%x/%x ",coreBlk[2].riscN.aqrd,coreBlk[2].riscN.aq,coreBlk[2].riscN.aqe);
-      $write("semState=%x ",coreBlk[2].riscN.lockUnit.state);
-      $write("semRead=%x ",coreBlk[2].riscN.lockUnit.read);
-      //$write("dcState=%x ",beehive.coreBlk[2].riscN.dCacheN.state);
-      //$write("ihit=%x ",beehive.coreBlk[2].riscN.dCacheN.Ihit);
-      $write("Ring: type=%x, source=%x, data=%x ",coreBlk[2].riscN.SlotTypeIn,
-                                                  coreBlk[2].riscN.SourceIn,
-                                                  coreBlk[2].riscN.RingIn);
-      //$write("MCTRL Ring: type=%x, dest=%x, data=%x ", mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
-      //$write("MCTRL RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
+      $write("w=%x ",coreBlk[2].riscN.dCacheN.wq);
+      $write("dcState=%x ",coreBlk[2].riscN.dCacheN.state);
+      $write("ihit=%x ",coreBlk[2].riscN.dCacheN.Ihit);
+      //$write("Ring: type=%x, source=%x, data=%x ",coreBlk[2].riscN.SlotTypeIn,
+      //                                            coreBlk[2].riscN.SourceIn,
+      //                                            coreBlk[2].riscN.RingIn);
+      $write("MCTRL Ring: type=%x, src=%x, data=%x ", 
+        mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
+      $write("MCTRL RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
       $display("");   
     end    
     */
+    //if (cycle_count >= 84000) $finish(0);
   end
 
   integer k;

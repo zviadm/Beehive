@@ -121,22 +121,27 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     else delayedSelDCache <= done ? 0 : selDCache;
     
   // Logic for DCache
-  wire handleRequestQ = (state == idle) & (~requestQempty);
-  wire handleAQ = (~handleRequestQ) & (state == idle) & 
-    (delayedSelDCache) & (waitReadDataState == 0);
-  wire handleIMiss = (~handleRequestQ) & (~handleAQ) & (state == idle) & 
-    (waitReadDataState == 0) & ~Ihit;
-  wire resolveDCacheMiss = (~handleRequestQ) & (~handleAQ) & (~handleIMiss) & 
-    (state == idle) & (waitReadDataState == 3);
-  wire handleIO = (~handleRequestQ) & (~handleAQ) & (~handleIMiss) & 
-    (~resolveDCacheMiss) & (state == idle) & (selDCacheIO);
+  wire handleRequestQ = 
+    (state == idle) & (~requestQempty);
+  wire handleAQ = 
+    (state == idle) & (delayedSelDCache) & (waitReadDataState == 0) & 
+    (~handleRequestQ);
+  wire handleIMiss = 
+    (state == idle) & (waitReadDataState == 0) & ~Ihit &
+    (~handleRequestQ) & (~handleAQ);
+  wire resolveDCacheMiss = 
+    (state == idle) & (waitReadDataState == 3) &
+    (~handleRequestQ) & (~handleAQ) & (~handleIMiss);    
+  wire handleIO = 
+    (state == idle) & (selDCacheIO) &
+    (~handleRequestQ) & (~handleAQ) & (~handleIMiss) & (~resolveDCacheMiss);
   
   wire AQReadHit = (handleAQ) & (read) & 
     (requestLineTag == aq[30:10]) & (requestLineStatus != INVALID);
   wire AQWriteHit = (handleAQ) & (~read) & 
     (requestLineTag == aq[30:10]) & (requestLineStatus == MODIFIED);
-  // When we have DCache Write Miss but we already have data, we do not 
-  // request data from Memory Controller to speed up the process
+  // When we have DCache Write Miss but we already have data in SHARED, we do 
+  // not request the data from Memory Controller to speed up the process
   wire doNotRequestRD = 
     (~read) & (requestLineTag == aq[30:10]) & (requestLineStatus == SHARED);
 
@@ -153,7 +158,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   assign rqDCache = dcacheReadData;
   assign rwq = AQWriteHit | (~read & resolveDCacheMiss);
   assign done = 
-    (AQReadHit | AQWriteHit) | (resolveDCacheMiss) | 
+    (AQReadHit | AQWriteHit) | (resolveDCacheMiss) |
     (state == ioInvalidate & lineCnt == 0) | 
     (state == ioFlush & lineCnt == 0 & requestLineStatus != MODIFIED);
     
@@ -419,9 +424,10 @@ endgenerate
 
   wire wrDCache = AQWriteHit | (~read & resolveDCacheMiss);
   wire [9:0] dcacheAddr =
-    ((state == sendRAWaitToken & doFlush) | (doRequestedFlush) | 
-     (state == sendCacheData) | 
-     (state == sendCacheDataWaitToken & ~dcAcquireToken)) ? flushAddr : 
+    ((doRequestedFlush) | (state == sendRAWaitToken & doFlush) |
+     (state == ioFlush & (lineCnt > 0 || requestLineStatus == MODIFIED)) | 
+     (state == sendCacheDataWaitToken & ~dcAcquireToken) |
+     (state == sendCacheData))                            ? flushAddr : 
     (state == sendCacheDataWaitToken & dcAcquireToken)    ? flushAddr + 1 :
                                                             aq[9:0];
 generate

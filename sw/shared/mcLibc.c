@@ -11,9 +11,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "intercore.h"
-#include "network.h"
-
+#include "shared/intercore.h"
+#include "shared/network.h"
+#include "lib/msg.h"
 
 //
 // Primitive RPC from core != 1 to core 1
@@ -21,7 +21,6 @@
 
 // Message identifiers
 //
-#define msgTypeRPC 1
 #define mcPutchar 1
 #define mcMalloc 2
 #define mcFree 3
@@ -120,7 +119,7 @@ int putchar(int c) {
     msg[1] = c;
     message_send(1, msgTypeRPC, &msg, 2);
     getResponse(); // block to avoid overflowing core #1's message queue
-   }
+  }
   return 0;
 }
 
@@ -141,7 +140,7 @@ void *malloc(size_t size) {
     void *res = (void *)getResponse();
     if (res) cache_invalidateMem(res, size);
     return res;
-   }
+  }
 }
 
 void free(void *ptr) {
@@ -154,5 +153,5 @@ void free(void *ptr) {
     msg[1] = (unsigned int)ptr;
     message_send(1, msgTypeRPC, &msg, 2);
     getResponse();
-   }
+  }
 }
