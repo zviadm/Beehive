@@ -1,4 +1,4 @@
-*
-!.gitignore
-!*.xco
-!*.coe
+tmp/
+_xmsgs/
+*_xdb/
+_cg/
