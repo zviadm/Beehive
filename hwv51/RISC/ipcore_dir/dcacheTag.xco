@@ -1,16 +1,40 @@
 ##############################################################
+#
+# Xilinx Core Generator version 12.2
+# Date: Thu Oct 14 15:02:47 2010
+#
 ##############################################################
+#
+#  This file contains the customisation parameters for a
+#  Xilinx CORE Generator IP GUI. It is strongly recommended
+#  that you do not manually alter this file as it may cause
+#  unexpected and unsupported behavior.
+#
 ##############################################################
+#
+# BEGIN Project Options
+SET addpads = false
+SET asysymbol = true
+SET busformat = BusFormatAngleBracketNotRipped
+SET createndf = false
 SET designentry = Verilog
-SET BusFormat = BusFormatAngleBracketNotRipped
-SET devicefamily = virtex5
 SET device = xc5vlx110t
+SET devicefamily = virtex5
+SET flowvendor = Foundation_ISE
+SET formalverification = false
+SET foundationsym = false
+SET implementationfiletype = Ngc
 SET package = ff1136
+SET removerpms = false
+SET simulationfiles = Behavioral
 SET speedgrade = -1
-SET FlowVendor = Foundation_ISE
-SET VerilogSim = True
-SET VHDLSim = True
+SET verilogsim = true
+SET vhdlsim = true
+# END Project Options
+# BEGIN Select
 SELECT Distributed_Memory_Generator family Xilinx,_Inc. 4.3
+# END Select
+# BEGIN Parameters
 CSET ce_overrides=ce_overrides_sync_controls
 CSET coefficient_file=no_coe_file_loaded
 CSET common_output_ce=false
@@ -37,3 +61,6 @@ CSET single_port_output_clock_enable=false
 CSET sync_reset_qdpo=false
 CSET sync_reset_qsdpo=false
 CSET sync_reset_qspo=false
+# END Parameters
+GENERATE
+# CRC: 48af9214
