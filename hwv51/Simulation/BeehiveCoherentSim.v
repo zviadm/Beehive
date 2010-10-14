@@ -2,7 +2,7 @@
 `timescale 1ns / 1ps
 
 module beehiveCoherent;
-  localparam nCores = 3;  //Number of RISC cores in the design
+  localparam nCores = 5;  //Number of RISC cores in the design
   localparam MBITS = 24;  //log2(Size) of main memory (must match Master.s)
   localparam bitTime = 20;  // fast serial transmit when simulating
 
@@ -80,6 +80,17 @@ module beehiveCoherent;
         SlotTypeOut[i] <= tempRiscSlotTypeOut;
         SourceOut[i] <= tempRiscSourceOut;
       end
+
+      always @(posedge clock) begin
+        if (riscN.msgrN.msgrFifoFull) begin
+          $display("[%02d]: msgr fifo full!", i);
+          $finish(0);
+        end
+        //if (riscN.dCacheN.requestQfull) begin
+        //  $display("[%02d]: requestQ fifo full!", i);
+        //  $finish(0);
+        //end
+      end
     end
   endgenerate
 
@@ -156,6 +167,7 @@ module beehiveCoherent;
   wire [3:0] resendQtype, resendQdest;
   wire [31:0] resendQout;
   wire resendQempty;
+  wire resendQfull;
 
   wire rdResendQ = (state == dumpResendQ) & ~resendQempty;    
   resendQ resendQueue (
@@ -165,9 +177,14 @@ module beehiveCoherent;
     .wr_en(wrResendQ),
     .rd_en(rdResendQ),
     .dout({resendQdest, resendQtype, resendQout}), // Bus [39 : 0] 
-    .full(),
+    .full(resendQfull),
     .empty(resendQempty));
 
+  always @(posedge clock) 
+    if (wrResendQ & resendQfull) begin
+      $display("*** resendQ fifo is full!");
+      $finish(0);
+    end
 
   // capture memory addresses arriving from the ring
   wire ma_wr = (mctrlSlotTypeIn == Address);
@@ -317,25 +334,13 @@ module beehiveCoherent;
   */
 
   // follow execution in core N
-  localparam N = 2;
+  localparam N = 1;
   // true on cycles where core N is executing an instruction 
   // (not stalled, not anulled)
   //wire exeN = 
   //  !beehive.coreBlk[2].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
   reg delayedSelDCache;
   always @(negedge clock) if (!reset) begin
-    if (coreBlk[1].riscN.msgrN.msgrFifoFull == 1) begin
-      $write("core 1 msgr Fifo Full");
-      $display("");
-    end
-    if (coreBlk[2].riscN.msgrN.msgrFifoFull == 1) begin
-      $write("core 2 msgr Fifo Full");
-      $display("");
-    end
-    if (coreBlk[1].riscN.msgrN.msgrFifoFull == 1) begin
-      $write("core 3 msgr Fifo Full");
-      $display("");
-    end
     /*
     if (mctrlSlotTypeIn != Null & mctrlSlotTypeIn != Token) begin
       $display("Ring: type=%x, dest=%x, data=%x",
@@ -386,20 +391,44 @@ module beehiveCoherent;
       $display("");   
     end    
     */
+    
+    //if (RDreturn[0] == 32'h67401206) $finish(0);
+    /*
+    if (0 & (coreBlk[1].riscN.dCacheN.delayedSelDCache | 
+        coreBlk[1].riscN.dCacheN.state != 0 | 
+        coreBlk[1].riscN.dCacheN.waitReadDataState != 0 |
+        RDdest[0] == 1 | ~coreBlk[1].riscN.dCacheN.requestQempty | 
+        (cycle_count > 30682 && cycle_count < 30700))) begin
+    $write("cycle=%5d ",cycle_count);
+    $write("pc=%x ",coreBlk[1].riscN.pc);
+    $write("inst=%x ",coreBlk[1].riscN.inst);
+    $write("outx=%x ",coreBlk[1].riscN.outx);
+    $write("out=%x/%x ",coreBlk[1].riscN.out,
+                        coreBlk[1].riscN.wwq);
+    $write("n/s=%x/%x ",coreBlk[1].riscN.nullify,
+                        coreBlk[1].riscN.stall);
+    $write("aq=%x/%x/%x ",coreBlk[1].riscN.aqrd,
+                          coreBlk[1].riscN.aq,
+                          coreBlk[1].riscN.aqe);
+    $write("w=%x ",coreBlk[1].riscN.dCacheN.wq);
+    $write("dcState=%x ",coreBlk[1].riscN.dCacheN.state);
+    $write("WRD=%x ",coreBlk[1].riscN.dCacheN.waitReadDataState);
+    $write("ihit=%x ",coreBlk[1].riscN.dCacheN.Ihit);
+    $write("Ring: type=%x, source=%x, data=%x ",coreBlk[1].riscN.SlotTypeIn,
+                                                coreBlk[1].riscN.SourceIn,
+                                                coreBlk[1].riscN.RingIn);
+    $write("RDr=%x, RDd=%x ",RDreturn[0], RDdest[0]);
+    //$write("MCTRL Ring: type=%x, src=%x, data=%x ", 
+    //  mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
+    //$write("MCTRL RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
+    $display("");   
+    end
+    */
     //if (cycle_count >= 84000) $finish(0);
   end
 
   integer k;
-  initial begin
-    //    $dumpfile("test.lxt");
-
-    // capture top-level signals (ie, ring and memory buses)
-    //$dumpvars(1,risc_test);
-    // capture top-level of Master (core 1)
-    //$dumpvars(1,beehive.coreBlk[1].riscN);
-    // capture top-level of core 2
-    //$dumpvars(1,beehive.coreBlk[2].riscN);
-
+  initial begin  
     clock = 1;
     reset = 1;
 

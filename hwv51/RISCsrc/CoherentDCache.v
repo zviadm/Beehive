@@ -66,15 +66,16 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   // FSM States
   localparam idle                   = 0;
   localparam sendRAWaitToken        = 1;
-  localparam sendCacheDataWaitToken = 2;
-  localparam sendCacheData          = 3;
-  localparam sendWA                 = 4;
-  localparam setup                  = 5;
-  localparam ioInvalidate           = 6;
-  localparam ioFlush                = 7;
+  localparam sendCacheDataWaitToken_= 2;
+  localparam sendCacheDataWaitToken = 3;
+  localparam sendCacheData          = 4;
+  localparam sendWA                 = 5;
+  localparam setup                  = 6;
+  localparam ioInvalidate           = 7;
+  localparam ioFlush                = 8;
           
   // FSM State
-  reg [2:0] state;
+  reg [3:0] state;
   reg [31:0] readRequest;
   reg doFlush;
   reg [31:0] flushRequest;
@@ -95,6 +96,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   
   // Wires from request queue
   wire requestQempty;
+  wire requestQfull;
   wire [31:0] requestQout;
 
   // Wires from DCache Tag
@@ -143,12 +145,8 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   // When we have DCache Write Miss but we already have data in SHARED, we do 
   // not request the data from Memory Controller to speed up the process
   wire doNotRequestRD = 
-    (~read) & (requestLineTag == aq[30:10]) & (requestLineStatus == SHARED);
+    (~read) & (requestLineTag == aq[30:10]) & (requestLineStatus == SHARED);    
 
-  // When some other core requested something that we have in MODIFIED state
-  wire doRequestedFlush = (handleRequestQ) &
-    (requestLineStatus == MODIFIED) & (requestLineTag == requestQout[27:7]);
-    
   // Cache Line that we want Status and Tag for
   wire [6:0] requestLine = handleRequestQ            ? requestQout[6:0] :
                            (state == setup)          ? lineCnt[6:0]     :
@@ -181,20 +179,22 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   assign dcDriveRing = 
     (state == sendRAWaitToken & dcAcquireToken) | 
     (state == sendCacheDataWaitToken & dcAcquireToken) | 
-    (state == sendCacheData) | (state == sendWA) | (resendMessage);
+    (state == sendCacheData) | 
+    (state == sendWA) | 
+    (resendMessage);
 
   assign dcSourceOut = whichCore;
   assign dcSlotTypeOut = 
-    (state == sendRAWaitToken | state == sendWA)               ? Address : 
-    (state == sendCacheDataWaitToken | state == sendCacheData) ? WriteData : 
-    resendMessage                                              ? SlotTypeIn : 
+    resendMessage                                              ? SlotTypeIn :
+    (state == sendRAWaitToken | state == sendWA)               ? Address    : 
+    (state == sendCacheDataWaitToken | state == sendCacheData) ? WriteData  : 
     4'b0;
   assign dcRingOut = 
+    resendMessage                     ? RingIn         :
     (state == sendRAWaitToken)        ? readRequest    :
     (state == sendCacheDataWaitToken | 
      state == sendCacheData)          ? dcacheReadData :
-    (state == sendWA)                 ? flushRequest   : 
-    resendMessage                     ? RingIn         : 32'b0;
+    (state == sendWA)                 ? flushRequest   : 32'b0; 
     
   always @(posedge clock) begin
     if (reset) begin
@@ -203,10 +203,11 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     end else case (state)
       idle: begin
         if (handleRequestQ) begin
-          if (doRequestedFlush) begin
+          if ((requestLineStatus == MODIFIED) & 
+              (requestLineTag == requestQout[27:7])) begin
             // if some other core requested the line that we have in MODIFIED
             // state we need to flush it            
-            state <= sendCacheDataWaitToken;
+            state <= sendCacheDataWaitToken_;
             ioFlushing <= 0;
             flushAddr <= {requestQout[6:0], 3'b000};
             // requested flush, hence 29th bit is set
@@ -238,24 +239,26 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       
       sendRAWaitToken: begin
         if (dcAcquireToken) begin
-          if (doFlush) begin             
-            state <= sendCacheData;
-            flushAddr <= flushAddr + 1;
-          end
+          if (doFlush) state <= sendCacheData;
           else state <= idle;
         end
+      end
+      
+      sendCacheDataWaitToken_: begin 
+        // need to waste one cycle to correctly set address for DCache
+        state <= sendCacheDataWaitToken;
       end
       
       sendCacheDataWaitToken: begin
         if (dcAcquireToken) begin
           state <= sendCacheData;
-          flushAddr <= flushAddr + 2;
+          flushAddr <= flushAddr + 1;
         end
       end
       
       sendCacheData: begin
         flushAddr <= flushAddr + 1;
-        if (flushAddr[2:0] == 3'b0) state <= sendWA;
+        if (flushAddr[2:0] == 3'h7) state <= sendWA;
       end
       
       sendWA: begin
@@ -266,9 +269,9 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       setup: begin
         // setup initial dcache state. For Master Core (1) all cache
         // lines are in MODIFIED state initially.
-        if (whichCore != 4'b1) state <= idle;
+        if (whichCore != 1) state <= idle;
         else begin
-          if (lineCnt == 7'h7F) state <= idle;
+          if (lineCnt == 127) state <= idle;
           lineCnt <= lineCnt + 1;
         end
       end
@@ -284,7 +287,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
         if (lineCnt == 0 & requestLineStatus != MODIFIED) begin
           state <= idle;
         end else if (requestLineStatus == MODIFIED) begin
-          state <= sendCacheDataWaitToken;
+          state <= sendCacheDataWaitToken_;
           ioFlushing <= 1;
           flushAddr <= {aq[9:3], 3'b000};
           flushRequest <= {4'b0000, requestLineTag, aq[9:3]};
@@ -381,7 +384,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     .wr_en(wrRequestQ),
     .rd_en(rdRequestQ),
     .dout(requestQout), // Bus [31 : 0] 
-    .full(),
+    .full(requestQfull),
     .empty(requestQempty),
     .almost_empty(requestQalmostEmpty)
   );    
@@ -424,18 +427,20 @@ endgenerate
 
   wire wrDCache = AQWriteHit | (~read & resolveDCacheMiss);
   wire [9:0] dcacheAddr =
-    ((doRequestedFlush) | (state == sendRAWaitToken & doFlush) |
-     (state == ioFlush & (lineCnt > 0 || requestLineStatus == MODIFIED)) | 
-     (state == sendCacheDataWaitToken & ~dcAcquireToken) |
-     (state == sendCacheData))                            ? flushAddr : 
-    (state == sendCacheDataWaitToken & dcAcquireToken)    ? flushAddr + 1 :
+    // on next cycle i am starting flush
+    ((state == sendRAWaitToken & doFlush) |
+     (state == sendCacheDataWaitToken_) |
+     (state == sendCacheDataWaitToken & ~dcAcquireToken)) ? flushAddr :
+    // when flushing
+    ((state == sendCacheData) |                         
+     (state == sendCacheDataWaitToken & dcAcquireToken))  ? flushAddr + 1 :
                                                             aq[9:0];
 generate
   if (D_INIT == "NONE") begin : dcache_synth
     dpbram32 dataCache (
       .rda(dcacheReadData), // read data from DCache goes either to 
                             // rqDCache or on Ring during flush
-      .wda(wq),         // stuff in wq is written in DCache 
+      .wda(wq),         // stuff from wq is written in DCache 
                         // when there is a hit on a write
       .aa(dcacheAddr),
       .wea(wrDCache),

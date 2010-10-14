@@ -99,95 +99,96 @@ module mmsFSMcoherent (
    
 //---------------------End of Declarations-----------------
          
-	// memory directory entry for current memory operation
-	assign memDirEntry = (readData >> ({memOpData[5:0], 1'b0}));
-	
-	// read is possible if entry is in clean state or entry is in waiting
-   // state and this is not a fresh read request
-	assign readPossible = (memDirEntry == MEM_CLEAN || (memDirEntry == MEM_WAITING && memOpData[31]));
-                              
-   // newState, depending on Request:
-   // read - MEM_CLEAN
-   // exclusive read - MEM_MODIFIED
-   // flush - MEM_CLEAN
-   // request flush - MEM_WAITING
-	assign newState = (memOpData[29:28] == 2'b00) ? MEM_CLEAN : 
-                     (memOpData[29:28] == 2'b01) ? MEM_CLEAN : 
-                     (memOpData[29:28] == 2'b10) ? MEM_WAITING : 
-                                                   MEM_MODIFIED;
-   
-   // Wires for updating specific memory entry in 128 bit Read Data
-	assign newStateMask = newState << ({memOpData[5:0], 1'b0});
-	assign eraseEntryMask = ~(2'b11 << ({memOpData[5:0], 1'b0}));
-	assign updateDirEntry = (readData & eraseEntryMask) + newStateMask; 
+  // memory directory entry for current memory operation
+  assign memDirEntry = (readData >> ({memOpData[5:0], 1'b0}));
 
-   // State Machine
-   always @(posedge clock) begin
-      if (reset) begin
-         state <= idle;
-         dirClearLine <= 0;
-         doUpdateDirEntry <= 0;
-      end
-      else begin
-         state <= next_state; 
-         dirClearLine <= set_dirClearLine;
-         doUpdateDirEntry <= set_doUpdateDirEntry;
-      end
-   end
+  // read is possible if entry is in clean state or entry is in waiting
+  // state and this is not a fresh read request
+  assign readPossible = (memDirEntry == MEM_CLEAN) |
+                        (memDirEntry == MEM_WAITING & memOpData[31]);
+                              
+  // newState, depending on Request:
+  // read - MEM_CLEAN
+  // exclusive read - MEM_MODIFIED
+  // flush - MEM_CLEAN
+  // request flush - MEM_WAITING
+  assign newState = (memOpData[29:28] == 2'b00) ? MEM_CLEAN : 
+                    (memOpData[29:28] == 2'b01) ? MEM_CLEAN : 
+                    (memOpData[29:28] == 2'b10) ? MEM_WAITING : 
+                                                  MEM_MODIFIED;
    
-   // State Machine outputs and next state calculation
-   always @(*) begin
-      // default values
-      next_state = state;
-      set_dirClearLine = dirClearLine;
-      set_doUpdateDirEntry = doUpdateDirEntry;
-      // memOpQ and writeDataQ
-      rdMemOp = 0;
-      rdWriteData = 0;
-      // resendQ
-		wrResend  = 0;
-		resendOut = 0;
-		
-      // DDR address & read buffer & write buffer
-      wrAF = 0;
-      afAddress = 0;      
-      afRead = 0;
-      rdRB = 0;
-      wrWB = 0;
-      writeData = 0;
+  // Wires for updating specific memory entry in 128 bit Read Data
+  assign newStateMask = newState << ({memOpData[5:0], 1'b0});
+  assign eraseEntryMask = ~(2'b11 << ({memOpData[5:0], 1'b0}));
+  assign updateDirEntry = (readData & eraseEntryMask) + newStateMask; 
+
+  // State Machine
+  always @(posedge clock) begin
+    if (reset) begin
+      state <= idle;
+      dirClearLine <= 0;
+      doUpdateDirEntry <= 0;
+    end
+    else begin
+      state <= next_state; 
+      dirClearLine <= set_dirClearLine;
+      doUpdateDirEntry <= set_doUpdateDirEntry;
+    end
+  end
+   
+  // State Machine outputs and next state calculation
+  always @(*) begin
+    // default values
+    next_state = state;
+    set_dirClearLine = dirClearLine;
+    set_doUpdateDirEntry = doUpdateDirEntry;
+    // memOpQ and writeDataQ
+    rdMemOp = 0;
+    rdWriteData = 0;
+    // resendQ
+    wrResend  = 0;
+    resendOut = 0;
+
+    // DDR address & read buffer & write buffer
+    wrAF = 0;
+    afAddress = 0;      
+    afRead = 0;
+    rdRB = 0;
+    wrWB = 0;
+    writeData = 0;
+     
+    // RD on hit
+    RDdestOnHit = 0;
+    RDonHit = 0;
       
-      // RD on hit
-      RDdestOnHit = 0;
-      RDonHit = 0;
-      
-      // RD to Display Controller
-      wrRDtoDC = 0;
-      RDtoDC = 0;
+    // RD to Display Controller
+    wrRDtoDC = 0;
+    RDtoDC = 0;
                
-      case(state)
-         idle: begin
-            // Before starting to handle memory requests clear whole
-            // memory directory and set appropriate initial values.
-            // Wait for ~memOpQempty because otherwise for some unknown reasons
-            // DDR is sometimes not yet responsive. 
-            // TODO: probably fix this with something that makes more sense
-            if (~memOpQempty && ~wbFull && ~afFull) begin               
-               if (dirClearLine == 21'h1FFFFF) next_state = handleMemOp;
-               set_dirClearLine = dirClearLine + 1;
-               
-               wrWB = 1;
-               // first 127 lines are in modified state
-               if (~dirClearLine[0] && dirClearLine[20:2] == 0)
-                  writeData = 128'hAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
-               else writeData = 128'b0;
-               
-               if (dirClearLine[0]) begin
-                  wrAF = 1;
-                  afRead = 0;
-                  afAddress = {MEM_DIR_PREFIX, dirClearLine[20:1]};
-               end
-            end
-         end
+    case(state)
+      idle: begin
+        // Before starting to handle memory requests clear whole
+        // memory directory and set appropriate initial values.
+        // Wait for ~memOpQempty because otherwise for some unknown reasons
+        // DDR is sometimes not yet responsive. 
+        // TODO: probably fix this with something that makes more sense
+        if (~memOpQempty && ~wbFull && ~afFull) begin               
+          if (dirClearLine == 21'h1FFFFF) next_state = handleMemOp;
+          set_dirClearLine = dirClearLine + 1;
+          wrWB = 1;
+          // first 127 lines are in modified state
+          if (~dirClearLine[0] && dirClearLine[20:2] == 0)
+            writeData = 128'hAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
+          else 
+            writeData = 128'b0;
+          
+          if (dirClearLine[0]) begin
+            wrAF = 1;
+            afRead = 0;
+            afAddress = {MEM_DIR_PREFIX, dirClearLine[20:1]};
+          end
+        end
+      end
          
          handleMemOp: begin
             if (~memOpQempty) begin
