@@ -337,7 +337,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   dcacheTag DataCacheTag (
     .a(requestLine), // Bus [6 : 0] 
     .d(aq[30:10]), // Bus [20 : 0] 
-    .dpra(RingIn[6:0]), // Bus [6 : 0] 
+    .dpra((SlotTypeIn == Address) ? RingIn[6:0] : 7'b0), // Bus [6 : 0] 
     .clk(clock),
     .we(wrDCacheTag),
     .spo(requestLineTag), // Bus [20 : 0] 
@@ -359,7 +359,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   dcacheStatus DataCacheStatus (
     .a(requestLine), // Bus [6 : 0] 
     .d(newStatus), // Bus [1 : 0] 
-    .dpra(RingIn[6:0]), // Bus [6 : 0] 
+    .dpra((SlotTypeIn == Address) ? RingIn[6:0] : 7'b0), // Bus [6 : 0] 
     .clk(clock),
     .we(wrDCacheStatus),
     .spo(requestLineStatus), // Bus [1 : 0] 

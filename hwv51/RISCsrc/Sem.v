@@ -148,7 +148,7 @@ module Sem(
   lockMem Locker (
     .a(lockAddr), 
     .d(lockD), 
-    .dpra(RingIn[5:0]), 
+    .dpra((SlotTypeIn == Preq) ? RingIn[5:0] : 6'b0), 
     .clk(clock),
     .we(writeLock),
     .spo(locked), 
