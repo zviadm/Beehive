@@ -24,4 +24,6 @@ Beehive v5.1
    
 *** Building Software ***
 
--- Type "make" in sw/ folder
+-- Type "make" in sw/ folder to make all code
+-- Type "make o/hello.img" (replace hello with your desired image name) to make
+   specific image
