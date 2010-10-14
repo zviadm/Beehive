@@ -2,4 +2,5 @@ tmp/
 _xmsgs/
 *_xdb/
 _cg/
+coregen.*
 *.gise
