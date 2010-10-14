@@ -1,0 +1,19 @@
+# Output products list for <ramy>
+_xmsgs\
+dist_mem_gen_ds322.pdf
+dist_mem_gen_readme.txt
+ramy.asy
+ramy.gise
+ramy.ise
+ramy.ngc
+ramy.sym
+ramy.v
+ramy.veo
+ramy.vhd
+ramy.vho
+ramy.xco
+ramy.xise
+ramy_flist.txt
+ramy_readme.txt
+ramy_xdb\tmp\
+ramy_xmdf.tcl

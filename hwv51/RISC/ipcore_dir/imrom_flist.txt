@@ -1,0 +1,19 @@
+# Output products list for <imrom>
+_xmsgs\
+blk_mem_gen_ds512.pdf
+imrom.asy
+imrom.gise
+imrom.ise
+imrom.mif
+imrom.ngc
+imrom.sym
+imrom.v
+imrom.veo
+imrom.vhd
+imrom.vho
+imrom.xco
+imrom.xise
+imrom_flist.txt
+imrom_readme.txt
+imrom_xdb\tmp\
+imrom_xmdf.tcl

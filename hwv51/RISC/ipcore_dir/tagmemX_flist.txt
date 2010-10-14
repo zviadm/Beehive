@@ -1,0 +1,19 @@
+# Output products list for <tagmemX>
+_xmsgs\
+dist_mem_gen_ds322.pdf
+dist_mem_gen_readme.txt
+tagmemX.asy
+tagmemX.gise
+tagmemX.ise
+tagmemX.ngc
+tagmemX.sym
+tagmemX.v
+tagmemX.veo
+tagmemX.vhd
+tagmemX.vho
+tagmemX.xco
+tagmemX.xise
+tagmemX_flist.txt
+tagmemX_readme.txt
+tagmemX_xdb\tmp\
+tagmemX_xmdf.tcl

@@ -1,0 +1,19 @@
+# Output products list for <ramz>
+_xmsgs\
+dist_mem_gen_ds322.pdf
+dist_mem_gen_readme.txt
+ramz.asy
+ramz.gise
+ramz.ise
+ramz.ngc
+ramz.sym
+ramz.v
+ramz.veo
+ramz.vhd
+ramz.vho
+ramz.xco
+ramz.xise
+ramz_flist.txt
+ramz_readme.txt
+ramz_xdb\tmp\
+ramz_xmdf.tcl

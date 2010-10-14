@@ -1,0 +1,19 @@
+# Output products list for <regFile>
+_xmsgs\
+dist_mem_gen_ds322.pdf
+dist_mem_gen_readme.txt
+regFile.asy
+regFile.gise
+regFile.ise
+regFile.ngc
+regFile.sym
+regFile.v
+regFile.veo
+regFile.vhd
+regFile.vho
+regFile.xco
+regFile.xise
+regFile_flist.txt
+regFile_readme.txt
+regFile_xdb\tmp\
+regFile_xmdf.tcl
