@@ -1,3 +1,5 @@
+BEECTL = beectl.csail.mit.edu:
+
 MEM = Basm/Mastercode.mem Basm/Masterdata.mem Basm/Slavecode.mem Basm/Slavedata.mem \
       Basm/RISCtestcode.mem Basm/RISCtestdata.mem Basm/CopyDCcode.mem
 
@@ -21,7 +23,7 @@ risc3.bit: RISC/RISCtop.bit $(MEM)
 	 -o b risc3.bit
 	rm risc1.bit risc2.bit
 	mv risc3.bit Bits/
-	scp Bits/risc3.bit beectl.csail.mit.edu:
+	scp Bits/risc3.bit $(BEECTL)
 
 risc5.bit: RISC/RISCtop.bit $(MEM)
 	data2mem -bm mem/memX5a_bd.bmm -bt RISC/RISCtop.bit \
@@ -39,7 +41,7 @@ risc5.bit: RISC/RISCtop.bit $(MEM)
 	 -o b risc.bit
 	rm risc1.bit risc2.bit
 	mv risc5.bit Bits/
-	scp Bits/risc5.bit beectl.csail.mit.edu:
+	scp Bits/risc5.bit $(BEECTL)
 
 risc13.bit: RISC/RISCtop.bit $(MEM)
 	data2mem -bm mem/memX13a_bd.bmm -bt RISC/RISCtop.bit \
@@ -57,7 +59,7 @@ risc13.bit: RISC/RISCtop.bit $(MEM)
 	 -o b risc13.bit
 	rm risc1.bit risc2.bit
 	mv risc13.bit Bits/
-	scp Bits/risc13.bit beectl.csail.mit.edu:
+	scp Bits/risc13.bit $(BEECTL)
 
 Basm/Mastercode.mem Basm/Masterdata.mem: Basm/Master.s
 	mono Basm/Basm.exe -code1 -data4 Basm/Master.s
