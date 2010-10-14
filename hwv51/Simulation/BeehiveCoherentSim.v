@@ -1,4 +1,4 @@
-// this file replaces RISCsrc/RISCtop.v for coherent simulation
+// this file replaces RISCsrc/RISCtop.v for simulation
 `timescale 1ns / 1ps
 
 module beehiveCoherent;
@@ -82,14 +82,10 @@ module beehiveCoherent;
       end
 
       always @(posedge clock) begin
-        if (riscN.msgrN.msgrFifoFull) begin
+        if (riscN.msgrN.MQ.FULL) 
           $display("[%02d]: msgr fifo full!", i);
-          $finish(0);
-        end
-        //if (riscN.dCacheN.requestQfull) begin
-        //  $display("[%02d]: requestQ fifo full!", i);
-        //  $finish(0);
-        //end
+        if (riscN.dCacheN.DataCacheRequestQueue.full) 
+          $display("[%02d]: requestQ fifo full!", i);
       end
     end
   endgenerate
@@ -181,10 +177,7 @@ module beehiveCoherent;
     .empty(resendQempty));
 
   always @(posedge clock) 
-    if (wrResendQ & resendQfull) begin
-      $display("*** resendQ fifo is full!");
-      $finish(0);
-    end
+    if (wrResendQ & resendQfull) $display("*** write to full resendQ fifo!");
 
   // capture memory addresses arriving from the ring
   wire ma_wr = (mctrlSlotTypeIn == Address);
@@ -260,8 +253,6 @@ module beehiveCoherent;
     
     RDreturn[0] <= rd_return;
     RDdest[0] <= rd_dest;
-    //if (rd_dest != 0) 
-    //  $display("r mem[%x] %x core %x",rd_addr,rd_return,rd_dest);
     if (reset) begin
       mem_state <= readAddress;
       mcount <= 4'h8;
@@ -321,110 +312,29 @@ module beehiveCoherent;
     cycle_count <= reset ? 0 : cycle_count + 1;
   end   
 
-  // periodically print out cycle count
-  /*
-  always @(posedge clock) if (!reset & (cycle_count % 10000) == 0) begin
-    $display("");
-    $write("*** cycle %d:",cycle_count);
-    $write(" [core 1] pcx=%x",beehive.coreBlk[1].riscN.pcx);
-    $write(" [core 2] pcx=%x",beehive.coreBlk[2].riscN.pcx);
-    $write(" [core 3] pcx=%x",beehive.coreBlk[3].riscN.pcx);
-    $display("");
-  end
-  */
-
-  // follow execution in core N
-  localparam N = 1;
-  // true on cycles where core N is executing an instruction 
-  // (not stalled, not anulled)
-  //wire exeN = 
-  //  !beehive.coreBlk[2].riscN.nullify & !beehive.coreBlk[N].riscN.stall;
-  reg delayedSelDCache;
   always @(negedge clock) if (!reset) begin
-    /*
-    if (mctrlSlotTypeIn != Null & mctrlSlotTypeIn != Token) begin
-      $display("Ring: type=%x, dest=%x, data=%x",
-                mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
-    end */
-
-    /*
-    if (coreBlk[2].riscN.dCacheN.selDCache == 1) begin
-      $write("cycle=%5d ", cycle_count);
-      $write("pc=%x ", coreBlk[2].riscN.pc);
-      $write("AQReadHit=%x ", coreBlk[2].riscN.dCacheN.AQReadHit);
-      $write("AQWriteHit=%x ", coreBlk[2].riscN.dCacheN.AQWriteHit);
-      $write("state=%x ", coreBlk[2].riscN.dCacheN.state);
-      $write("waitReadDataState=%x ", coreBlk[2].riscN.dCacheN.waitReadDataState);
-      $write("done=%x ", coreBlk[2].riscN.dCacheN.done);
-      $write("RDreturn=%x, RDdest=%x ", coreBlk[2].riscN.dCacheN.RDreturn,
-                                        coreBlk[2].riscN.dCacheN.RDdest);
-      $write("NextCoreRingIn: SourceIn=%x, Type=%x, Ring=%x ", 
-        coreBlk[3].riscN.SourceIn,
-        coreBlk[3].riscN.SlotTypeIn,
-        coreBlk[3].riscN.RingIn);      
-      $display("");
-    end
-    */
-        
-    /*
-    delayedSelDCache <= coreBlk[2].riscN.dCacheN.selDCache;
-    if (//delayedSelDCache | coreBlk[2].riscN.dCacheN.dcDriveRing
-        && coreBlk[2].riscN.dCacheN.aq[30:27] != 0
-        (cycle_count > 174800 && cycle_count < 175000)) begin
-      $write("cycle=%5d ",cycle_count);
-      $write("pc=%x ",coreBlk[2].riscN.pc);
-      $write("pcx=%x ",coreBlk[2].riscN.pcx);
-      $write("inst=%x ",coreBlk[2].riscN.inst);
-      $write("outx=%x ",coreBlk[2].riscN.outx);
-      $write("out=%x/%x ",coreBlk[2].riscN.out,coreBlk[2].riscN.wwq);
-      $write("n/s=%x/%x ",coreBlk[2].riscN.nullify,coreBlk[2].riscN.stall);
-      $write("aq=%x/%x/%x ",coreBlk[2].riscN.aqrd,coreBlk[2].riscN.aq,coreBlk[2].riscN.aqe);
-      $write("w=%x ",coreBlk[2].riscN.dCacheN.wq);
-      $write("dcState=%x ",coreBlk[2].riscN.dCacheN.state);
-      $write("ihit=%x ",coreBlk[2].riscN.dCacheN.Ihit);
-      //$write("Ring: type=%x, source=%x, data=%x ",coreBlk[2].riscN.SlotTypeIn,
-      //                                            coreBlk[2].riscN.SourceIn,
-      //                                            coreBlk[2].riscN.RingIn);
-      $write("MCTRL Ring: type=%x, src=%x, data=%x ", 
-        mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
-      $write("MCTRL RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
-      $display("");   
-    end    
-    */
+//    if (mctrlSlotTypeIn != Null & mctrlSlotTypeIn != Token) begin
+//      $display("MCTRL Ring: type=%x, src=%x, data=%x",
+//                mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
+//    end 
     
-    //if (RDreturn[0] == 32'h67401206) $finish(0);
-    /*
-    if (0 & (coreBlk[1].riscN.dCacheN.delayedSelDCache | 
-        coreBlk[1].riscN.dCacheN.state != 0 | 
-        coreBlk[1].riscN.dCacheN.waitReadDataState != 0 |
-        RDdest[0] == 1 | ~coreBlk[1].riscN.dCacheN.requestQempty | 
-        (cycle_count > 30682 && cycle_count < 30700))) begin
-    $write("cycle=%5d ",cycle_count);
-    $write("pc=%x ",coreBlk[1].riscN.pc);
-    $write("inst=%x ",coreBlk[1].riscN.inst);
-    $write("outx=%x ",coreBlk[1].riscN.outx);
-    $write("out=%x/%x ",coreBlk[1].riscN.out,
-                        coreBlk[1].riscN.wwq);
-    $write("n/s=%x/%x ",coreBlk[1].riscN.nullify,
-                        coreBlk[1].riscN.stall);
-    $write("aq=%x/%x/%x ",coreBlk[1].riscN.aqrd,
-                          coreBlk[1].riscN.aq,
-                          coreBlk[1].riscN.aqe);
-    $write("w=%x ",coreBlk[1].riscN.dCacheN.wq);
-    $write("dcState=%x ",coreBlk[1].riscN.dCacheN.state);
-    $write("WRD=%x ",coreBlk[1].riscN.dCacheN.waitReadDataState);
-    $write("ihit=%x ",coreBlk[1].riscN.dCacheN.Ihit);
-    $write("Ring: type=%x, source=%x, data=%x ",coreBlk[1].riscN.SlotTypeIn,
-                                                coreBlk[1].riscN.SourceIn,
-                                                coreBlk[1].riscN.RingIn);
-    $write("RDr=%x, RDd=%x ",RDreturn[0], RDdest[0]);
-    //$write("MCTRL Ring: type=%x, src=%x, data=%x ", 
-    //  mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
-    //$write("MCTRL RDreturn=%x, RDdest=%x ",rd_return,rd_dest);
-    $display("");   
-    end
-    */
-    //if (cycle_count >= 84000) $finish(0);
+
+//    if (coreBlk[2].riscN.dCacheN.selDCache == 1) begin
+//      $write("cycle=%5d ", cycle_count);
+//      $write("pc=%x ", coreBlk[2].riscN.pc);
+//      $write("AQReadHit=%x ", coreBlk[2].riscN.dCacheN.AQReadHit);
+//      $write("AQWriteHit=%x ", coreBlk[2].riscN.dCacheN.AQWriteHit);
+//      $write("state=%x ", coreBlk[2].riscN.dCacheN.state);
+//      $write("waitReadDataState=%x ", coreBlk[2].riscN.dCacheN.waitReadDataState);
+//      $write("done=%x ", coreBlk[2].riscN.dCacheN.done);
+//      $write("RDreturn=%x, RDdest=%x ", coreBlk[2].riscN.dCacheN.RDreturn,
+//                                        coreBlk[2].riscN.dCacheN.RDdest);
+//      $write("NextCoreRingIn: SourceIn=%x, Type=%x, Ring=%x ", 
+//        coreBlk[3].riscN.SourceIn,
+//        coreBlk[3].riscN.SlotTypeIn,
+//        coreBlk[3].riscN.RingIn);      
+//      $display("");
+//    end    
   end
 
   integer k;
@@ -432,10 +342,11 @@ module beehiveCoherent;
     clock = 1;
     reset = 1;
 
-    // initialize lower part of main memory, assume high part doesn't need it
+    // initialize main memory
     for (k = 0; k < (1 << MBITS); k = k + 1) mem[k] = 32'hDEADBEEF;
 
-    // initialize memory directory, first 128 lines are MODIFIED rest are CLEAN
+    // initialize memory directory, 
+    // first 128 lines are MODIFIED rest are CLEAN
     for (k = 0; k < 128; k = k + 1) mem_dir[k] = MEM_MODIFIED;
     for (k = 128; k < (1 << (MBITS - 3)); k = k + 1) mem_dir[k] = MEM_CLEAN;
     $readmemh("../Simulation/main.hex", mem);

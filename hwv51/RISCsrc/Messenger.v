@@ -13,9 +13,6 @@ as they arrive on the ring, if they have nonzero length.
 When messages of zero length arrive, their source and type are placed
 in ctrlSrc and ctrlType, and ctrlValid is asserted.
 
-When messages for this core arrive,the SlotType is converted from 
-Message to Null so that the message will not propagate further.
-
 Messages from the copier (core copyCore) are sent directly to rq.
 
 The messenger sends messages directly from WQ.
@@ -25,8 +22,8 @@ the first message in MQ is copied into RQ. If MQ is
 empty, RQ is loaded with 0.
 
 Messenger supports broadcasts. If a core (2 to nCores) sends message to itself
-it will be sent as broadcasts and all other cores (2 to nCores) will receive
-the message. Broadcast is taken off from the ring by the sender itself.
+it will be sent as broadcast and all other cores (2 to nCores) will receive
+the message.
 */
 
 module Messenger(
@@ -198,7 +195,6 @@ module Messenger(
     endcase
   end
 
-  wire msgrFifoFull;
   //The FIFO for received messages
   FIFO36 #(
     .SIM_MODE("SAFE"), // Simulation: "SAFE" vs. "FAST", 
@@ -219,7 +215,7 @@ module Messenger(
     .DO(MQdata), // 32-bit data output
     .DOP(), // 4-bit parity data output
     .EMPTY(MQempty), // 1-bit empty output flag
-    .FULL(msgrFifoFull), // 1-bit full output flag
+    .FULL(), // 1-bit full output flag
     .RDCOUNT(), // 13-bit read count output
     .RDERR(), // 1-bit read error output
     .WRCOUNT(), // 13-bit write count output

@@ -44,10 +44,10 @@ ENTITY memOpQ IS
 	port (
 	clk: IN std_logic;
 	rst: IN std_logic;
-	din: IN std_logic_VECTOR(39 downto 0);
+	din: IN std_logic_VECTOR(35 downto 0);
 	wr_en: IN std_logic;
 	rd_en: IN std_logic;
-	dout: OUT std_logic_VECTOR(39 downto 0);
+	dout: OUT std_logic_VECTOR(35 downto 0);
 	full: OUT std_logic;
 	empty: OUT std_logic);
 END memOpQ;
@@ -58,10 +58,10 @@ component wrapped_memOpQ
 	port (
 	clk: IN std_logic;
 	rst: IN std_logic;
-	din: IN std_logic_VECTOR(39 downto 0);
+	din: IN std_logic_VECTOR(35 downto 0);
 	wr_en: IN std_logic;
 	rd_en: IN std_logic;
-	dout: OUT std_logic_VECTOR(39 downto 0);
+	dout: OUT std_logic_VECTOR(35 downto 0);
 	full: OUT std_logic;
 	empty: OUT std_logic);
 end component;
@@ -75,7 +75,7 @@ end component;
 			c_has_srst => 0,
 			c_enable_rst_sync => 1,
 			c_has_rd_data_count => 0,
-			c_din_width => 40,
+			c_din_width => 36,
 			c_has_wr_data_count => 0,
 			c_full_flags_rst_val => 0,
 			c_implementation_type => 0,
@@ -88,7 +88,7 @@ end component;
 			c_has_meminit_file => 0,
 			c_has_overflow => 0,
 			c_preload_latency => 0,
-			c_dout_width => 40,
+			c_dout_width => 36,
 			c_msgon_val => 1,
 			c_rd_depth => 512,
 			c_default_value => "BlankString",
@@ -126,7 +126,7 @@ end component;
 			c_use_fifo16_flags => 0,
 			c_has_backup => 0,
 			c_valid_low => 0,
-			c_prim_fifo_type => "512x72",
+			c_prim_fifo_type => "512x36",
 			c_count_type => 0,
 			c_prog_full_type => 0,
 			c_memory_type => 1);

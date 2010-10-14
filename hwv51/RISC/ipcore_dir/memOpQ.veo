@@ -34,10 +34,10 @@
 memOpQ YourInstanceName (
 	.clk(clk),
 	.rst(rst),
-	.din(din), // Bus [39 : 0] 
+	.din(din), // Bus [35 : 0] 
 	.wr_en(wr_en),
 	.rd_en(rd_en),
-	.dout(dout), // Bus [39 : 0] 
+	.dout(dout), // Bus [35 : 0] 
 	.full(full),
 	.empty(empty));
 

@@ -2,8 +2,6 @@
 
 /*
 This module is a memory controller using the ring interfacing scheme.
-Its inputs are the outputs of the ring, and it is the source for
-slots injected into the ring.
 
 Uses a separate ring to return read data
 
@@ -110,9 +108,9 @@ module CoherentMemMux (
   
   // wires to MemOpQ
   wire memOpQempty;
-  wire [39:0] memOpQIn;
+  wire [35:0] memOpQIn;
   wire wrMemOpQ, rdMemOpQ;
-  wire [3:0] memOpQdest, memOpQtype;
+  wire [3:0] memOpQdest;
   wire [31:0] memOpQout;
   
   // wires to WriteDataQ
@@ -180,7 +178,7 @@ module CoherentMemMux (
   // decided what should go into memOpQ, stuff from ring or from DC
   assign wrMemOpQ = (SlotTypeIn == Address) | readAck;
   assign memOpQIn = (SlotTypeIn == Address) ? 
-    {SourceIn, SlotTypeIn, RingIn} : {4'b0000, 4'b0010, {6'b000100, RA}};
+    {SourceIn, RingIn} : {4'b0000, {6'b000100, RA}};
   
   // write to writeDataQ, also count number of elements in writeDataQ
   always @(posedge clock) begin
@@ -232,7 +230,7 @@ module CoherentMemMux (
     .din(memOpQIn),
     .wr_en(wrMemOpQ),
     .rd_en(rdMemOpQ),
-    .dout({memOpQdest, memOpQtype, memOpQout}),
+    .dout({memOpQdest, memOpQout}),
     .full(),
     .empty(memOpQempty)
   );

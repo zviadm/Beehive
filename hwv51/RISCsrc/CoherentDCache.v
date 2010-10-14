@@ -96,7 +96,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   
   // Wires from request queue
   wire requestQempty;
-  wire requestQfull;
   wire [31:0] requestQout;
 
   // Wires from DCache Tag
@@ -200,6 +199,8 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     if (reset) begin
       state <= setup;
       lineCnt <= 0;
+      readRequest <= 0;
+      flushRequest <= 0;
     end else case (state)
       idle: begin
         if (handleRequestQ) begin
@@ -384,9 +385,9 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     .wr_en(wrRequestQ),
     .rd_en(rdRequestQ),
     .dout(requestQout), // Bus [31 : 0] 
-    .full(requestQfull),
+    .full(),
     .empty(requestQempty),
-    .almost_empty(requestQalmostEmpty)
+    .almost_empty()
   );    
 
 generate

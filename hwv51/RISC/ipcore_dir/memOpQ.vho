@@ -33,10 +33,10 @@ component memOpQ
 	port (
 	clk: IN std_logic;
 	rst: IN std_logic;
-	din: IN std_logic_VECTOR(39 downto 0);
+	din: IN std_logic_VECTOR(35 downto 0);
 	wr_en: IN std_logic;
 	rd_en: IN std_logic;
-	dout: OUT std_logic_VECTOR(39 downto 0);
+	dout: OUT std_logic_VECTOR(35 downto 0);
 	full: OUT std_logic;
 	empty: OUT std_logic);
 end component;

@@ -50,10 +50,10 @@ module memOpQ(
 
 input clk;
 input rst;
-input [39 : 0] din;
+input [35 : 0] din;
 input wr_en;
 input rd_en;
-output [39 : 0] dout;
+output [35 : 0] dout;
 output full;
 output empty;
 
@@ -64,9 +64,9 @@ output empty;
 		.C_COUNT_TYPE(0),
 		.C_DATA_COUNT_WIDTH(10),
 		.C_DEFAULT_VALUE("BlankString"),
-		.C_DIN_WIDTH(40),
+		.C_DIN_WIDTH(36),
 		.C_DOUT_RST_VAL("0"),
-		.C_DOUT_WIDTH(40),
+		.C_DOUT_WIDTH(36),
 		.C_ENABLE_RLOCS(0),
 		.C_ENABLE_RST_SYNC(1),
 		.C_ERROR_INJECTION_TYPE(0),
@@ -97,7 +97,7 @@ output empty;
 		.C_OVERFLOW_LOW(0),
 		.C_PRELOAD_LATENCY(0),
 		.C_PRELOAD_REGS(1),
-		.C_PRIM_FIFO_TYPE("512x72"),
+		.C_PRIM_FIFO_TYPE("512x36"),
 		.C_PROG_EMPTY_THRESH_ASSERT_VAL(4),
 		.C_PROG_EMPTY_THRESH_NEGATE_VAL(5),
 		.C_PROG_EMPTY_TYPE(0),
