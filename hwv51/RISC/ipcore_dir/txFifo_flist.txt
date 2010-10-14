@@ -1,9 +1,9 @@
 # Output products list for <txFifo>
-_xmsgs\
+_xmsgs/pn_parser.xmsgs
+fifo_generator_readme.txt
 fifo_generator_ug175.pdf
 txFifo.asy
 txFifo.gise
-txFifo.ise
 txFifo.ngc
 txFifo.sym
 txFifo.v
@@ -13,6 +13,5 @@ txFifo.vho
 txFifo.xco
 txFifo.xise
 txFifo_flist.txt
-txFifo_readme.txt
-txFifo_xdb\tmp\
+txFifo_upgrade.txt
 txFifo_xmdf.tcl

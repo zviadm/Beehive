@@ -67,7 +67,7 @@ component wrapped_memOpQ
 end component;
 
 -- Configuration specification 
-	for all : wrapped_memOpQ use entity XilinxCoreLib.fifo_generator_v5_3(behavioral)
+	for all : wrapped_memOpQ use entity XilinxCoreLib.fifo_generator_v6_2(behavioral)
 		generic map(
 			c_has_int_clk => 0,
 			c_wr_response_latency => 1,

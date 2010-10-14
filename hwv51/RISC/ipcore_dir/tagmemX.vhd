@@ -61,7 +61,7 @@ component wrapped_tagmemX
 end component;
 
 -- Configuration specification 
-	for all : wrapped_tagmemX use entity XilinxCoreLib.dist_mem_gen_v4_1(behavioral)
+	for all : wrapped_tagmemX use entity XilinxCoreLib.dist_mem_gen_v5_1(behavioral)
 		generic map(
 			c_has_clk => 1,
 			c_has_qdpo_clk => 0,

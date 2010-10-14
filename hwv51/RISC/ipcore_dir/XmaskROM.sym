@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <symbol version="7" name="XmaskROM">
     <symboltype>BLOCK</symboltype>
-    <timestamp>2010-1-1T22:28:51</timestamp>
+    <timestamp>2010-10-14T22:1:40</timestamp>
     <pin polarity="Input" x="0" y="80" name="a[5:0]" />
     <pin polarity="Output" x="288" y="80" name="spo[31:0]" />
     <graph>

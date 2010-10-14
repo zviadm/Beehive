@@ -31,17 +31,17 @@
 ------------- Begin Cut here for COMPONENT Declaration ------ COMP_TAG
 component txFifo
 	port (
-	din: IN std_logic_VECTOR(31 downto 0);
-	rd_clk: IN std_logic;
-	rd_en: IN std_logic;
 	rst: IN std_logic;
 	wr_clk: IN std_logic;
+	rd_clk: IN std_logic;
+	din: IN std_logic_VECTOR(31 downto 0);
 	wr_en: IN std_logic;
+	rd_en: IN std_logic;
 	dout: OUT std_logic_VECTOR(31 downto 0);
-	empty: OUT std_logic;
 	full: OUT std_logic;
-	prog_full: OUT std_logic;
-	rd_data_count: OUT std_logic_VECTOR(10 downto 0));
+	empty: OUT std_logic;
+	rd_data_count: OUT std_logic_VECTOR(10 downto 0);
+	prog_full: OUT std_logic);
 end component;
 
 -- Synplicity black box declaration
@@ -56,17 +56,17 @@ attribute syn_black_box of txFifo: component is true;
 ------------- Begin Cut here for INSTANTIATION Template ----- INST_TAG
 your_instance_name : txFifo
 		port map (
-			din => din,
-			rd_clk => rd_clk,
-			rd_en => rd_en,
 			rst => rst,
 			wr_clk => wr_clk,
+			rd_clk => rd_clk,
+			din => din,
 			wr_en => wr_en,
+			rd_en => rd_en,
 			dout => dout,
-			empty => empty,
 			full => full,
-			prog_full => prog_full,
-			rd_data_count => rd_data_count);
+			empty => empty,
+			rd_data_count => rd_data_count,
+			prog_full => prog_full);
 -- INST_TAG_END ------ End INSTANTIATION Template ------------
 
 -- You must compile the wrapper file txFifo.vhd when simulating

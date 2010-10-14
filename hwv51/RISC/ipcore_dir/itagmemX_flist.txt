@@ -1,10 +1,9 @@
 # Output products list for <itagmemX>
-_xmsgs\
+_xmsgs/pn_parser.xmsgs
 dist_mem_gen_ds322.pdf
 dist_mem_gen_readme.txt
 itagmemX.asy
 itagmemX.gise
-itagmemX.ise
 itagmemX.ngc
 itagmemX.sym
 itagmemX.v
@@ -15,5 +14,4 @@ itagmemX.xco
 itagmemX.xise
 itagmemX_flist.txt
 itagmemX_readme.txt
-itagmemX_xdb\tmp\
 itagmemX_xmdf.tcl

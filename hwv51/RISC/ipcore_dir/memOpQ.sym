@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <symbol version="7" name="memOpQ">
     <symboltype>BLOCK</symboltype>
-    <timestamp>2010-10-14T19:22:55</timestamp>
+    <timestamp>2010-10-14T22:10:39</timestamp>
     <pin polarity="Input" x="0" y="80" name="din[35:0]" />
     <pin polarity="Input" x="0" y="144" name="wr_en" />
     <pin polarity="Input" x="0" y="240" name="rd_en" />

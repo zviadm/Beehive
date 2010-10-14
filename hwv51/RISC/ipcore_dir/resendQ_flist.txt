@@ -1,5 +1,6 @@
 # Output products list for <resendQ>
 _xmsgs/pn_parser.xmsgs
+fifo_generator_readme.txt
 fifo_generator_ug175.pdf
 resendQ.asy
 resendQ.gise
@@ -12,5 +13,5 @@ resendQ.vho
 resendQ.xco
 resendQ.xise
 resendQ_flist.txt
-resendQ_readme.txt
+resendQ_upgrade.txt
 resendQ_xmdf.tcl

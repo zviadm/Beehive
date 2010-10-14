@@ -1,5 +1,6 @@
 # Output products list for <memOpQ>
 _xmsgs/pn_parser.xmsgs
+fifo_generator_readme.txt
 fifo_generator_ug175.pdf
 memOpQ.asy
 memOpQ.gise
@@ -12,5 +13,5 @@ memOpQ.vho
 memOpQ.xco
 memOpQ.xise
 memOpQ_flist.txt
-memOpQ_readme.txt
+memOpQ_upgrade.txt
 memOpQ_xmdf.tcl

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <symbol version="7" name="itagmemX">
     <symboltype>BLOCK</symboltype>
-    <timestamp>2010-1-1T22:31:14</timestamp>
+    <timestamp>2010-10-14T22:9:26</timestamp>
     <pin polarity="Input" x="0" y="80" name="a[6:0]" />
     <pin polarity="Input" x="0" y="112" name="d[20:0]" />
     <pin polarity="Input" x="0" y="272" name="we" />

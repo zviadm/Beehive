@@ -1,8 +1,7 @@
 # Output products list for <dValidTag>
-_xmsgs\
+_xmsgs/pn_parser.xmsgs
 dValidTag.asy
 dValidTag.gise
-dValidTag.ise
 dValidTag.ngc
 dValidTag.sym
 dValidTag.v
@@ -13,7 +12,6 @@ dValidTag.xco
 dValidTag.xise
 dValidTag_flist.txt
 dValidTag_readme.txt
-dValidTag_xdb\tmp\
 dValidTag_xmdf.tcl
 dist_mem_gen_ds322.pdf
 dist_mem_gen_readme.txt

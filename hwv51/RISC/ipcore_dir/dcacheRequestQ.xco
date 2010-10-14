@@ -1,7 +1,7 @@
 ##############################################################
 #
 # Xilinx Core Generator version 12.2
-# Date: Thu Oct 14 15:00:48 2010
+# Date: Thu Oct 14 22:04:42 2010
 #
 ##############################################################
 #
@@ -32,7 +32,7 @@ SET verilogsim = true
 SET vhdlsim = true
 # END Project Options
 # BEGIN Select
-SELECT Fifo_Generator family Xilinx,_Inc. 5.3
+SELECT Fifo_Generator family Xilinx,_Inc. 6.2
 # END Select
 # BEGIN Parameters
 CSET almost_empty_flag=true
@@ -81,4 +81,4 @@ CSET write_data_count=false
 CSET write_data_count_width=7
 # END Parameters
 GENERATE
-# CRC: 42a12fe0
+# CRC: 2da4c291

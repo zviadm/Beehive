@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <symbol version="7" name="dValidTag">
     <symboltype>BLOCK</symboltype>
-    <timestamp>2010-1-1T22:30:35</timestamp>
+    <timestamp>2010-10-14T22:2:54</timestamp>
     <pin polarity="Input" x="0" y="80" name="a[6:0]" />
     <pin polarity="Input" x="0" y="112" name="d[0:0]" />
     <pin polarity="Input" x="0" y="272" name="we" />

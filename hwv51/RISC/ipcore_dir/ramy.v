@@ -53,7 +53,7 @@ output [31 : 0] spo;
 
 // synthesis translate_off
 
-      DIST_MEM_GEN_V4_2 #(
+      DIST_MEM_GEN_V5_1 #(
 		.C_ADDR_WIDTH(6),
 		.C_DEFAULT_DATA("0"),
 		.C_DEPTH(64),

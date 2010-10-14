@@ -11,6 +11,6 @@ dcacheRequestQ.vho
 dcacheRequestQ.xco
 dcacheRequestQ.xise
 dcacheRequestQ_flist.txt
-dcacheRequestQ_readme.txt
 dcacheRequestQ_xmdf.tcl
+fifo_generator_readme.txt
 fifo_generator_ug175.pdf

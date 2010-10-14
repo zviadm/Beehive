@@ -1,7 +1,7 @@
 ##############################################################
 #
-# Xilinx Core Generator version 11.4
-# Date: Fri Jan 01 22:41:31 2010
+# Xilinx Core Generator version 12.2
+# Date: Thu Oct 14 22:02:49 2010
 #
 ##############################################################
 #
@@ -13,26 +13,26 @@
 ##############################################################
 #
 # BEGIN Project Options
-SET addpads = False
-SET asysymbol = True
+SET addpads = false
+SET asysymbol = true
 SET busformat = BusFormatAngleBracketNotRipped
-SET createndf = False
-SET designentry = VHDL
-SET device = xc5vlx50t
+SET createndf = false
+SET designentry = Verilog
+SET device = xc5vlx110t
 SET devicefamily = virtex5
 SET flowvendor = Foundation_ISE
-SET formalverification = False
-SET foundationsym = False
+SET formalverification = false
+SET foundationsym = false
 SET implementationfiletype = Ngc
 SET package = ff1136
-SET removerpms = False
+SET removerpms = false
 SET simulationfiles = Behavioral
 SET speedgrade = -1
-SET verilogsim = True
-SET vhdlsim = True
+SET verilogsim = true
+SET vhdlsim = true
 # END Project Options
 # BEGIN Select
-SELECT Distributed_Memory_Generator family Xilinx,_Inc. 4.1
+SELECT Distributed_Memory_Generator family Xilinx,_Inc. 5.1
 # END Select
 # BEGIN Parameters
 CSET ce_overrides=ce_overrides_sync_controls
@@ -53,10 +53,14 @@ CSET output_options=non_registered
 CSET pipeline_stages=0
 CSET qualify_we_with_i_ce=false
 CSET reset_qdpo=false
+CSET reset_qsdpo=false
 CSET reset_qspo=false
+CSET simple_dual_port_address=non_registered
+CSET simple_dual_port_output_clock_enable=false
 CSET single_port_output_clock_enable=false
 CSET sync_reset_qdpo=false
+CSET sync_reset_qsdpo=false
 CSET sync_reset_qspo=false
 # END Parameters
 GENERATE
-# CRC: e970e420
+# CRC: d3288da6

@@ -38,30 +38,30 @@
 `timescale 1ns/1ps
 
 module EthFIFO(
-	din,
-	rd_clk,
-	rd_en,
 	rst,
 	wr_clk,
+	rd_clk,
+	din,
 	wr_en,
+	rd_en,
 	dout,
-	empty,
-	full);
+	full,
+	empty);
 
 
-input [32 : 0] din;
-input rd_clk;
-input rd_en;
 input rst;
 input wr_clk;
+input rd_clk;
+input [32 : 0] din;
 input wr_en;
+input rd_en;
 output [32 : 0] dout;
-output empty;
 output full;
+output empty;
 
 // synthesis translate_off
 
-      FIFO_GENERATOR_V4_4 #(
+      FIFO_GENERATOR_V6_2 #(
 		.C_COMMON_CLOCK(0),
 		.C_COUNT_TYPE(0),
 		.C_DATA_COUNT_WIDTH(10),
@@ -70,6 +70,8 @@ output full;
 		.C_DOUT_RST_VAL("0"),
 		.C_DOUT_WIDTH(33),
 		.C_ENABLE_RLOCS(0),
+		.C_ENABLE_RST_SYNC(1),
+		.C_ERROR_INJECTION_TYPE(0),
 		.C_FAMILY("virtex5"),
 		.C_FULL_FLAGS_RST_VAL(0),
 		.C_HAS_ALMOST_EMPTY(0),
@@ -122,39 +124,41 @@ output full;
 		.C_WR_PNTR_WIDTH(10),
 		.C_WR_RESPONSE_LATENCY(1))
 	inst (
-		.DIN(din),
-		.RD_CLK(rd_clk),
-		.RD_EN(rd_en),
 		.RST(rst),
 		.WR_CLK(wr_clk),
+		.RD_CLK(rd_clk),
+		.DIN(din),
 		.WR_EN(wr_en),
+		.RD_EN(rd_en),
 		.DOUT(dout),
-		.EMPTY(empty),
 		.FULL(full),
-		.CLK(),
-		.INT_CLK(),
+		.EMPTY(empty),
 		.BACKUP(),
 		.BACKUP_MARKER(),
+		.CLK(),
+		.SRST(),
+		.WR_RST(),
+		.RD_RST(),
 		.PROG_EMPTY_THRESH(),
 		.PROG_EMPTY_THRESH_ASSERT(),
 		.PROG_EMPTY_THRESH_NEGATE(),
 		.PROG_FULL_THRESH(),
 		.PROG_FULL_THRESH_ASSERT(),
 		.PROG_FULL_THRESH_NEGATE(),
-		.RD_RST(),
-		.SRST(),
-		.WR_RST(),
-		.ALMOST_EMPTY(),
+		.INT_CLK(),
+		.INJECTDBITERR(),
+		.INJECTSBITERR(),
 		.ALMOST_FULL(),
-		.DATA_COUNT(),
-		.OVERFLOW(),
-		.PROG_EMPTY(),
-		.PROG_FULL(),
-		.VALID(),
-		.RD_DATA_COUNT(),
-		.UNDERFLOW(),
 		.WR_ACK(),
+		.OVERFLOW(),
+		.ALMOST_EMPTY(),
+		.VALID(),
+		.UNDERFLOW(),
+		.DATA_COUNT(),
+		.RD_DATA_COUNT(),
 		.WR_DATA_COUNT(),
+		.PROG_FULL(),
+		.PROG_EMPTY(),
 		.SBITERR(),
 		.DBITERR());
 

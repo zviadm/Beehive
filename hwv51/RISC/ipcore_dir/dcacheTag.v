@@ -57,7 +57,7 @@ output [20 : 0] dpo;
 
 // synthesis translate_off
 
-      DIST_MEM_GEN_V4_3 #(
+      DIST_MEM_GEN_V5_1 #(
 		.C_ADDR_WIDTH(7),
 		.C_DEFAULT_DATA("0"),
 		.C_DEPTH(128),

@@ -36,6 +36,10 @@ utilities_xmdf::xmdfSetData $instance FileSet $fcount type logical_library
 utilities_xmdf::xmdfSetData $instance FileSet $fcount logical_library unisim
 incr fcount
 
+utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path fifo_generator_readme.txt
+utilities_xmdf::xmdfSetData $instance FileSet $fcount type text
+incr fcount
+
 utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path fifo_generator_ug175.pdf
 utilities_xmdf::xmdfSetData $instance FileSet $fcount type AnyView
 incr fcount

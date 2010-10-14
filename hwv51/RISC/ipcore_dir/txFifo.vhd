@@ -42,42 +42,42 @@ Library XilinxCoreLib;
 -- synthesis translate_on
 ENTITY txFifo IS
 	port (
-	din: IN std_logic_VECTOR(31 downto 0);
-	rd_clk: IN std_logic;
-	rd_en: IN std_logic;
 	rst: IN std_logic;
 	wr_clk: IN std_logic;
+	rd_clk: IN std_logic;
+	din: IN std_logic_VECTOR(31 downto 0);
 	wr_en: IN std_logic;
+	rd_en: IN std_logic;
 	dout: OUT std_logic_VECTOR(31 downto 0);
-	empty: OUT std_logic;
 	full: OUT std_logic;
-	prog_full: OUT std_logic;
-	rd_data_count: OUT std_logic_VECTOR(10 downto 0));
+	empty: OUT std_logic;
+	rd_data_count: OUT std_logic_VECTOR(10 downto 0);
+	prog_full: OUT std_logic);
 END txFifo;
 
 ARCHITECTURE txFifo_a OF txFifo IS
 -- synthesis translate_off
 component wrapped_txFifo
 	port (
-	din: IN std_logic_VECTOR(31 downto 0);
-	rd_clk: IN std_logic;
-	rd_en: IN std_logic;
 	rst: IN std_logic;
 	wr_clk: IN std_logic;
+	rd_clk: IN std_logic;
+	din: IN std_logic_VECTOR(31 downto 0);
 	wr_en: IN std_logic;
+	rd_en: IN std_logic;
 	dout: OUT std_logic_VECTOR(31 downto 0);
-	empty: OUT std_logic;
 	full: OUT std_logic;
-	prog_full: OUT std_logic;
-	rd_data_count: OUT std_logic_VECTOR(10 downto 0));
+	empty: OUT std_logic;
+	rd_data_count: OUT std_logic_VECTOR(10 downto 0);
+	prog_full: OUT std_logic);
 end component;
 
 -- Configuration specification 
-	for all : wrapped_txFifo use entity XilinxCoreLib.fifo_generator_v5_2(behavioral)
+	for all : wrapped_txFifo use entity XilinxCoreLib.fifo_generator_v6_2(behavioral)
 		generic map(
 			c_has_int_clk => 0,
-			c_rd_freq => 1,
 			c_wr_response_latency => 1,
+			c_rd_freq => 1,
 			c_has_srst => 0,
 			c_enable_rst_sync => 1,
 			c_has_rd_data_count => 1,
@@ -104,7 +104,7 @@ end component;
 			c_has_rd_rst => 0,
 			c_has_almost_full => 0,
 			c_has_rst => 1,
-			c_data_count_width => 11,
+			c_data_count_width => 10,
 			c_has_wr_ack => 0,
 			c_use_ecc => 0,
 			c_wr_ack_low => 0,
@@ -141,17 +141,17 @@ BEGIN
 -- synthesis translate_off
 U0 : wrapped_txFifo
 		port map (
-			din => din,
-			rd_clk => rd_clk,
-			rd_en => rd_en,
 			rst => rst,
 			wr_clk => wr_clk,
+			rd_clk => rd_clk,
+			din => din,
 			wr_en => wr_en,
+			rd_en => rd_en,
 			dout => dout,
-			empty => empty,
 			full => full,
-			prog_full => prog_full,
-			rd_data_count => rd_data_count);
+			empty => empty,
+			rd_data_count => rd_data_count,
+			prog_full => prog_full);
 -- synthesis translate_on
 
 END txFifo_a;

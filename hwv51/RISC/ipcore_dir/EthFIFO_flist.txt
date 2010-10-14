@@ -1,7 +1,6 @@
 # Output products list for <EthFIFO>
 EthFIFO.asy
 EthFIFO.gise
-EthFIFO.ise
 EthFIFO.ngc
 EthFIFO.sym
 EthFIFO.v
@@ -11,8 +10,7 @@ EthFIFO.vho
 EthFIFO.xco
 EthFIFO.xise
 EthFIFO_flist.txt
-EthFIFO_readme.txt
-EthFIFO_xdb\tmp\
 EthFIFO_xmdf.tcl
-_xmsgs\
+_xmsgs/pn_parser.xmsgs
+fifo_generator_readme.txt
 fifo_generator_ug175.pdf

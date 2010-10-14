@@ -32,15 +32,15 @@
 
 //----------- Begin Cut here for INSTANTIATION Template ---// INST_TAG
 EthFIFO YourInstanceName (
-	.din(din), // Bus [32 : 0] 
-	.rd_clk(rd_clk),
-	.rd_en(rd_en),
 	.rst(rst),
 	.wr_clk(wr_clk),
+	.rd_clk(rd_clk),
+	.din(din), // Bus [32 : 0] 
 	.wr_en(wr_en),
+	.rd_en(rd_en),
 	.dout(dout), // Bus [32 : 0] 
-	.empty(empty),
-	.full(full));
+	.full(full),
+	.empty(empty));
 
 // INST_TAG_END ------ End INSTANTIATION Template ---------
 

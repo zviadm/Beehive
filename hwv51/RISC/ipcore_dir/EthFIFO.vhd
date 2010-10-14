@@ -42,39 +42,40 @@ Library XilinxCoreLib;
 -- synthesis translate_on
 ENTITY EthFIFO IS
 	port (
-	din: IN std_logic_VECTOR(32 downto 0);
-	rd_clk: IN std_logic;
-	rd_en: IN std_logic;
 	rst: IN std_logic;
 	wr_clk: IN std_logic;
+	rd_clk: IN std_logic;
+	din: IN std_logic_VECTOR(32 downto 0);
 	wr_en: IN std_logic;
+	rd_en: IN std_logic;
 	dout: OUT std_logic_VECTOR(32 downto 0);
-	empty: OUT std_logic;
-	full: OUT std_logic);
+	full: OUT std_logic;
+	empty: OUT std_logic);
 END EthFIFO;
 
 ARCHITECTURE EthFIFO_a OF EthFIFO IS
 -- synthesis translate_off
 component wrapped_EthFIFO
 	port (
-	din: IN std_logic_VECTOR(32 downto 0);
-	rd_clk: IN std_logic;
-	rd_en: IN std_logic;
 	rst: IN std_logic;
 	wr_clk: IN std_logic;
+	rd_clk: IN std_logic;
+	din: IN std_logic_VECTOR(32 downto 0);
 	wr_en: IN std_logic;
+	rd_en: IN std_logic;
 	dout: OUT std_logic_VECTOR(32 downto 0);
-	empty: OUT std_logic;
-	full: OUT std_logic);
+	full: OUT std_logic;
+	empty: OUT std_logic);
 end component;
 
 -- Configuration specification 
-	for all : wrapped_EthFIFO use entity XilinxCoreLib.fifo_generator_v4_4(behavioral)
+	for all : wrapped_EthFIFO use entity XilinxCoreLib.fifo_generator_v6_2(behavioral)
 		generic map(
 			c_has_int_clk => 0,
-			c_rd_freq => 1,
 			c_wr_response_latency => 1,
+			c_rd_freq => 1,
 			c_has_srst => 0,
+			c_enable_rst_sync => 1,
 			c_has_rd_data_count => 0,
 			c_din_width => 33,
 			c_has_wr_data_count => 0,
@@ -94,6 +95,7 @@ end component;
 			c_rd_depth => 1024,
 			c_default_value => "BlankString",
 			c_mif_file_name => "BlankString",
+			c_error_injection_type => 0,
 			c_has_underflow => 0,
 			c_has_rd_rst => 0,
 			c_has_almost_full => 0,
@@ -135,15 +137,15 @@ BEGIN
 -- synthesis translate_off
 U0 : wrapped_EthFIFO
 		port map (
-			din => din,
-			rd_clk => rd_clk,
-			rd_en => rd_en,
 			rst => rst,
 			wr_clk => wr_clk,
+			rd_clk => rd_clk,
+			din => din,
 			wr_en => wr_en,
+			rd_en => rd_en,
 			dout => dout,
-			empty => empty,
-			full => full);
+			full => full,
+			empty => empty);
 -- synthesis translate_on
 
 END EthFIFO_a;

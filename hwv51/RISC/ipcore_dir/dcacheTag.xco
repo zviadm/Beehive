@@ -1,7 +1,7 @@
 ##############################################################
 #
 # Xilinx Core Generator version 12.2
-# Date: Thu Oct 14 15:02:47 2010
+# Date: Thu Oct 14 22:05:56 2010
 #
 ##############################################################
 #
@@ -32,7 +32,7 @@ SET verilogsim = true
 SET vhdlsim = true
 # END Project Options
 # BEGIN Select
-SELECT Distributed_Memory_Generator family Xilinx,_Inc. 4.3
+SELECT Distributed_Memory_Generator family Xilinx,_Inc. 5.1
 # END Select
 # BEGIN Parameters
 CSET ce_overrides=ce_overrides_sync_controls
@@ -63,4 +63,4 @@ CSET sync_reset_qsdpo=false
 CSET sync_reset_qspo=false
 # END Parameters
 GENERATE
-# CRC: 48af9214
+# CRC:  121004f

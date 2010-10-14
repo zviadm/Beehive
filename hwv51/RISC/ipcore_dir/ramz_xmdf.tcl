@@ -76,6 +76,10 @@ utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path ramz.xco
 utilities_xmdf::xmdfSetData $instance FileSet $fcount type coregen_ip
 incr fcount
 
+utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path ramz_upgrade.txt
+utilities_xmdf::xmdfSetData $instance FileSet $fcount type text
+incr fcount
+
 utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path ramz_xmdf.tcl
 utilities_xmdf::xmdfSetData $instance FileSet $fcount type AnyView
 incr fcount

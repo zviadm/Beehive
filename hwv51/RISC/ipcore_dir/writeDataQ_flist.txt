@@ -1,5 +1,6 @@
 # Output products list for <writeDataQ>
 _xmsgs/pn_parser.xmsgs
+fifo_generator_readme.txt
 fifo_generator_ug175.pdf
 writeDataQ.asy
 writeDataQ.gise
@@ -12,5 +13,5 @@ writeDataQ.vho
 writeDataQ.xco
 writeDataQ.xise
 writeDataQ_flist.txt
-writeDataQ_readme.txt
+writeDataQ_upgrade.txt
 writeDataQ_xmdf.tcl

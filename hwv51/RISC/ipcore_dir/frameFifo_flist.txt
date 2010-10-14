@@ -1,9 +1,9 @@
 # Output products list for <frameFifo>
-_xmsgs\
+_xmsgs/pn_parser.xmsgs
+fifo_generator_readme.txt
 fifo_generator_ug175.pdf
 frameFifo.asy
 frameFifo.gise
-frameFifo.ise
 frameFifo.ngc
 frameFifo.sym
 frameFifo.v
@@ -13,6 +13,4 @@ frameFifo.vho
 frameFifo.xco
 frameFifo.xise
 frameFifo_flist.txt
-frameFifo_readme.txt
-frameFifo_xdb\tmp\
 frameFifo_xmdf.tcl
