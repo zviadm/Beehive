@@ -2,7 +2,7 @@ Beehive v5.1
 
 *** Building Hardware ***
 
--- To build hardware you will need Xilinx ISE (12.1)
+-- To build hardware you will need Xilinx ISE (tested with v12.2)
 -- Open ISE Project Navigator, File -> Open Project and choose 
    hwv51/RISC/risc.xise
 -- After opening the project you need to set how many cores you want to have:
