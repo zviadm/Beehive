@@ -77,6 +77,7 @@ module CoherentMemMux (
   wire Force;
   wire DDRclockEnable;
   wire ResetDDR;
+  wire StartDQCal0;
 
   //ddrController signals
   wire [127:0] MemData;

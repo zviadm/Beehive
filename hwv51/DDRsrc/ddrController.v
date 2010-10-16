@@ -304,7 +304,7 @@ reg RBfulld1;
  always @(posedge CLK) if(WriteAFpipe) AFpipe <= AD;
 
 
- assign ReadCommand = AFpipe[26]; 
+ wire ReadCommand = AFpipe[26]; 
  assign rankIn = AFpipe[25];    //2 bits
  assign rowIn  = AFpipe[24:11]; //14 bits
  assign bankIn = AFpipe[10:8]; //3 bits

@@ -70,6 +70,7 @@ module Ethernet(
   wire [31:0] receiverData;
   wire receiverWrite;
   wire headerRead;
+  wire headerCountNonZero;
 
   wire [31:0] msgrRingOut;
   wire [3:0]  msgrSlotTypeOut;
@@ -149,6 +150,7 @@ module Ethernet(
   wire [31:0] stageData;
   wire stageEmpty;
   wire stageFull;
+  wire stageOK;
   reg [5:0] stageCnt;
 
 //----------------End of Declarations------------------

@@ -246,8 +246,8 @@
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="../RISCsrc/Constants.v" xil_pn:type="FILE_VERILOG">
-      <association xil_pn:name="BehavioralSimulation" xil_pn:seqIDinc="457"/>
-      <association xil_pn:name="Implementation" xil_pn:seqIDinc="457"/>
+      <association xil_pn:name="BehavioralSimulation" xil_pn:seqIDinc="72"/>
+      <association xil_pn:name="Implementation" xil_pn:seqIDinc="72"/>
     </file>
     <file xil_pn:name="ipcore_dir/dcacheRequestQ.xise" xil_pn:type="FILE_COREGENISE">
       <association xil_pn:name="Implementation"/>
@@ -275,6 +275,7 @@
   <properties>
     <property xil_pn:name="Device" xil_pn:value="xc5vlx110t" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Device Family" xil_pn:value="Virtex5" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="Enable Message Filtering" xil_pn:value="true" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Extra Effort (Highest PAR level only)" xil_pn:value="Normal" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Implementation Top" xil_pn:value="Module|RISCtop" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Implementation Top File" xil_pn:value="../RISCsrc/RISCtop.v" xil_pn:valueState="non-default"/>
@@ -289,8 +290,8 @@
     <property xil_pn:name="Preferred Language" xil_pn:value="Verilog" xil_pn:valueState="default"/>
     <property xil_pn:name="Property Specification in Project File" xil_pn:value="Store non-default values only" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Register Duplication Map" xil_pn:value="On" xil_pn:valueState="non-default"/>
-    <property xil_pn:name="Selected Module Instance Name" xil_pn:value="/beehive/riscN/msgrN" xil_pn:valueState="non-default"/>
-    <property xil_pn:name="Selected Simulation Root Source Node Behavioral" xil_pn:value="work.Messenger" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="Selected Module Instance Name" xil_pn:value="/beehiveCoherent" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="Selected Simulation Root Source Node Behavioral" xil_pn:value="work.beehiveCoherent" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Simulation Run Time ISim" xil_pn:value="7 ms" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Simulator" xil_pn:value="ISim (VHDL/Verilog)" xil_pn:valueState="default"/>
     <property xil_pn:name="Speed Grade" xil_pn:value="-1" xil_pn:valueState="non-default"/>

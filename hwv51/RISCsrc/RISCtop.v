@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-`default_nettype none
 
 (* max_fanout = "30" *) module RISCtop(
   input CLKBN,

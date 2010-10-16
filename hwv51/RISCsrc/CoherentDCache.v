@@ -141,7 +141,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   // Cache Line that we want Status and Tag for
   wire [6:0] requestLine = handleRequestQ            ? requestQout[6:0] :
                            (state == setup)          ? lineCnt[6:0]     :
-                           (selDCache | selDCacheIO) ? aq[9:3]          : 7'b0;
+                                                       aq[9:3];
   // IO Module outputs
   assign wrq = AQReadHit | (read & resolveDCacheMiss);  
   assign rqDCache = dcacheReadData;
@@ -157,7 +157,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   // Logic for instruction cache
   assign Ihit = (Itag[20:0] == pcx[30:10]);
   assign Iaddr = Ihit ? pcMux[9:0] : pcx[9:0];
-  assign preWriteItag = 
+  wire preWriteItag = 
     (waitReadDataState == 4) & (readCnt == 7) & (RDdest == whichCore);
   always @(posedge clock) writeItag <= preWriteItag;
 
@@ -330,7 +330,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   dcacheTag DataCacheTag (
     .a(requestLine), // Bus [6 : 0] 
     .d(aq[30:10]), // Bus [20 : 0] 
-    .dpra((SlotTypeIn == Address) ? RingIn[6:0] : 7'b0), // Bus [6 : 0] 
+    .dpra((SlotTypeIn == `Address) ? RingIn[6:0] : 7'b0), // Bus [6 : 0] 
     .clk(clock),
     .we(wrDCacheTag),
     .spo(requestLineTag), // Bus [20 : 0] 
@@ -352,7 +352,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   dcacheStatus DataCacheStatus (
     .a(requestLine), // Bus [6 : 0] 
     .d(newStatus), // Bus [1 : 0] 
-    .dpra((SlotTypeIn == Address) ? RingIn[6:0] : 7'b0), // Bus [6 : 0] 
+    .dpra((SlotTypeIn == `Address) ? RingIn[6:0] : 7'b0), // Bus [6 : 0] 
     .clk(clock),
     .we(wrDCacheStatus),
     .spo(requestLineStatus), // Bus [1 : 0] 
@@ -366,7 +366,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   wire wrRequestQ = 
     // Handle stuff that comes on the ring from other cores
     // Address Request from some other core, the tag is valid and matches
-    ((SlotTypeIn == Address) & (SourceIn > 0) & (SourceIn < EtherCore) & 
+    ((SlotTypeIn == `Address) & (SourceIn > 0) & (SourceIn < EtherCore) & 
      (ringLineTag == RingIn[27:7])) &
     (((RingIn[29:28] == 2'b01) & (ringLineStatus == MODIFIED)) | 
      ((RingIn[29:28] == 2'b11) & (ringLineStatus != INVALID)));

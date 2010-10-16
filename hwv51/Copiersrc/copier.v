@@ -130,7 +130,7 @@ module copier(
       ((state == waitD1) & (rcnt >= wa)) 
     );
 
-  assign writeBuf = writeBufFromSrc | writeBufFromDest;
+  wire writeBuf = writeBufFromSrc | writeBufFromDest;
 
   assign writeRequest = (bCnt != 0);
 
@@ -150,7 +150,7 @@ module copier(
     else if(writeBuf) 
       wa <= wa + 1;
 
-  assign readBuf = RCsendingData;
+  wire readBuf = RCsendingData;
  
   always @(posedge clock) if(loadS) ra <= 0;
     else if(readBuf) ra <= ra + 1;

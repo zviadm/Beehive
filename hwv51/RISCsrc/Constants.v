@@ -1,3 +1,12 @@
+/*
+  Global Constants File
+  All Global constants should be defined in this file
+  
+  Created By: Zviad Metreveli
+*/
+
+`default_nettype none
+
 // Define SlotTypes
 `define StartUp        4'd0
 `define Token          4'd1

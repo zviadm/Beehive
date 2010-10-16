@@ -127,7 +127,7 @@ Differences are:
 */
 
 //device 0 is a 1-bit read-only register that returns the value of verticalFP from the D.C.
-assign selDev0 = ~aqe & aq[31] & (aq[2:0] == 0) & aqrd;
+wire selDev0 = ~aqe & aq[31] & (aq[2:0] == 0) & aqrd;
 assign done[0] = selDev0;  //since we have no device 0.
 assign rwq[0]  = 1'b0;
 assign wrq[0]  = selDev0;
@@ -210,7 +210,7 @@ assign selMsgr = ~aqe & aq[31] & (aq[2:0] == 4);
   .msgrAcquireToken(msgrAcquireToken)
   );
 
-assign raq = | done;
+wire raq = | done;
   
 assign rqIn = ~aq[31] ? rqDCache :   // mux for read queue input 
               (aq[2:0] == 0)? {31'b0, verticalFP} :

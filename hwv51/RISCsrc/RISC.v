@@ -238,7 +238,7 @@ and may be instantiated several times on a single chip.
 
   //local I/O device 2 is the Output register, which has only one bit so far.
   //This logic is simple enough that a separate module isn't needed.
-  assign loadOut = ~aqe & ~aqrd & ~wqe & aq[31] & (aq[2:0] == 2);
+  wire loadOut = ~aqe & ~aqrd & ~wqe & aq[31] & (aq[2:0] == 2);
   assign done[2] = loadOut;
   assign rwq[2]  = loadOut;
   assign wrq[2]  = 1'b0;
@@ -375,7 +375,7 @@ and may be instantiated several times on a single chip.
     .barrierAcquireToken(barrierAcquireToken)
   );
     
-  assign raq = | done;
+  wire raq = | done;
     
   assign rqIn = ~aq[31] ? rqDCache :   // mux for read queue input 
                 (aq[2:0] == 0)? rqRS232 : 
