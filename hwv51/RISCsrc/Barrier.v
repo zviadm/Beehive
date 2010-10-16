@@ -41,13 +41,9 @@ module Barrier(
   reg [1:0] state;  // barrier FSM
   reg [4:0] count;  // number of cores that reached barrier
    
-  parameter idle = 0;  //states
-  parameter waitToken = 2;
-  parameter waitBarrier = 3;
-
-  parameter Null = 7; //Slot Types
-  parameter Token = 1;
-  parameter Barrier = 13;
+  localparam idle = 0;  //states
+  localparam waitToken = 2;
+  localparam waitBarrier = 3;
       
 //-------------------------------End of Declarations----------------------------
 
@@ -55,18 +51,18 @@ module Barrier(
 
   // Barrier is done when it receives last Barrier message
   assign done = selBarrier & 
-                (SlotTypeIn == Barrier) & (count == nBarrierCoresMinusOne);
+                (SlotTypeIn == `Barrier) & (count == nBarrierCoresMinusOne);
 
   // Intercations with the ring
   assign barrierWantsToken = (state == waitToken);   
   assign barrierDriveRing = (state == waitToken) & (barrierAcquireToken);
-  assign barrierSlotTypeOut = Barrier;
+  assign barrierSlotTypeOut = `Barrier;
   assign barrierSourceOut = whichCore;
   assign barrierRingOut = 32'b0;
    
   always @(posedge clock) begin
     if (reset) count <= 0;
-    else if (SlotTypeIn == Barrier) begin
+    else if (SlotTypeIn == `Barrier) begin
       if (count == nBarrierCoresMinusOne) count <= 0;
       else count <= count + 4'b1;
     end
@@ -78,7 +74,7 @@ module Barrier(
       idle: if (selBarrier) state <= waitToken;
       waitToken: if (barrierAcquireToken) state <= waitBarrier; 
       waitBarrier: // wait for barrier messages
-        if ((SlotTypeIn == Barrier) & (count == nBarrierCoresMinusOne))
+        if ((SlotTypeIn == `Barrier) & (count == nBarrierCoresMinusOne))
           state <= idle;
     endcase
   end

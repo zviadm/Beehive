@@ -46,16 +46,6 @@ module Ethernet(
   output          GMII_RESET_B
 );
 
-  parameter Null = 7; //Slot Types
-  parameter Token = 1;
-  parameter Address = 2;
-  parameter WriteData = 3;
-  // parameter ReadData = 4;
-  parameter Message = 8;
-  parameter Lock = 9;
-  parameter LockFail = 10;
-  parameter Release = 11;
-
   wire [7:0] preGMII_TXD_0;
   wire preGMII_TX_EN_0;
   wire preGMII_TX_ER_0;
@@ -245,7 +235,8 @@ next frame.
     (RCfsm == RCsendData);
 
   assign etherSourceOut = whichCore;
-  assign etherSlotTypeOut = (RCsendingRA | RCsendingWA) ? Address : WriteData;
+  assign etherSlotTypeOut = 
+    (RCsendingRA | RCsendingWA) ? `Address : `WriteData;
   assign etherRingOut = (RCsendingRA) ? TXreadAddress :
                         (RCsendingWA) ? RXwriteAddress : 
                                         stageData;
@@ -389,7 +380,7 @@ end
   localparam idle = 0;  
   localparam tokenHeld = 1;
 
-  wire coreHasToken = (SlotTypeIn == Token);// | (state == tokenHeld);  
+  wire coreHasToken = (SlotTypeIn == `Token);// | (state == tokenHeld);  
   wire coreSendNewToken = 
     ((coreHasToken | (state == tokenHeld)) & ~msgrDriveRing & ~etherDriveRing);
 
@@ -401,7 +392,7 @@ end
   always @(posedge clock) begin
     if (reset) state <= idle;
     else case(state)
-      idle: if(SlotTypeIn == Token) begin
+      idle: if(SlotTypeIn == `Token) begin
         if (msgrWantsToken | etherWantsToken) state <= tokenHeld;
       end
     
@@ -411,11 +402,11 @@ end
 
   // This handles when core needs to drive the ring to either send new token
   // or Nullify messages
-  wire coreDriveRing = coreSendNewToken | (SlotTypeIn == Token) | 
-                      (SourceIn == whichCore & SlotTypeIn != Null);
+  wire coreDriveRing = coreSendNewToken | (SlotTypeIn == `Token) | 
+                      (SourceIn == whichCore & SlotTypeIn != `Null);
   wire [31:0] coreRingOut = 32'b0;
   wire [3:0]  coreSourceOut = whichCore;
-  wire [3:0]  coreSlotTypeOut = coreSendNewToken ? Token : Null;
+  wire [3:0]  coreSlotTypeOut = coreSendNewToken ? `Token : `Null;
   
   assign SourceOut =
       msgrDriveRing  ? msgrSourceOut :

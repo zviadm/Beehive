@@ -190,239 +190,242 @@ module mmsFSMcoherent (
         end
       end
          
-         handleMemOp: begin
-            if (~memOpQempty) begin
-               // handle Memory Operation               
-					if (memOpDest[3:0] == 0) begin
-						// Display Controller read hack
-						next_state = returnRDtoDC_1;
+      handleMemOp: begin
+        if (~memOpQempty) begin
+          // handle Memory Operation               
+          if (memOpDest[3:0] == 0) begin
+            // Display Controller read hack
+            next_state = returnRDtoDC_1;
+            wrAF = 1;
+            afRead = 1;
+            afAddress = memOpData[25:0];
+          end
+          else begin
+            if (memOpData[28]) begin                     
+              if (memOpDest <= nCores && 
+                  memOpData[25:20] != MEM_DIR_PREFIX) begin
+                // it is read or an exclusive read request
+                next_state = checkDirectoryEntry; 
+                wrAF = 1;
+                afRead = 1;
+                afAddress = {MEM_DIR_PREFIX, memOpData[25:6]};
+              end
+              else begin
+                next_state = returnRDonHit_1;
+                wrAF = 1;
+                afRead = 1;
+                afAddress = memOpData[25:0];
+              end
+            end
+            else if (~writeDataQempty) begin   
+              // it is a flush request
+              if (memOpData[25:20] == MEM_DIR_PREFIX) begin
+                // Do not allow writes to memory directory locations
+                // TODO: figure out a way to not have to do this
+                next_state = skipWrite;
+                rdWriteData = 1;                        
+              end
+              else begin
+                next_state = writeDataToMemory; 
+                 
+                if (memOpDest <= nCores) begin
                   wrAF = 1;
                   afRead = 1;
-                  afAddress = memOpData[25:0];						
-					end
-					else begin
-						if (memOpData[28]) begin                     
-                     if (memOpDest <= nCores && memOpData[25:20] != MEM_DIR_PREFIX) begin
-                        // it is read or an exclusive read request
-                        next_state = checkDirectoryEntry; 
-                        wrAF = 1;
-                        afRead = 1;
-                        afAddress = {MEM_DIR_PREFIX, memOpData[25:6]};
-                     end
-                     else begin
-                        next_state = returnRDonHit_1;
-                        wrAF = 1;
-                        afRead = 1;
-                        afAddress = memOpData[25:0];
-                     end
-                  end
-					   else if (~writeDataQempty) begin   
-                     // it is a flush request
-                     if (memOpData[25:20] == MEM_DIR_PREFIX) begin
-                        // Do not allow writes to memory directory locations
-                        // TODO: figure out a way to not have to do this
-                        next_state = skipWrite;
-                        rdWriteData = 1;                        
-                     end
-                     else begin
-                        next_state = writeDataToMemory; 
-
-                        if (memOpDest <= nCores) begin
-                           wrAF = 1;
-                           afRead = 1;
-                           afAddress = {MEM_DIR_PREFIX, memOpData[25:6]};
-                        end
-                        
-                        // write data to the write buffer
-                        rdWriteData = 1;
-                        wrWB = 1;
-                        writeData = writeDataIn;
-                     end					
-                  end
-					end
-            end
-         end
-
-         // states for handling memory read			
-         checkDirectoryEntry: begin
-				if (~rbEmpty) begin
-					rdRB = 1;
-					
-					// check directory entry
-					if (readPossible) begin
-                  next_state = returnRDonHit_clearRB;
-                  if (~memOpData[30]) begin
-                     // ask ddr to read value from memory
-                     wrAF = 1;
-                     afRead = 1;
-                     afAddress = memOpData[25:0];
-						end 
-                  else begin
-                     // if 30th bit of memOpData is set it means, core already has latest data
-                     // just wanted exclusive permision on the data, i.e. changing from SHARED to
-                     // MODIFIED
-                     wrResend = 1;
-                     resendOut = {memOpDest, 4'b0110, 4'b0000, memOpData[27:0]};
-                  end
-                  
-                  if (newState != memDirEntry) begin
-                     set_doUpdateDirEntry = 1;
-                     // update directory entry
-                     wrWB = 1;
-                     writeData = updateDirEntry;
-                  end
-                  else begin
-                     set_doUpdateDirEntry = 0;
-                  end                  
-					end
-					else begin
-                  // if read is not possible resend the read request
-						next_state = clearRB; 
-						wrResend = 1;
-						resendOut = {memOpDest, 4'b0010, 2'b10, memOpData[29:0]};
-					end
-				end
-         end
-         
-			clearRB: begin
-				if (~rbEmpty) begin
-					rdRB = 1;
-					next_state = handleMemOp;
-					rdMemOp = 1;
-				end
-			end
-                  
-         // States for Outputing RDonHit
-         returnRDonHit_clearRB: begin
-            if (~rbEmpty) begin
-               rdRB = 1;
-               if (~memOpData[30]) next_state = returnRDonHit_1;
-               else begin
-                  next_state = handleMemOp;
-                  rdMemOp = 1;
-               end
-					
-               if (doUpdateDirEntry) begin
-                  // finish directory entry update
-                  wrWB = 1;
-                  writeData = 128'b0;
-
-                  wrAF = 1;
-                  afRead = 0;
                   afAddress = {MEM_DIR_PREFIX, memOpData[25:6]};
-               end
+                end
+                
+                // write data to the write buffer
+                rdWriteData = 1;
+                wrWB = 1;
+                writeData = writeDataIn;
+              end
             end
-         end
-         
-         returnRDonHit_1: begin
-            if (~rbEmpty) begin
-               rdRB = 1;
-               next_state = returnRDonHit_2;
-               
-               RDonHit = readData;
-               RDdestOnHit = memOpDest;
-            end
-         end
-         
-         returnRDonHit_2: begin
-            if (~rbEmpty) begin
-               rdRB = 1;
-               next_state = handleMemOp;
-               rdMemOp = 1;
-               
-               RDonHit = readData;
-               RDdestOnHit = memOpDest;
-            end
-         end
-                  
-         // States for handling memory write
-         writeDataToMemory: begin
-            if (~writeDataQempty) begin
-               if (memOpDest <= nCores) 
-                  next_state = updateDirectoryEntry_1;
-               else begin
-                  next_state = handleMemOp;
-                  rdMemOp = 1;
-               end
-                            
-               // add write data to write buffer
-               rdWriteData = 1;               
-               wrWB = 1;
-               writeData = writeDataIn;
-               
-               // schedule write to memory
-               wrAF = 1;
-               afAddress = memOpData[25:0];
-               afRead = 0;
-            end
-         end
+          end
+        end
+      end
 
-         updateDirectoryEntry_1: begin
-            if (~rbEmpty) begin
-               next_state = updateDirectoryEntry_2;
-               rdRB = 1;               
-                              
-               wrWB = 1;
-               writeData = updateDirEntry;
+      // states for handling memory read
+      checkDirectoryEntry: begin
+        if (~rbEmpty) begin
+          rdRB = 1;
+        
+          // check directory entry
+          if (readPossible) begin
+            next_state = returnRDonHit_clearRB;
+            if (~memOpData[30]) begin
+              // ask ddr to read value from memory
+              wrAF = 1;
+              afRead = 1;
+              afAddress = memOpData[25:0];
+            end 
+            else begin
+              // if 30th bit of memOpData is set it means, core already has 
+              // latest data just wanted exclusive permision on the data, i.e. 
+              // changing from SHARED to MODIFIED
+              wrResend = 1;
+              resendOut = 
+                {memOpDest, `GrantExclusive, 4'b0000, memOpData[27:0]};
             end
-         end
-         
-         updateDirectoryEntry_2: begin
-            if (~rbEmpty) begin
-               next_state = handleMemOp;
-               rdRB = 1;
-               rdMemOp = 1;
-                              
-               wrWB = 1;
-               writeData = 128'b0;
-               // update directory entry
-               wrAF = 1;
-               afAddress = {MEM_DIR_PREFIX, memOpData[25:6]};
-               afRead = 0;
+                
+            if (newState != memDirEntry) begin
+              set_doUpdateDirEntry = 1;
+              // update directory entry
+              wrWB = 1;
+              writeData = updateDirEntry;
             end
-         end
-         
-         skipWrite: begin
-            if (~writeDataQempty) begin   
-               next_state = handleMemOp;
-               rdMemOp = 1;
-               rdWriteData = 1;
-            end
-         end
-         
-         // States for Outputing RDtoDC
-         returnRDtoDC_1: begin
-            if (~rbEmpty) begin
-               next_state = returnRDtoDC_2;
-               rdRB = 1;
-               wrRDtoDC = 1;
-               RDtoDC = readData;
-            end
-         end
-         
-         returnRDtoDC_2: begin
-            if (~rbEmpty) begin
-               next_state = handleMemOp;
-               rdMemOp = 1;              
-               rdRB = 1;
-               wrRDtoDC = 1;
-               RDtoDC = readData;
-            end
-         end
-      endcase
-   end
+            else begin
+              set_doUpdateDirEntry = 0;
+            end                  
+          end
+          else begin
+            // if read is not possible resend the read request
+            next_state = clearRB; 
+            wrResend = 1;
+            resendOut = {memOpDest, `Address, 2'b10, memOpData[29:0]};
+          end
+        end
+      end
+       
+      clearRB: begin
+        if (~rbEmpty) begin
+          rdRB = 1;
+          next_state = handleMemOp;
+          rdMemOp = 1;
+        end
+      end
+                
+      // States for Outputing RDonHit
+      returnRDonHit_clearRB: begin
+        if (~rbEmpty) begin
+          rdRB = 1;
+          if (~memOpData[30]) next_state = returnRDonHit_1;
+          else begin
+            next_state = handleMemOp;
+            rdMemOp = 1;
+          end
+        
+          if (doUpdateDirEntry) begin
+            // finish directory entry update
+            wrWB = 1;
+            writeData = 128'b0;
+
+            wrAF = 1;
+            afRead = 0;
+            afAddress = {MEM_DIR_PREFIX, memOpData[25:6]};
+          end
+        end
+      end
+       
+      returnRDonHit_1: begin
+        if (~rbEmpty) begin
+          rdRB = 1;
+          next_state = returnRDonHit_2;
+             
+          RDonHit = readData;
+          RDdestOnHit = memOpDest;
+        end
+      end
+       
+      returnRDonHit_2: begin
+        if (~rbEmpty) begin
+          rdRB = 1;
+          next_state = handleMemOp;
+          rdMemOp = 1;
+             
+          RDonHit = readData;
+          RDdestOnHit = memOpDest;
+        end
+      end
+                
+      // States for handling memory write
+      writeDataToMemory: begin
+        if (~writeDataQempty) begin
+          if (memOpDest <= nCores) 
+            next_state = updateDirectoryEntry_1;
+          else begin
+            next_state = handleMemOp;
+            rdMemOp = 1;
+          end
+                          
+          // add write data to write buffer
+          rdWriteData = 1;               
+          wrWB = 1;
+          writeData = writeDataIn;
+             
+          // schedule write to memory
+          wrAF = 1;
+          afAddress = memOpData[25:0];
+          afRead = 0;
+        end
+      end
+
+      updateDirectoryEntry_1: begin
+        if (~rbEmpty) begin
+          next_state = updateDirectoryEntry_2;
+          rdRB = 1;               
+      
+          wrWB = 1;
+          writeData = updateDirEntry;
+        end
+      end
+       
+      updateDirectoryEntry_2: begin
+        if (~rbEmpty) begin
+          next_state = handleMemOp;
+          rdRB = 1;
+          rdMemOp = 1;
+                           
+          wrWB = 1;
+          writeData = 128'b0;
+          // update directory entry
+          wrAF = 1;
+          afAddress = {MEM_DIR_PREFIX, memOpData[25:6]};
+          afRead = 0;
+        end
+      end
+       
+      skipWrite: begin
+        if (~writeDataQempty) begin   
+          next_state = handleMemOp;
+          rdMemOp = 1;
+          rdWriteData = 1;
+        end
+      end
+       
+      // States for Outputing RDtoDC
+      returnRDtoDC_1: begin
+        if (~rbEmpty) begin
+          next_state = returnRDtoDC_2;
+          rdRB = 1;
+          wrRDtoDC = 1;
+          RDtoDC = readData;
+        end
+      end
+       
+      returnRDtoDC_2: begin
+        if (~rbEmpty) begin
+          next_state = handleMemOp;
+          rdMemOp = 1;              
+          rdRB = 1;
+          wrRDtoDC = 1;
+          RDtoDC = readData;
+        end
+      end
+    endcase
+  end
    
-   RDDelayer #(.DELAY_CYCLES(DELAY_ON_HIT)) DelayOnHit(
-      .clock(clock),
-      .reset(reset),
-      .RD(RDonHit),
-      .dest(RDdestOnHit),
-      .rdDelayedRD(rdDelayedRDonHit),
-      .delayedRD(delayedRDonHit),
-      .delayedDest(delayedRDdestOnHit));
+  RDDelayer #(.DELAY_CYCLES(DELAY_ON_HIT)) DelayOnHit(
+    .clock(clock),
+    .reset(reset),
+    .RD(RDonHit),
+    .dest(RDdestOnHit),
+    .rdDelayedRD(rdDelayedRDonHit),
+    .delayedRD(delayedRDonHit),
+    .delayedDest(delayedRDdestOnHit)
+  );
 
-   // Output RDreturn and RDdest.
-   assign rdDelayedRDonHit = (delayedRDdestOnHit != 0);
-   assign RDreturn = delayedRDonHit;
-   assign RDdest = delayedRDdestOnHit;
+  // Output RDreturn and RDdest.
+  assign rdDelayedRDonHit = (delayedRDdestOnHit != 0);
+  assign RDreturn = delayedRDonHit;
+  assign RDdest = delayedRDdestOnHit;
 endmodule

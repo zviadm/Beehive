@@ -61,19 +61,13 @@ module Sem(
   wire otherV;
   wire [5:0] lockAddr;
 
-  parameter idle = 0;  //states
-  parameter waitToken = 2;
-  parameter waitSF = 3;
-
-  parameter Null = 7; //Slot Types
-  parameter Token = 1;
-  parameter Preq = 9;
-  parameter Pfail = 10;
-  parameter Vreq = 11;
+  localparam idle = 0;  //states
+  localparam waitToken = 2;
+  localparam waitSF = 3;
 
 //------------------End of Declarations-----------------------
 
-  assign otherV = (SlotTypeIn == Vreq) & (SourceIn != whichCore);
+  assign otherV = (SlotTypeIn == `Vreq) & (SourceIn != whichCore);
  
   assign lockAddr = otherV ? RingIn[5:0] : aq[8:3];
 
@@ -84,12 +78,12 @@ module Sem(
     ((state == waitToken & (lockAcquireToken)) & ~read) |
     //Preq returned after one ring transit
     ((state == waitSF) & (SourceIn == whichCore) & 
-     ((SlotTypeIn == Preq) | (SlotTypeIn == Pfail)));
+     ((SlotTypeIn == `Preq) | (SlotTypeIn == `Pfail)));
 
   assign rqLock = 
     ((state == idle) & selLock & read & ~otherV & locked) ? 32'h00000002 :
     ((state == waitSF) & (SourceIn == whichCore) & 
-     (SlotTypeIn == Preq)) ? 32'h00000001 : 
+     (SlotTypeIn == `Preq)) ? 32'h00000001 : 
     32'h00000000;
 
   assign wrq = done & read;
@@ -100,10 +94,10 @@ module Sem(
     ((state == idle) & selLock & ~read) |  //Signal
     (otherV) |
     ((state == waitSF) & (SourceIn == whichCore) & 
-     ((SlotTypeIn == Preq) | (SlotTypeIn == Pfail)));  //set or clear
+     ((SlotTypeIn == `Preq) | (SlotTypeIn == `Pfail)));  //set or clear
 
   assign lockD = 
-    ((state == waitSF) & (SourceIn == whichCore) & (SlotTypeIn == Preq));
+    ((state == waitSF) & (SourceIn == whichCore) & (SlotTypeIn == `Preq));
    
   // interactions with the ring
   assign lockWantsToken = (state == waitToken);
@@ -111,14 +105,14 @@ module Sem(
     //send Preq or Vreq 
     ((state == waitToken) & (lockAcquireToken)) | 
     //A Preq from another core for a sem that I hold.  Drive Pfail 
-    ((SlotTypeIn == Preq) & (SourceIn != whichCore) & ringLock);
+    ((SlotTypeIn == `Preq) & (SourceIn != whichCore) & ringLock);
  
   assign lockSlotTypeOut = 
-    ((state == waitToken) & (lockAcquireToken) & read) ? Preq :  //send Preq
-    ((state == waitToken) & (lockAcquireToken) & ~read) ? Vreq : //send Vreq
+    ((state == waitToken) & (lockAcquireToken) & read) ? `Preq :  //send Preq
+    ((state == waitToken) & (lockAcquireToken) & ~read) ? `Vreq : //send Vreq
     //a Preq from another core for a sem that I hold.  Send PFail
-    ((SlotTypeIn == Preq) & (SourceIn != whichCore) & ringLock) ? Pfail : 
-    Null;
+    ((SlotTypeIn == `Preq) & (SourceIn != whichCore) & ringLock) ? `Pfail : 
+    `Null;
  
   assign lockRingOut = 
     //lock request. Drive Lock number.
@@ -139,7 +133,7 @@ module Sem(
       end
       
       waitSF: 
-        if(((SlotTypeIn == Preq) | (SlotTypeIn == Pfail)) & 
+        if(((SlotTypeIn == `Preq) | (SlotTypeIn == `Pfail)) & 
            (SourceIn == whichCore)) 
           state <= idle;
     endcase
@@ -148,7 +142,7 @@ module Sem(
   lockMem Locker (
     .a(lockAddr), 
     .d(lockD), 
-    .dpra((SlotTypeIn == Preq) ? RingIn[5:0] : 6'b0), 
+    .dpra((SlotTypeIn == `Preq) ? RingIn[5:0] : 6'b0), 
     .clk(clock),
     .we(writeLock),
     .spo(locked), 

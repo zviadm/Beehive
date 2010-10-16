@@ -48,15 +48,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   output [31:0] instx,
   output Ihit  
 );
-  
-  //Slot Types
-  localparam Null           = 7;
-  localparam Token          = 1;
-  localparam Address        = 2;
-  localparam WriteData      = 3;
-  localparam AddressRequest = 5;  
-  localparam GrantExclusive = 6;   
-  
+    
   // DCache Line Status values
   localparam INVALID   = 0;
   localparam SHARED    = 1;
@@ -174,7 +166,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (state == sendRAWaitToken) | (state == sendCacheDataWaitToken);
     
   wire resendMessage = 
-    (SourceIn == whichCore & SlotTypeIn == Address & RingIn[31]);
+    (SourceIn == whichCore & SlotTypeIn == `Address & RingIn[31]);
   assign dcDriveRing = 
     (state == sendRAWaitToken & dcAcquireToken) | 
     (state == sendCacheDataWaitToken & dcAcquireToken) | 
@@ -185,8 +177,8 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   assign dcSourceOut = whichCore;
   assign dcSlotTypeOut = 
     resendMessage                                              ? SlotTypeIn :
-    (state == sendRAWaitToken | state == sendWA)               ? Address    : 
-    (state == sendCacheDataWaitToken | state == sendCacheData) ? WriteData  : 
+    (state == sendRAWaitToken | state == sendWA)               ? `Address   : 
+    (state == sendCacheDataWaitToken | state == sendCacheData) ? `WriteData : 
     4'b0;
   assign dcRingOut = 
     resendMessage                     ? RingIn         :
@@ -309,8 +301,8 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
         waitReadDataState <= 1;
       end else if (handleIMiss) begin
         waitReadDataState <= 4;
-      end else if (waitReadDataState == 1 & SlotTypeIn == GrantExclusive & 
-                   SourceIn == whichCore) begin
+      end else if (waitReadDataState == 1 & SourceIn == whichCore &
+                   SlotTypeIn == `GrantExclusive) begin
         waitReadDataState <= 3;
       end else if ((waitReadDataState == 1) | (waitReadDataState == 4)) begin
         if (RDdest == whichCore) begin

@@ -36,9 +36,6 @@ and may be instantiated several times on a single chip.
   output reg    releaseRS232
   // output  lockHeld
 );
-
-  localparam Null = 7; //Slot Types
-  localparam Token = 1;
    
   //signals to and from local I/O devices
   wire [31:0] rqIn;  //RISC's read queue
@@ -392,7 +389,7 @@ and may be instantiated several times on a single chip.
   localparam idle = 0;  
   localparam tokenHeld = 1;
   
-  wire coreHasToken = (SlotTypeIn == Token);// | (state == tokenHeld);  
+  wire coreHasToken = (SlotTypeIn == `Token);// | (state == tokenHeld);  
   wire coreSendNewToken = 
     ((coreHasToken | (state == tokenHeld)) & 
      ~msgrDriveRing & ~lockDriveRing & ~barrierDriveRing & ~dcDriveRing);
@@ -410,7 +407,7 @@ and may be instantiated several times on a single chip.
   always @(posedge clock) begin
     if(reset) state <= idle;
     else case(state)
-      idle: if(SlotTypeIn == Token) begin
+      idle: if(SlotTypeIn == `Token) begin
         if (msgrWantsToken | lockWantsToken | barrierWantsToken | dcWantsToken)
           state <= tokenHeld;
       end
@@ -421,11 +418,11 @@ and may be instantiated several times on a single chip.
 
   // This handles when core needs to drive the ring to either send new token
   // or Nullify messages
-  wire coreDriveRing = coreSendNewToken | (SlotTypeIn == Token) | 
-                       (SourceIn == whichCore & SlotTypeIn != Null);
+  wire coreDriveRing = coreSendNewToken | (SlotTypeIn == `Token) | 
+                       (SourceIn == whichCore & SlotTypeIn != `Null);
   wire [31:0] coreRingOut = 32'b0;
   wire [3:0]  coreSourceOut = whichCore;
-  wire [3:0]  coreSlotTypeOut = coreSendNewToken ? Token : Null;
+  wire [3:0]  coreSlotTypeOut = coreSendNewToken ? `Token : `Null;
   
   assign RingOut = msgrDriveRing    ? msgrRingOut    :
                    lockDriveRing    ? lockRingOut    :

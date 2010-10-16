@@ -109,16 +109,7 @@ module copier(
   parameter RCsendBoth = 3;
   parameter RCsendRAonly = 4;
   parameter RCsendWA = 5;
-  parameter RCsendData = 6; 
-
-  parameter Null = 7; //Slot Types
-  parameter Token = 1;
-  parameter Address = 2;
-  parameter WriteData = 3;
-  parameter Message = 8;
-  parameter Lock = 9;
-  parameter LockFail = 10;
- 
+  parameter RCsendData = 6;  
  
 //--------------------------End of declarations--------------------
 
@@ -213,7 +204,7 @@ module copier(
   assign copierSourceOut = whichCore;
   assign copierSlotTypeOut = 
     (((RCfsm == RCwaitToken) & copierAcquireToken & readRequested) | 
-     (RCfsm == RCsendWA)) ? Address : WriteData;
+     (RCfsm == RCsendWA)) ? `Address : `WriteData;
   assign copierRingOut = 
     ((RCfsm == RCwaitToken) & 
      copierAcquireToken & readRequested) ? readAddress :
@@ -353,7 +344,7 @@ at the end of the cycle).
   localparam idle_ = 0;  
   localparam tokenHeld = 1;
 
-  wire coreHasToken = (SlotTypeIn == Token);// | (state_ == tokenHeld);  
+  wire coreHasToken = (SlotTypeIn == `Token);// | (state_ == tokenHeld);  
   wire coreSendNewToken = 
     ((coreHasToken | (state_ == tokenHeld)) & ~msgrDriveRing & ~copierDriveRing);
 
@@ -364,7 +355,7 @@ at the end of the cycle).
   always @(posedge clock) begin
     if (reset) state_ <= idle_;
     else case(state_)
-      idle_: if(SlotTypeIn == Token) begin
+      idle_: if(SlotTypeIn == `Token) begin
         if (msgrWantsToken | copierWantsToken)
           state_ <= tokenHeld;
       end
@@ -375,11 +366,11 @@ at the end of the cycle).
 
   // This handles when core needs to drive the ring to either send new token
   // or Nullify messages
-  wire coreDriveRing = coreSendNewToken | (SlotTypeIn == Token) | 
-                      (SourceIn == whichCore & SlotTypeIn != Null);
+  wire coreDriveRing = coreSendNewToken | (SlotTypeIn == `Token) | 
+                      (SourceIn == whichCore & SlotTypeIn != `Null);
   wire [31:0] coreRingOut = 32'b0;
   wire [3:0]  coreSourceOut = whichCore;
-  wire [3:0]  coreSlotTypeOut = coreSendNewToken ? Token : Null;
+  wire [3:0]  coreSlotTypeOut = coreSendNewToken ? `Token : `Null;
   
   assign SourceOut =
       msgrDriveRing  ? msgrSourceOut :

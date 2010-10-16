@@ -67,24 +67,20 @@ module Messenger(
   reg [5:0]    inLen;  //counts incoming payload length
   reg          putMessageInMQ;
 
-  parameter idle = 0;  //states
-  parameter waitToken = 1;  
-  parameter sendWQ = 2; //send the message payload
-  parameter copyHeader = 3; //from MQ to RQ, and load length
-  parameter copyMQ = 4; //from MQ to RQ until length == 1
-  parameter copyWait = 5;  //wait for a reply from the copier.
-  parameter doCopy = 6;    //one cycle to write the read queue
-
-  parameter Null = 7; //Slot Types
-  parameter Token = 1;
-  parameter Message = 8;
+  localparam idle = 0;  //states
+  localparam waitToken = 1;  
+  localparam sendWQ = 2; //send the message payload
+  localparam copyHeader = 3; //from MQ to RQ, and load length
+  localparam copyMQ = 4; //from MQ to RQ until length == 1
+  localparam copyWait = 5;  //wait for a reply from the copier.
+  localparam doCopy = 6;    //one cycle to write the read queue
 
 //------------------End of Declarations-----------------------
   wire normalCore = (whichCore > 4'b1) & (whichCore < CopyCore - 4'b1);
   assign firstMessageWord = 
-    (((SlotTypeIn == Message) & (RingIn[17:14] == whichCore) & 
+    (((SlotTypeIn == `Message) & (RingIn[17:14] == whichCore) & 
       (RingIn[17:14] != RingIn[13:10])) | 
-     ((SlotTypeIn == Message) & (RingIn[17:14] != whichCore) & 
+     ((SlotTypeIn == `Message) & (RingIn[17:14] != whichCore) & 
       (RingIn[17:14] == RingIn[13:10]) & normalCore)) & 
     (inLen == 0);
  
@@ -95,7 +91,7 @@ module Messenger(
     end
     else begin
       if (inLen != 0) inLen <= inLen - 1;
-      else if (SlotTypeIn == Message) begin 
+      else if (SlotTypeIn == `Message) begin 
         inLen <= RingIn[5:0];
         putMessageInMQ <= firstMessageWord;
       end
@@ -120,7 +116,7 @@ module Messenger(
     ((state == waitToken) & (msgrAcquireToken)) | (state == sendWQ);
     
   assign msgrSourceOut = whichCore;
-  assign msgrSlotTypeOut = Message;    
+  assign msgrSlotTypeOut = `Message;    
   assign msgrRingOut =     
     ((state == waitToken) & (msgrAcquireToken)) ? 
       // Send Header, 4 bits of dest, source and type, 6 bits of length

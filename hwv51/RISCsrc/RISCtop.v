@@ -53,7 +53,7 @@
   parameter nCores = 3;  //Number of RISC cores in the design
   parameter EtherCore = nCores + 1;
   parameter CopyCore  = nCores + 2;
-  
+
   //Clocks
   wire clockIn;
   wire MCLK; 

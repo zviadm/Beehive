@@ -123,20 +123,9 @@ module CoherentMemMux (
   reg [15:0] writeDataQelts;
   wire WDQalmostFull;
     
-  parameter idle = 0; //States
-  parameter dumpResendQ = 1;
-  parameter waitToken = 2;
-
-  parameter Null = 7; //Slot Types
-  parameter Token = 1;
-  parameter Address = 2;
-  parameter WriteData = 3;
-  parameter ReadData = 4;
-  parameter AddressRequest = 5;
-  parameter GrantExclusive = 6;
-  parameter Message = 8;  //Types >= 8 go around ring
-  parameter Lock = 9;
-  parameter LockFail = 10;
+  localparam idle = 0; //States
+  localparam dumpResendQ = 1;
+  localparam waitToken = 2;
 
 //---------------------End of Declarations-----------------
 
@@ -148,19 +137,19 @@ module CoherentMemMux (
       dumpResendQ: if (resendQempty) state <= waitToken;
 
       waitToken: 
-        if(SlotTypeIn == Token) begin
+        if(SlotTypeIn == `Token) begin
           if(~InhibitDDR & ~ResetDDR & ~WDQalmostFull) state <= dumpResendQ;
           else state <= idle;
         end
     endcase
     
-  wire nullifyMessage = (SlotTypeIn == Token) | (SourceIn == 4'b0) | 
-    (SlotTypeIn == Address & RingIn[31]);
+  wire nullifyMessage = (SlotTypeIn == `Token) | (SourceIn == 4'b0) | 
+    (SlotTypeIn == `Address & RingIn[31]);
   
   assign SlotTypeOut =
-    (state == dumpResendQ & resendQempty)    ? Token :
+    (state == dumpResendQ & resendQempty)    ? `Token :
     (state == dumpResendQ & ~resendQempty)   ? resendQtype :
-    nullifyMessage                           ? Null : SlotTypeIn;
+    nullifyMessage                           ? `Null : SlotTypeIn;
 
   assign RingOut = 
     (state == dumpResendQ & resendQempty)    ? 32'b0 :
@@ -173,11 +162,11 @@ module CoherentMemMux (
     nullifyMessage                           ? 4'b0 : SourceIn;
 
   //Ack display controller's address.
-  assign readAck = ~(SlotTypeIn == Address) & readReq & memOpQempty; 
+  assign readAck = ~(SlotTypeIn == `Address) & readReq & memOpQempty; 
   
   // decided what should go into memOpQ, stuff from ring or from DC
-  assign wrMemOpQ = (SlotTypeIn == Address) | readAck;
-  assign memOpQIn = (SlotTypeIn == Address) ? 
+  assign wrMemOpQ = (SlotTypeIn == `Address) | readAck;
+  assign memOpQIn = (SlotTypeIn == `Address) ? 
     {SourceIn, RingIn} : {4'b0000, {6'b000100, RA}};
   
   // write to writeDataQ, also count number of elements in writeDataQ
@@ -187,7 +176,7 @@ module CoherentMemMux (
       writeDataQelts <= 0;
     end
     else begin
-      if (SlotTypeIn == WriteData) begin
+      if (SlotTypeIn == `WriteData) begin
         // get w0, w1, w2 & w3
         if (wcnt == 0) w0 <= RingIn;
         else if (wcnt == 1) w1 <= RingIn;
@@ -197,7 +186,7 @@ module CoherentMemMux (
         wcnt <= wcnt + 1;
       end
 
-      if (wcnt == 3 && (SlotTypeIn == WriteData)) wrWriteDataQ <= 1;
+      if (wcnt == 3 && (SlotTypeIn == `WriteData)) wrWriteDataQ <= 1;
       else wrWriteDataQ <= 0;
       
       if (wrWriteDataQ && ~rdWriteDataQ) 
@@ -210,7 +199,7 @@ module CoherentMemMux (
   // check if writeDataQ is almost full in this case we should not release new 
   // token. This might not be necessary but just to be safe we do it, so that 
   // WDQ does not overflow. also depth of WDQ now is 1024.
-  assign WDQalmostFull = writeDataQelts[9];
+  assign WDQalmostFull = (writeDataQelts[15:9] != 0);
 
   assign rdResendQ = (state == dumpResendQ) & ~resendQempty;    
   resendQ resendQueue (
