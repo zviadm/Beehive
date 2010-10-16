@@ -7,6 +7,10 @@
 
 `default_nettype none
 
+`define nCores         4'd3
+`define EtherCore      `nCores + 1
+`define CopyCore       `nCores + 2
+
 // Define SlotTypes
 `define StartUp        4'd0
 `define Token          4'd1

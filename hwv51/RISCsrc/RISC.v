@@ -21,8 +21,6 @@ and may be instantiated several times on a single chip.
   input  reset,
   input  clock,
   input  [3:0]  whichCore,  //the number of this core  
-  input  [3:0]  EtherCore,  //the number of the Ethernet core
-  input  [3:0]  CopyCore,   //the number of the Copy core
   input  [31:0] RingIn,
   input  [3:0]  SlotTypeIn,
   input  [3:0]  SourceIn,
@@ -215,8 +213,7 @@ and may be instantiated several times on a single chip.
     .a3(aq[3]),
     .RxD(RxD),
     .TxD(TxD),
-    .whichCore(whichCore),
-    .EtherCore(EtherCore)
+    .whichCore(whichCore)
   );
 
 
@@ -268,7 +265,6 @@ and may be instantiated several times on a single chip.
     .decLineAddr(decLineAddr),
     
     .whichCore(whichCore),
-    .EtherCore(EtherCore),
     
     //Ring Signals
     .RingIn(RingIn),
@@ -308,7 +304,6 @@ and may be instantiated several times on a single chip.
     .done(done[4]),
     .selMsgr(selMsgr),
     .whichCore(whichCore),
-    .CopyCore(CopyCore),
     
     //Ring Signals
     .RingIn(RingIn),
@@ -361,7 +356,6 @@ and may be instantiated several times on a single chip.
     .done(done[6]),
     .selBarrier(selBarrier),
     .whichCore(whichCore),
-    .EtherCore(EtherCore),
     
     //Ring Signals
     .RingIn(RingIn),

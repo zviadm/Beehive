@@ -40,7 +40,6 @@ the read and write units.
  input  reset,
  input  clock,
  input  [3:0]  whichCore,  //the number of this core
- input  [3:0]  CopyCore,
  input  [31:0] RingIn,
  input  [3:0]  SlotTypeIn,
  input  [3:0]  SourceIn,
@@ -263,7 +262,6 @@ assign selMsgr = ~aqe & aq[31] & (aq[2:0] == 4);
   .done(done[4]),
   .selMsgr(selMsgr),
   .whichCore(whichCore),
-  .CopyCore(CopyCore),
   .RingIn(RingIn),
   .SlotTypeIn(SlotTypeIn),
   .SourceIn(SourceIn),

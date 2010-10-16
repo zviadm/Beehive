@@ -39,7 +39,6 @@ module Messenger(
   output done,     //operation is finished. Read the AQ
   input selMsgr,
   input [3:0] whichCore,
-  input [3:0] CopyCore,
   
   //ring signals
   input  [31:0] RingIn,
@@ -76,7 +75,7 @@ module Messenger(
   localparam doCopy = 6;    //one cycle to write the read queue
 
 //------------------End of Declarations-----------------------
-  wire normalCore = (whichCore > 4'b1) & (whichCore < CopyCore - 4'b1);
+  wire normalCore = (whichCore > 4'b1) & (whichCore <= `nCores);
   assign firstMessageWord = 
     (((SlotTypeIn == `Message) & (RingIn[17:14] == whichCore) & 
       (RingIn[17:14] != RingIn[13:10])) | 
@@ -102,7 +101,7 @@ module Messenger(
   //unless they are copier replies (state == doCopy).  The copier only
   //sends messages with a 1-word payload.  
   assign writeMQ = 
-    (firstMessageWord & (RingIn[5:0] != 0) & (RingIn[13:10] != CopyCore)) |  
+    (firstMessageWord & (RingIn[5:0] != 0) & (RingIn[13:10] != `CopyCore)) |  
     ((inLen != 0) & putMessageInMQ & (state != doCopy)); 
  
   assign ctrlValid = firstMessageWord & (RingIn[5:0] == 0);
@@ -140,7 +139,7 @@ module Messenger(
   assign done = 
     (((state == idle) & selMsgr & read & MQempty)) | 
     ((state == waitToken) & (msgrAcquireToken) & (aq[12:7] == 0)) |
-    ((state == sendWQ) & (length == 1) & (aq[6:3] != CopyCore)) |
+    ((state == sendWQ) & (length == 1) & (aq[6:3] != `CopyCore)) |
     ((state == copyMQ) & (length == 1)) | 
     (state == doCopy);   //reply arrived from copier
 
@@ -164,7 +163,7 @@ module Messenger(
       sendWQ: begin  //send data on the ring
         length <= length - 1;
         if(length == 1) begin
-          if(aq[6:3] != CopyCore) state <= idle;
+          if(aq[6:3] != `CopyCore) state <= idle;
           else state <= copyWait; //the messenger waits for a reply to 
                                   //messages sent to the copier.
         end
@@ -184,7 +183,7 @@ module Messenger(
         //A message is from the copier if it contains CopyCore in the bits 
         //13:10 of the message header. In this case, we insert the 1-word 
         //payload (the checksum) directly into RQ.
-        if(firstMessageWord & (RingIn[13:10] == CopyCore)) state <= doCopy;
+        if(firstMessageWord & (RingIn[13:10] == `CopyCore)) state <= doCopy;
     
       doCopy:
         state <= idle;   

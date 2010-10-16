@@ -24,7 +24,6 @@ module Barrier(
   output done,     //operation is finished. Read the AQ
   input selBarrier,
   input [3:0] whichCore,
-  input [3:0] EtherCore,
 
   //ring signals
   input  [31:0] RingIn,
@@ -47,7 +46,7 @@ module Barrier(
       
 //-------------------------------End of Declarations----------------------------
 
-  wire [3:0] nBarrierCoresMinusOne = EtherCore - 4'd3;
+  wire [3:0] nBarrierCoresMinusOne = `nCores - 4'd2;
 
   // Barrier is done when it receives last Barrier message
   assign done = selBarrier & 

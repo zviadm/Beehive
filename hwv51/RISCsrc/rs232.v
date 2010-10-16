@@ -17,8 +17,7 @@ module rs232 #(parameter bitTime = 868) (
   input a3,  
   input RxD, //received serial data
   output TxD, //transmit serial data
-  input [3:0] whichCore,    //returned as bits 13:10 of rq
-  input [3:0] EtherCore     //returned as bits 17:14 of rq  
+  input [3:0] whichCore    //returned as bits 13:10 of rq
 );
 
 wire runCounter;
@@ -45,7 +44,7 @@ which occurs when the start bit shifts into sr[0].  The shift register samples e
 The character is ~sr[8:1].  When the system reads the character (readSR = 1), the shift register is cleared.
 */
 
-  assign rq = ~a3 ? {7'b0, 7'd100, EtherCore, whichCore, txReady, sr[0], ~sr[8:1]} : //speed in MHz = 100
+  assign rq = ~a3 ? {7'b0, 7'd100, `EtherCore, whichCore, txReady, sr[0], ~sr[8:1]} : //speed in MHz = 100
                     cycleCounter;
   
   assign readSR =  selRS232 & ~read & wq[8];

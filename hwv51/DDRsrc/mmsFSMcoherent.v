@@ -49,7 +49,6 @@ module mmsFSMcoherent (
   output reg wrRDtoDC
 );
 
-   parameter nCores = 0;       // THIS is set in RISCTop.v
    parameter DELAY_ON_HIT = 0;
    
    // we need 2^26 entries, each 2 bits 
@@ -202,7 +201,7 @@ module mmsFSMcoherent (
           end
           else begin
             if (memOpData[28]) begin                     
-              if (memOpDest <= nCores && 
+              if (memOpDest <= `nCores && 
                   memOpData[25:20] != MEM_DIR_PREFIX) begin
                 // it is read or an exclusive read request
                 next_state = checkDirectoryEntry; 
@@ -228,7 +227,7 @@ module mmsFSMcoherent (
               else begin
                 next_state = writeDataToMemory; 
                  
-                if (memOpDest <= nCores) begin
+                if (memOpDest <= `nCores) begin
                   wrAF = 1;
                   afRead = 1;
                   afAddress = {MEM_DIR_PREFIX, memOpData[25:6]};
@@ -340,7 +339,7 @@ module mmsFSMcoherent (
       // States for handling memory write
       writeDataToMemory: begin
         if (~writeDataQempty) begin
-          if (memOpDest <= nCores) 
+          if (memOpDest <= `nCores) 
             next_state = updateDirectoryEntry_1;
           else begin
             next_state = handleMemOp;

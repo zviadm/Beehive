@@ -14,7 +14,6 @@ module Ethernet(
   input  ethTXclock,  //125 MHz 50% duty cycle clock
   input  clock, //100 MHz cllock
   input  [3:0]  whichCore,  //the number of this core
-  input  [3:0]  CopyCore,
   //Ring signals
   input  [31:0] RingIn,
   input  [3:0]  SlotTypeIn,
@@ -492,7 +491,6 @@ etherRISC controlRisc(
  .reset(reset),
  .clock(clock),
  .whichCore(whichCore),
- .CopyCore(CopyCore),
  .RingIn(RingIn),
  .SlotTypeIn(SlotTypeIn),
  .SourceIn(SourceIn),

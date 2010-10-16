@@ -48,10 +48,6 @@
   inout DVIscl,  //clock
   inout DVIsda   //data
 );
- 
-  parameter nCores = 3;  //Number of RISC cores in the design
-  parameter EtherCore = nCores + 1;
-  parameter CopyCore  = nCores + 2;
 
   //Clocks
   wire clockIn;
@@ -74,17 +70,17 @@
   wire [3:0] SelRS232;  //from TC5
 
   //The registers of the ring
-  reg [31:0] RingOut[0:nCores + 2];
-  reg [3:0] SlotTypeOut[0:nCores + 2];
-  reg [3:0] SourceOut[0:nCores + 2];
+  reg [31:0] RingOut[0:`nCores + 2];
+  reg [3:0] SlotTypeOut[0:`nCores + 2];
+  reg [3:0] SourceOut[0:`nCores + 2];
 
-  reg [31:0] RDreturn[0:nCores];  //separate pipelined bus for read data
-  reg [3:0] RDdest[0:nCores];
+  reg [31:0] RDreturn[0:`nCores];  //separate pipelined bus for read data
+  reg [3:0] RDdest[0:`nCores];
  
-  wire[nCores + 1:1] releaseRS232;
+  wire[`nCores + 1:1] releaseRS232;
   // wire[nCores : 1]   lockHeld;
-  wire[nCores + 1:0]  TxDv; 
-  wire[nCores + 1:0] RxDv;
+  wire[`nCores + 1:0]  TxDv; 
+  wire[`nCores + 1:0] RxDv;
  
   wire SCLx;
   wire SDAx;
@@ -98,7 +94,7 @@
 //instantiate the RISC cores
 genvar i;
 generate
-  for (i = 1; i <= nCores; i = i+1)
+  for (i = 1; i <= `nCores; i = i+1)
   begin: coreBlk
     wire [31:0] tempRiscRingOut;
     wire [3:0] tempRiscSlotTypeOut;
@@ -111,8 +107,6 @@ generate
       .reset(reset),
       .clock(clock),
       .whichCore(coreNum),  //the number of this core
-      .CopyCore(CopyCore),
-      .EtherCore(EtherCore),
       .RingIn(RingOut[i-1]),
       .SlotTypeIn(SlotTypeOut[i-1]),
       .SourceIn(SourceOut[i-1]),
@@ -148,15 +142,14 @@ endgenerate
   wire [3:0]  tempMCtrlRDdest;
  
   //Instantiate the memory controller (contains the display controller)
-  defparam mctrl.mmsFSM.nCores = nCores;
   CoherentMemMux mctrl(
     .clock(clock),
     .clock90(clock90),
     .reset(reset),
 
-    .RingIn(RingOut[nCores + 2]),
-    .SlotTypeIn(SlotTypeOut[nCores + 2]),
-    .SourceIn(SourceOut[nCores + 2]),
+    .RingIn(RingOut[`nCores + 2]),
+    .SlotTypeIn(SlotTypeOut[`nCores + 2]),
+    .SourceIn(SourceOut[`nCores + 2]),
     .RingOut(tempMCtrlRingOut),
     .SlotTypeOut(tempMCtrlSlotTypeOut),
     .SourceOut(tempMCtrlSourceOut),
@@ -216,23 +209,22 @@ endgenerate
     .reset(reset),
     .ethTXclock(ethTXclock),  //125 MHz 50% duty cycle clock
     .clock(clock),            //100 MHz clock
-    .whichCore(EtherCore),    //the number of 
-    .CopyCore(CopyCore),
+    .whichCore(`EtherCore),    //the number of 
 
     //Ring signals
-    .RingIn(RingOut[nCores]),
-    .SlotTypeIn(SlotTypeOut[nCores]),
-    .SourceIn(SourceOut[nCores]),
+    .RingIn(RingOut[`nCores]),
+    .SlotTypeIn(SlotTypeOut[`nCores]),
+    .SourceIn(SourceOut[`nCores]),
     .RingOut(tempEthconRingOut),
     .SlotTypeOut(tempEthconSlotTypeOut),
     .SourceOut(tempEthconSourceOut),
-    .RDreturn(RDreturn[nCores]),
-    .RDdest(RDdest[nCores]),
+    .RDreturn(RDreturn[`nCores]),
+    .RDdest(RDdest[`nCores]),
 
     //RS232 signals
-    .RxD(RxDv[nCores + 1]),
-    .TxD(TxDv[nCores + 1]),
-    .releaseRS232(releaseRS232[nCores + 1]),
+    .RxD(RxDv[`nCores + 1]),
+    .TxD(TxDv[`nCores + 1]),
+    .releaseRS232(releaseRS232[`nCores + 1]),
     .SDAx(SDAx),
     .SCLx(SCLx),
     .SDAin(SDAin),
@@ -249,9 +241,9 @@ endgenerate
   );
 
   always@(posedge clock) begin
-    RingOut[nCores + 1] <= tempEthconRingOut;
-    SlotTypeOut[nCores + 1] <= tempEthconSlotTypeOut;
-    SourceOut[nCores + 1] <= tempEthconSourceOut;
+    RingOut[`nCores + 1] <= tempEthconRingOut;
+    SlotTypeOut[`nCores + 1] <= tempEthconSlotTypeOut;
+    SourceOut[`nCores + 1] <= tempEthconSourceOut;
   end
 
   //Instantiate the block copier
@@ -262,12 +254,12 @@ endgenerate
   copier bcopy( 
     .reset(reset),
     .clock(clock), //100 MHz clock
-    .whichCore(CopyCore),  //the number of the core
+    .whichCore(`CopyCore),  //the number of the core
  
     //Ring signals
-    .RingIn(RingOut[nCores + 1]),
-    .SlotTypeIn(SlotTypeOut[nCores + 1]),
-    .SourceIn(SourceOut[nCores + 1]),
+    .RingIn(RingOut[`nCores + 1]),
+    .SlotTypeIn(SlotTypeOut[`nCores + 1]),
+    .SourceIn(SourceOut[`nCores + 1]),
     .RingOut(tempBCopyRingOut),
     .SlotTypeOut(tempBCopySlotTypeOut),
     .SourceOut(tempBCopySourceOut),
@@ -281,9 +273,9 @@ endgenerate
   );
 
   always@(posedge clock) begin
-    RingOut[nCores + 2] <= tempBCopyRingOut;
-    SlotTypeOut[nCores + 2] <= tempBCopySlotTypeOut;
-    SourceOut[nCores + 2] <= tempBCopySourceOut;
+    RingOut[`nCores + 2] <= tempBCopyRingOut;
+    SlotTypeOut[`nCores + 2] <= tempBCopySlotTypeOut;
+    SourceOut[`nCores + 2] <= tempBCopySourceOut;
   end
   
   //Pin buffers for SDA, SCL used by the Ethernet controller
@@ -296,7 +288,7 @@ endgenerate
 
 genvar j;
 generate
-  for(j = 0; j <= nCores + 1; j = j+1)
+  for(j = 0; j <= `nCores + 1; j = j+1)
   begin: rsblock
     assign RxDv[j] = (SelRS232 == j) ? RxD : 1'b1;
   end

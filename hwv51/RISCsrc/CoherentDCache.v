@@ -22,7 +22,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   output decLineAddr,
   
   input [3:0] whichCore,
-  input [3:0] EtherCore,
 
   //ring signals
   input [31:0] RingIn,
@@ -366,7 +365,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   wire wrRequestQ = 
     // Handle stuff that comes on the ring from other cores
     // Address Request from some other core, the tag is valid and matches
-    ((SlotTypeIn == `Address) & (SourceIn > 0) & (SourceIn < EtherCore) & 
+    ((SlotTypeIn == `Address) & (SourceIn > 0) & (SourceIn <= `nCores) & 
      (ringLineTag == RingIn[27:7])) &
     (((RingIn[29:28] == 2'b01) & (ringLineStatus == MODIFIED)) | 
      ((RingIn[29:28] == 2'b11) & (ringLineStatus != INVALID)));

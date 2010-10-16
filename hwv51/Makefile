@@ -3,7 +3,7 @@ BEECTL = beectl.csail.mit.edu:
 MEM = Basm/Mastercode.mem Basm/Masterdata.mem Basm/Slavecode.mem Basm/Slavedata.mem \
       Basm/RISCtestcode.mem Basm/RISCtestdata.mem Basm/CopyDCcode.mem
 
-nCores = $(shell grep "parameter nCores = " < RISCsrc/RISCtop.v | sed 's/.*nCores = \([0-9]*\).*/\1/')
+nCores = $(shell grep "define nCores" < RISCsrc/Constants.v | sed 's/.*d\([0-9]*\).*/\1/')
 
 all: risc$(nCores).bit
 
