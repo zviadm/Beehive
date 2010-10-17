@@ -2,7 +2,6 @@
 `timescale 1ns / 1ps
 
 module beehiveCoherent;
-  localparam nCores = 3;  //Number of RISC cores in the design
   localparam MBITS = 24;  //log2(Size) of main memory (must match Master.s)
   localparam bitTime = 20;  // fast serial transmit when simulating
 
@@ -21,25 +20,22 @@ module beehiveCoherent;
   //************************************
 
   //The registers of the ring
-  reg [31:0] RingOut[nCores:0];
-  reg [3:0]  SlotTypeOut[nCores:0];
-  reg [3:0]  SourceOut[nCores:0];
+  reg [31:0] RingOut[`nCores:0];
+  reg [3:0]  SlotTypeOut[`nCores:0];
+  reg [3:0]  SourceOut[`nCores:0];
 
-  reg [31:0] RDreturn[nCores:0];  //separate pipelined bus for read data
-  reg [3:0]  RDdest[nCores:0];
+  reg [31:0] RDreturn[`nCores:0];  //separate pipelined bus for read data
+  reg [3:0]  RDdest[`nCores:0];
 
-  wire [nCores:1] releaseRS232;
-  wire [nCores:1] lockHeld;
-  wire [nCores:1] TxDv;
-  wire [nCores:1] RxDv;
-
-  wire [3:0] etherCore = nCores+1;
-  wire [3:0] copyCore = nCores+2;
+  wire [`nCores:1] releaseRS232;
+  wire [`nCores:1] lockHeld;
+  wire [`nCores:1] TxDv;
+  wire [`nCores:1] RxDv;
 
   //instantiate the RISC cores
   genvar i;
   generate
-    for (i = 1; i <= nCores; i = i+1) begin: coreBlk
+    for (i = 1; i <= `nCores; i = i+1) begin: coreBlk
       wire [31:0] tempRiscRingOut;
       wire [3:0] tempRiscSlotTypeOut;
       wire [3:0] tempRiscSourceOut;
@@ -65,9 +61,7 @@ module beehiveCoherent;
        .RxD(RxDv[i]),
        .TxD(TxDv[i]),
        //core connected to the RS232 pulses this to reset the selection
-       .releaseRS232(releaseRS232[i]), 
-       .EtherCore(etherCore),
-       .CopyCore(copyCore)
+       .releaseRS232(releaseRS232[i])
       );
 
       always @(posedge clock) begin
@@ -111,9 +105,9 @@ module beehiveCoherent;
   localparam waitToken   = 1; 
   
   reg state;
-  wire [31:0] mctrlRingIn     = RingOut[nCores];
-  wire [3:0]  mctrlSlotTypeIn = SlotTypeOut[nCores];
-  wire [3:0]  mctrlSourceIn   = SourceOut[nCores];
+  wire [31:0] mctrlRingIn     = RingOut[`nCores];
+  wire [3:0]  mctrlSlotTypeIn = SlotTypeOut[`nCores];
+  wire [3:0]  mctrlSourceIn   = SourceOut[`nCores];
   
   always @(posedge clock) begin
     if (reset) begin

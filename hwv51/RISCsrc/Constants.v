@@ -6,8 +6,8 @@
 */
 
 `default_nettype none
-
 `define nCores         4'd3
+
 `define EtherCore      `nCores + 1
 `define CopyCore       `nCores + 2
 
