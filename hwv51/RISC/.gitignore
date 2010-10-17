@@ -1,6 +1,5 @@
 *
 !ipcore_dir/
-!ipcore_dir_backup/
 !.gitignore
 !RISC.cdc
 !RISC.cpj
