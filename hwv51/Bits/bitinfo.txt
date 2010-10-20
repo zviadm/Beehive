@@ -1,0 +1,11 @@
+*** Information About Bit Files ***
+  It is useful to keep around 13 core bit files of different builds. 
+  This file describes features of .bit files checked into the repository.
+
+*** risc13_notrain_v1.bit ***
+  -- New ring architecture (no train)
+
+*** risc13_coherentL1_v1.bit ***
+  -- New ring architecture
+  -- Coherent caches. L1 caches only (no L2 cache simulation)
+  

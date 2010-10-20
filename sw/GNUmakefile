@@ -43,7 +43,8 @@ BINS	:= $(O)/hello.img  \
 	$(O)/bcastsim.img      \
 	$(O)/coherencysim.img  \
 	$(O)/seqtsp.img        \
-	$(O)/partsp.img
+	$(O)/partsp.img        \
+	$(O)/parsum.img
 
 all: xxlibc $(OBJDIRS) $(BINS)
 
