@@ -5,9 +5,9 @@
   Created By: Zviad Metreveli
 */
 
-`default_nettype none
+//`default_nettype none
 
-`define nCores         4'd13
+`define nCores         4'd3
 `define EtherCore      `nCores + 1
 `define CopyCore       `nCores + 2
 
@@ -23,3 +23,6 @@
 `define Pfail          4'd10
 `define Vreq           4'd11
 `define Barrier        4'd12
+`define DMCHeader      4'd13
+`define DMCAddress     4'd14
+`define DMCData        4'd15

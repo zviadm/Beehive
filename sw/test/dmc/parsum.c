@@ -87,7 +87,7 @@ void sum_master()
     real_sum += numbers[i];
   }  
   assert(sum == real_sum);
-  free(numbers);
+  //free(numbers);
   
   xprintf("[%02u]: Done calculating SUM: %u\n", corenum(), sum);
   xprintf("[%02u]: Computation time (in cycles): %u\n", 

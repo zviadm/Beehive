@@ -33,7 +33,7 @@ LIBOBJS	:= $(LIBS)
 LIBOBJS	:= $(patsubst %.S, $(O)/%.o, $(LIBOBJS))
 LIBOBJS	:= $(patsubst %.c, $(O)/%.o, $(LIBOBJS))
 
-OBJDIRS	:= $(O) $(O)/lib $(O)/shared $(O)/test $(O)/test/tsp
+OBJDIRS	:= $(O) $(O)/lib $(O)/shared $(O)/test $(O)/test/tsp $(O)/test/dmc
 
 BINS	:= $(O)/hello.img  \
 	$(O)/meterstest.img    \
@@ -44,7 +44,8 @@ BINS	:= $(O)/hello.img  \
 	$(O)/coherencysim.img  \
 	$(O)/seqtsp.img        \
 	$(O)/partsp.img        \
-	$(O)/parsum.img
+	$(O)/parsum.img        \
+	$(O)/cachepushsim.img
 
 all: xxlibc $(OBJDIRS) $(BINS)
 
@@ -70,6 +71,10 @@ $(O)/%.out: $(O)/test/tsp/%.o $(SHAREDOBJS) $(LIBOBJS)
 	@echo "LD       $@"
 	$(LD) $(LDFLAGS) -map $@.map -o $@ $^ -Llibc -lc -lgcc
 
+$(O)/%.out: $(O)/test/dmc/%.o $(SHAREDOBJS) $(LIBOBJS)
+	@echo "LD       $@"
+	$(LD) $(LDFLAGS) -map $@.map -o $@ $^ -Llibc -lc -lgcc
+
 $(O)/%.o: $(O)/%.s
 	@echo "AS       $@"
 	$(AS) $(ASFLAGS) -lst $<.lst -o $@ -x $<
@@ -87,8 +92,12 @@ $(O)/%.s: %.c
 	@echo "CC       $@"
 	$(CC) $(CFLAGS) -o $@ -MT $@ -MD $@.d $<
 
-.PRECIOUS: $(O)/%.o $(O)/%.out $(O)/%.s $(O)/%.d \
-	   $(O)/shared/%.o $(O)/shared/%.s
+.PRECIOUS: $(O)/shared/%.o $(O)/shared/%.s \
+	   $(O)/lib/%.o $(O)/lib/%.s             \
+	   $(O)/%.o $(O)/%.s $(O)/%.out          \
+	   $(O)/tsp/%.o $(O)/tsp/%.s             \
+	   $(O)/dmc/%.o $(O)/dmc/%.s 
+	   
 
 copy: $(O)/$(I).img
 	$(Q)$(COPY) $< $(TFTP)

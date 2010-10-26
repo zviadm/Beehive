@@ -15,6 +15,7 @@
   .globl  _message_recv
   .globl  _cache_flush
   .globl  _cache_invalidate
+  .globl  _cache_push
   .globl  _icSema_V
   .globl  _hw_barrier
 
@@ -121,10 +122,33 @@ _cache_invalidate:
   lsl  r4,r4,7
   add_lsl  r4,r4,r3,5
   aqw_add  r4,r4,cacheControl  // flush
-  lsl  r5,1,19      // "invalidate", ends up at AQ[17]
-  aqw_add  r5,r4,r5    // invalidate
+  lsl      r5,1,19      // "invalidate", ends up at AQ[17]
+  aqw_add  r5,r4,r5     // invalidate
   j  link
   .size  _cache_invalidate,.-_cache_invalidate
+
+////////////////////////////////////////////////////////////////////////////
+//                                                                        //
+// void cache_push(int dest, int line, int countMinus1)                   //
+//                                                                        //
+// Push cache lines to dest core                                          //
+//                                                                        //
+// Arguments are in r3-r4                                                 //
+//                                                                        //
+// The implementation has no uses of LINK, including long_* ops, so we    //
+// don't need to preserve LINK on the stack.                              //
+//                                                                        //
+////////////////////////////////////////////////////////////////////////////
+  .type  _cache_push, @function
+_cache_push:
+  //(2 << 29) + (r3 << 25) + (r4 << 5) + (r5 << 12)
+  lsl      r6,2,4
+  add_lsl  r6,r6,r3,13
+  add_lsl  r6,r6,r5,7
+  add_lsl  r6,r6,r4,5
+  aqw_add  r6,r6,cacheControl
+  j  link
+  .size  _cache_push,.-_cache_push
 
 
 ////////////////////////////////////////////////////////////////////////////

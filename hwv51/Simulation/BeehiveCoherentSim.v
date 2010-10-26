@@ -307,10 +307,12 @@ module beehiveCoherent;
   end   
 
   always @(negedge clock) if (!reset) begin
-//    if (mctrlSlotTypeIn != Null & mctrlSlotTypeIn != Token) begin
-//      $display("MCTRL Ring: type=%x, src=%x, data=%x",
-//                mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
-//    end 
+    if (mctrlSlotTypeIn >= `DMCHeader | 
+        mctrlSlotTypeIn == `Address    |
+        mctrlSlotTypeIn == `WriteData) begin
+      //$display("MCTRL Ring: type=%x, src=%x, data=%x",
+      //          mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
+    end 
     
 
 //    if (coreBlk[2].riscN.dCacheN.selDCache == 1) begin
