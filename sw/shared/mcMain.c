@@ -60,8 +60,8 @@ static void forkee(void *arg) {
 }
 
 int main (int argc, const char * argv[]) {
-  printf("\n%d cores, clock speed is %d MHz\n",
-   enetCorenum()-1, clockFrequency());
+  printf("\n[%02u]: %d cores, clock speed is %d MHz\n",
+   corenum(), nCores(), clockFrequency());
   thread_fork(forkee, NULL);
   thread_exit(0);
 }

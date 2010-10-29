@@ -141,8 +141,9 @@ _cache_invalidate:
 ////////////////////////////////////////////////////////////////////////////
   .type  _cache_push, @function
 _cache_push:
-  //(2 << 29) + (r3 << 25) + (r4 << 5) + (r5 << 12)
-  lsl      r6,2,4
+  // AQ value for Cache Push:
+  // (1 << 29) + (r3 << 25) + (r4 << 5) + (r5 << 12) + cacheControl
+  lsl      r6,1,4
   add_lsl  r6,r6,r3,13
   add_lsl  r6,r6,r5,7
   add_lsl  r6,r6,r4,5

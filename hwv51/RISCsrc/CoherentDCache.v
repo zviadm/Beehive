@@ -33,7 +33,9 @@
     [4 bits describing DMC destination]    
       Rest of The 24 bits depends on primitive
       -- Dmc Cache Push
-      TODO: finish this
+      [2 bits cache line state before pushing]
+      2'b00
+      [28 bits of Address]
   
   Created By: Zviad Metreveli
 */
@@ -91,22 +93,24 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   localparam DMCCachePush = 4'd0;
   
   // FSM States
-  localparam idle                   = 0;
-  localparam sendRAWaitToken        = 1;
-  localparam sendCacheDataWaitToken_= 2;
-  localparam sendCacheDataWaitToken = 3;
-  localparam sendCacheData          = 4;
-  localparam sendWA                 = 5;
-  localparam setup                  = 6;
-  localparam ioInvalidate           = 7;
-  localparam ioFlush                = 8;
+  localparam preidle                = 0;
+  localparam idle                   = 1;
+  localparam sendRAWaitToken        = 2;
+  localparam sendCacheDataWaitToken_= 3;
+  localparam sendCacheDataWaitToken = 4;
+  localparam sendCacheData          = 5;
+  localparam sendWA                 = 6;
+
+  localparam setup                  = 7;
+  localparam ioInvalidate           = 8;
+  localparam ioFlush                = 9;
   // FSM States for DMC operation
-  localparam sendDMCAddress          = 9;
-  localparam sendDMCData             = 10;
-  localparam sendCachePushWaitToken  = 11;
-  localparam receiveCachePushAddress = 12;
-  localparam receiveCachePushData    = 13;
-  localparam dmcCachePush            = 14;
+  localparam sendDMCHeaderWaitToken  = 10;
+  localparam sendDMCAddress          = 11;
+  localparam sendDMCData             = 12;
+  localparam receiveCachePushAddress = 13;
+  localparam receiveCachePushData    = 14;
+  localparam dmcCachePush            = 15;
 
   // FSM State
   reg [3:0] state;
@@ -120,7 +124,9 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   
   // DMC State
   reg [9:0] dmcAddr;
+  reg [31:0] dmcHeader;
   reg [31:0] dmcRequest;
+  reg [3:0] dmcNextState;
 
   // This holds state when we are waiting for ReadData
   // 0 - not waiting for RD
@@ -160,10 +166,10 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     else delayedSelDCache <= done ? 0 : selDCache;
     
   // Logic for DCache
-  wire handleDmcRingIn = 
+  wire handleDmcRingIn =
     (state == idle) & (waitReadDataState == 0) & 
     (SlotTypeIn == `DMCHeader) & (RingIn[27:24] == whichCore) & 
-    (RingIn[31:27] == DMCCachePush & ringLineStatus != MODIFIED);
+    (RingIn[31:28] == DMCCachePush & ringLineStatus != MODIFIED);
   wire handleRequestQ = 
     (state == idle) & (~requestQempty) & 
     (~handleDmcRingIn);
@@ -196,11 +202,13 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   assign rwq = AQWriteHit | (~read & resolveDCacheMiss);
   assign done = 
     (AQReadHit | AQWriteHit) | (resolveDCacheMiss) |
-    (state == ioInvalidate & (lineCnt == 0)) | 
-    (state == ioFlush & (lineCnt == 0));
+    ((state == ioInvalidate) & (lineCnt == 0)) | 
+    ((state == ioFlush)      & (lineCnt == 0)) |
+    ((state == dmcCachePush) & (lineCnt == 0));
     
   assign decLineAddr = 
-    (state == ioInvalidate | state == ioFlush) & (lineCnt > 0);
+    (lineCnt > 0) &
+    (state == ioInvalidate | state == ioFlush | state == dmcCachePush);
 
   // Logic for instruction cache
   assign Ihit = (Itag[20:0] == pcx[30:10]);
@@ -211,49 +219,45 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
 
   // Ring Interactions
   assign dcWantsToken = 
-    (state == sendRAWaitToken) | (state == sendCacheDataWaitToken);
+    (state == sendRAWaitToken)        | 
+    (state == sendCacheDataWaitToken) | 
+    (state == sendDMCHeaderWaitToken);
     
   wire resendMessage = 
     (SourceIn == whichCore & SlotTypeIn == `Address & RingIn[31]);
   assign dcDriveRing = 
     // Ring Modifications
     (resendMessage)                                    |
-    (state == receiveCachePushAddress)                 |
     // Ring Additions
     (state == sendRAWaitToken & dcAcquireToken)        | 
     (state == sendCacheDataWaitToken & dcAcquireToken) | 
     (state == sendCacheData)                           | 
     (state == sendWA)                                  |
-    (state == sendCachePushWaitToken & dcAcquireToken) |
+    (state == sendDMCHeaderWaitToken & dcAcquireToken) |
     (state == sendDMCAddress)                          |
     (state == sendDMCData);
     
 
-  assign dcSourceOut = 
-    (state == receiveCachePushAddress) ? SourceIn :  
-                                         whichCore;
+  assign dcSourceOut = whichCore;
   assign dcSlotTypeOut = 
     // Ring Modifications
     resendMessage                                              ? SlotTypeIn  :
-    (state == receiveCachePushAddress)                         ? SlotTypeIn  :
     // Ring Additions
     (state == sendRAWaitToken | state == sendWA)               ? `Address    : 
     (state == sendCacheDataWaitToken | state == sendCacheData) ? `WriteData  : 
-    (state == sendCachePushWaitToken)                          ? `DMCHeader  :
+    (state == sendDMCHeaderWaitToken)                          ? `DMCHeader  :
     (state == sendDMCAddress)                                  ? `DMCAddress :
     (state == sendDMCData)                                     ? `DMCData    :
                                                                   4'b0;
   assign dcRingOut = 
     // Ring Modifications
     resendMessage                     ? RingIn                  :
-    (state == receiveCachePushAddress)? {4'b0000, RingIn[27:0]} : 
     // Ring Additions
     (state == sendRAWaitToken)        ? readRequest             :
     (state == sendCacheDataWaitToken | 
      state == sendCacheData)          ? dcacheReadData          :
     (state == sendWA)                 ? flushRequest            : 
-    (state == sendCachePushWaitToken) ? 
-      {DMCCachePush, aq[26:23], 17'b0, aq[9:3]} :
+    (state == sendDMCHeaderWaitToken) ? dmcHeader               :
     (state == sendDMCAddress)         ? dmcRequest              :
     (state == sendDMCData)            ? dcacheReadData          :
                                         32'b0; 
@@ -262,9 +266,14 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     if (reset) begin
       state <= setup;
       lineCnt <= 0;
-      readRequest <= 0;
+      readRequest  <= 0;
       flushRequest <= 0;
+      dmcHeader    <= 0;
+      dmcRequest   <= 0;
+      dmcNextState <= 0;
     end else case (state)
+      preidle: state <= idle;
+      
       idle: begin
         if (handleDmcRingIn) begin
           if (RingIn[31:28] == DMCCachePush) begin
@@ -362,7 +371,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
         lineCnt <= lineCnt - 1;          
       end
       
-      sendCachePushWaitToken: begin
+      sendDMCHeaderWaitToken: begin
         if (dcAcquireToken) state <= sendDMCAddress;
       end
       
@@ -372,14 +381,16 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       
       sendDMCData: begin
         dmcAddr <= dmcAddr + 1;
-        if (dmcAddr[2:0] == 3'h7) state <= dmcCachePush;
+        if (dmcAddr[2:0] == 3'h7) state <= dmcNextState;
       end
                   
       dmcCachePush: begin
         if (requestLineStatus != INVALID) begin
-          state <= sendCachePushWaitToken;
-          dmcAddr <= {aq[9:3], 3'b000};
-          dmcRequest <= {2'b00, requestLineStatus, requestLineTag, aq[9:3]};
+          state <= sendDMCHeaderWaitToken;          
+          dmcNextState <= (lineCnt == 0) ? idle : dmcCachePush;
+          dmcAddr <= {aq[9:3], 3'b000};          
+          dmcHeader <= {DMCCachePush, aq[26:23], 17'b0, aq[9:3]};
+          dmcRequest <= {requestLineStatus, 2'b00, requestLineTag, aq[9:3]};
         end else if (lineCnt == 0) state <= idle;
         lineCnt <= lineCnt - 1;
       end
@@ -389,8 +400,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       end
       
       receiveCachePushData: begin
-        if (dmcAddr[2:0] == 3'h7) state <= idle;
-        else state <= receiveCachePushData;
+        if (dmcAddr[2:0] == 3'h7) state <= preidle;
         dmcAddr <= dmcAddr + 1;
       end
     endcase
@@ -463,6 +473,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (handleAQ & (~AQReadHit & ~AQWriteHit)) | 
     (state == ioInvalidate & requestLineStatus != MODIFIED) |
     (state == ioFlush & requestLineStatus == MODIFIED)      | 
+    (state == dmcCachePush & requestLineStatus == MODIFIED) | 
     (state == receiveCachePushAddress);
   wire [1:0] newStatus = 
     (state == setup)                  ? MODIFIED :
@@ -471,11 +482,13 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (handleAQ)                        ? (read ? SHARED : INVALID) : 
     (state == ioInvalidate)           ? INVALID  : 
     (state == ioFlush)                ? SHARED   : 
-    (state == receiveCachePushAddress)? RingIn[30:29] : INVALID;
+    (state == dmcCachePush)           ? SHARED   :
+    (state == receiveCachePushAddress)? SHARED   : INVALID;
   dcacheStatus DataCacheStatus (
     .a(requestLine), // Bus [6 : 0] 
     .d(newStatus), // Bus [1 : 0] 
-    .dpra((SlotTypeIn == `Address) ? RingIn[6:0] : 7'b0), // Bus [6 : 0] 
+    .dpra((SlotTypeIn == `Address | 
+           SlotTypeIn == `DMCHeader) ? RingIn[6:0] : 7'b0), // Bus [6 : 0] 
     .clk(clock),
     .we(wrDCacheStatus),
     .spo(requestLineStatus), // Bus [1 : 0] 
@@ -541,19 +554,24 @@ generate
 endgenerate
 
 
-  wire wrDCache = AQWriteHit | (~read & resolveDCacheMiss);
+  wire wrDCache = 
+    AQWriteHit                  | 
+    (~read & resolveDCacheMiss) | 
+    (state == receiveCachePushData);
   wire [9:0] dcacheAddr =
     // on next cycle i am starting flush
     ((state == sendRAWaitToken & doFlush) |
      (state == sendCacheDataWaitToken_) |
      (state == sendCacheDataWaitToken & ~dcAcquireToken)) ? flushAddr :
     // when flushing
-    ((state == sendCacheData) |                         
+    ((state == sendCacheData & flushAddr[2:0] != 3'h7) |                         
      (state == sendCacheDataWaitToken & dcAcquireToken))  ? flushAddr + 1 :
-    // on next cycle receiving DMC data
-    (state == receiveCachePushAddress)                    ? dmcAddr :
-    // receiving DMC data
-    (state == receiveCachePushData)                       ? dmcAddr + 1 :
+    // on next cycle sending DMC data
+    (state == sendDMCAddress)                             ? dmcAddr :
+    // sending DMC data
+    (state == sendDMCData & dmcAddr[2:0] != 3'h7)         ? dmcAddr + 1 :
+    // receiving Cache Push data
+    (state == receiveCachePushData)                       ? dmcAddr :
                                                             aq[9:0];
   wire [31:0] dcacheWriteData =
     (state == receiveCachePushData)                       ? RingIn[31:0] :
@@ -582,7 +600,7 @@ generate
     reg [9:0] dAddrA,dAddrB;
     always @(posedge clock) begin
       dAddrA <= dcacheAddr;  // sync read for BRAM
-      if (wrDCache) dataCache[dcacheAddr] <= wq;
+      if (wrDCache) dataCache[dcacheAddr] <= dcacheWriteData;
       if ((waitReadDataState == 1) && (RDdest == whichCore)) 
         dataCache[{aq[9:3], readCnt}] <= RDreturn;
     end

@@ -94,12 +94,6 @@ module beehiveCoherent;
   // Ring processing
   //************************************
 
-  // Slot types
-  localparam Token = 1;     // data = count of following words
-  localparam Address = 2;   // data = { 1'read, 28'line_addr }, source = node
-  localparam WriteData = 3; // data => mem data fifo
-  localparam Null = 7;
-
   // Interactions with the ring
   localparam dumpResendQ = 0; 
   localparam waitToken   = 1; 
@@ -113,14 +107,14 @@ module beehiveCoherent;
     if (reset) begin
       state <= dumpResendQ;
       RingOut[0]     <= 32'b0;
-      SlotTypeOut[0] <= Null;
+      SlotTypeOut[0] <= `Null;
       SourceOut[0]   <= 4'h0;
     end else case (state)
       dumpResendQ: begin
         if (resendQempty) begin
           state <= waitToken;
           RingOut[0]     <= 32'b0;
-          SlotTypeOut[0] <= Token;
+          SlotTypeOut[0] <= `Token;
           SourceOut[0]   <= 4'h0;
         end else begin
           RingOut[0]     <= resendQout;
@@ -130,12 +124,12 @@ module beehiveCoherent;
       end
       
       waitToken: begin
-        if (mctrlSlotTypeIn == Token) state <= dumpResendQ;
+        if (mctrlSlotTypeIn == `Token) state <= dumpResendQ;
         
-        if ((mctrlSlotTypeIn == Token) | 
-            (mctrlSlotTypeIn == Address & mctrlRingIn[31])) begin
+        if ((mctrlSlotTypeIn == `Token) | 
+            (mctrlSlotTypeIn == `Address & mctrlRingIn[31])) begin
           RingOut[0]     <= 0;
-          SlotTypeOut[0] <= Null;
+          SlotTypeOut[0] <= `Null;
           SourceOut[0]   <= 0;
         end else begin
           RingOut[0]     <= mctrlRingIn;
@@ -173,8 +167,22 @@ module beehiveCoherent;
   always @(posedge clock) 
     if (wrResendQ & resendQfull) $display("*** write to full resendQ fifo!");
 
+  // Capture DMC flushes
+  reg [3:0] receiveDMCData;
+  always @(posedge clock) begin
+    if (reset) receiveDMCData <= 0;
+    else begin
+      if (mctrlSlotTypeIn == `DMCAddress & mctrlRingIn[31:30] == 2'b11)
+        receiveDMCData <= 8;
+      else if (receiveDMCData > 0) 
+        receiveDMCData <= receiveDMCData - 1;
+    end
+  end
+
   // capture memory addresses arriving from the ring
-  wire ma_wr = (mctrlSlotTypeIn == Address);
+  wire ma_wr = 
+    ((mctrlSlotTypeIn == `Address) | 
+     (mctrlSlotTypeIn == `DMCAddress & mctrlRingIn[31:30] == 2'b11));
   wire ma_rd;
   wire ma_empty;
   wire [3:0] ma_dest;
@@ -194,7 +202,7 @@ module beehiveCoherent;
     if (ma_wr & ma_full) $display("*** write to full ma fifo");
 
   // capture write data arriving from the ring
-  wire md_wr = (mctrlSlotTypeIn == WriteData);
+  wire md_wr = ((mctrlSlotTypeIn == `WriteData) | (receiveDMCData > 0));
   wire md_rd;
   wire md_empty;
   wire [31:0] md_data;
@@ -211,6 +219,8 @@ module beehiveCoherent;
   );
   always @(posedge clock) 
     if (md_wr & md_full) $display("*** write to full md fifo");
+  always @(posedge clock) 
+    if (md_rd & md_empty) $display("*** reading from empty md fifo");
 
   // memory controller state machine
   reg [3:0] mem_state;
@@ -263,7 +273,7 @@ module beehiveCoherent;
               mcount <= 0;
             end
           end
-        end else begin
+        end else if (~md_empty) begin
           mem_dir[ma_addr[MBITS - 4:0]] <= 
               (ma_addr[29]) ? MEM_WAITING : MEM_CLEAN;        
 
@@ -281,7 +291,7 @@ module beehiveCoherent;
         if (mcount == 7) mem_state <= readAddress;
         mcount <= mcount + 1;
         
-        mem[rd_addr] <= md_data;
+        mem[rd_addr] <= md_data;        
       end
     endcase    
   end
@@ -307,25 +317,42 @@ module beehiveCoherent;
   end   
 
   always @(negedge clock) if (!reset) begin
-    if (mctrlSlotTypeIn >= `DMCHeader | 
-        mctrlSlotTypeIn == `Address    |
-        mctrlSlotTypeIn == `WriteData) begin
-      //$display("MCTRL Ring: type=%x, src=%x, data=%x",
-      //          mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
-    end 
+//    if (mctrlSlotTypeIn >= `DMCHeader /* | 
+//        mctrlSlotTypeIn == `Address    |
+//        mctrlSlotTypeIn == `WriteData*/) begin
+//      $write("MCTRL Ring: type=%x, src=%x, data=%x ",
+//                mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
+//      $write("receiveDMCData = %x", receiveDMCData);
+//      $display("");
+//    end 
     
-
-//    if (coreBlk[2].riscN.dCacheN.selDCache == 1) begin
+//    if ((coreBlk[2].riscN.dCacheN.selDCacheIO == 1 & 
+//         coreBlk[2].riscN.aq[30:27] == 1) | 
+//        (~coreBlk[2].riscN.dCacheN.Ihit)) begin
 //      $write("cycle=%5d ", cycle_count);
 //      $write("pc=%x ", coreBlk[2].riscN.pc);
-//      $write("AQReadHit=%x ", coreBlk[2].riscN.dCacheN.AQReadHit);
-//      $write("AQWriteHit=%x ", coreBlk[2].riscN.dCacheN.AQWriteHit);
-//      $write("state=%x ", coreBlk[2].riscN.dCacheN.state);
-//      $write("waitReadDataState=%x ", coreBlk[2].riscN.dCacheN.waitReadDataState);
+//      $write("State=%x ", coreBlk[2].riscN.dCacheN.state);
+//      $write("AQ=%x ", coreBlk[2].riscN.dCacheN.aq);
+//      $write("Ihit=%x ", coreBlk[2].riscN.dCacheN.Ihit);
 //      $write("done=%x ", coreBlk[2].riscN.dCacheN.done);
-//      $write("RDreturn=%x, RDdest=%x ", coreBlk[2].riscN.dCacheN.RDreturn,
-//                                        coreBlk[2].riscN.dCacheN.RDdest);
 //      $write("NextCoreRingIn: SourceIn=%x, Type=%x, Ring=%x ", 
+//        coreBlk[3].riscN.SourceIn,
+//        coreBlk[3].riscN.SlotTypeIn,
+//        coreBlk[3].riscN.RingIn);      
+//      $display("");
+//    end    
+
+//    if ((coreBlk[3].riscN.SlotTypeIn == `DMCHeader |
+//         coreBlk[3].riscN.dCacheN.state >= sendDMCHeaderWaitToken)) begin
+//      $write("cycle=%5d ", cycle_count);
+//      $write("pc=%x ", coreBlk[3].riscN.pc);
+//      $write("State=%d ", coreBlk[3].riscN.dCacheN.state);
+//      $write("AQ=%x ", coreBlk[3].riscN.dCacheN.aq);
+//      $write("DMCRingIn=%x ", coreBlk[3].riscN.dCacheN.handleDmcRingIn);
+//      $write("ringLineStatus=%x ", coreBlk[3].riscN.dCacheN.ringLineStatus);
+//      $write("Ihit=%x ", coreBlk[3].riscN.dCacheN.Ihit);
+//      $write("done=%x ", coreBlk[3].riscN.dCacheN.done);
+//      $write("Ring: SourceIn=%x, Type=%x, Ring=%x ", 
 //        coreBlk[3].riscN.SourceIn,
 //        coreBlk[3].riscN.SlotTypeIn,
 //        coreBlk[3].riscN.RingIn);      
