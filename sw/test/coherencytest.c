@@ -23,7 +23,8 @@ CACHELINE union {
   int val;
   char pad[32];
 } aligned_test_val[16];
-char* mem_block;
+
+CACHELINE volatile int* mem_block;
 
 void mc_init(void) 
 {
@@ -111,49 +112,56 @@ void mc_main(void)
   }
   hw_barrier();
   
-/*
   // Test L2 cache simulation
-  if (core_id == 0) {
-    xprintf("[%u]: Testing L2 cache simulation for single core\n", core_id);
+  if (corenum() == 2) {
+    xprintf("[%02u]: Testing L2 cache simulation for single core\n", corenum());
   }
   
   int start = 0, stop = 0;  
-  if (core_id == 0) {
+  if (corenum() == 2) {
     // L2 size is 2^16 * 32 = 64 * 1024 * 32 bytes
-    mem_block = (char*)malloc(2 * 64 * 1024 * 32); 
-    mem_block = (char*)cacheAlign((void*)mem_block);
+    mem_block = (int*)malloc(2 * 64 * 1024 * 8); 
+    mem_block = (int*)cacheAlign((void*)mem_block);
     
     start = *cycleCounter;
     for (unsigned int i = 0; i < TEST_4_ITERATIONS; i++) {
       mem_block[0] = i;
       mem_block[1] = i;
     }
+    unsigned int k = mem_block[0] + mem_block[1] + 
+                     mem_block[128 * 8] + mem_block[64 * 1024 * 8];
     stop = *cycleCounter;
-    xprintf("[%u]: %u L1 hits: %d cycles\n", core_id, TEST_4_ITERATIONS, stop - start);
+    xprintf("[%02u]: %u L1 hits: %d cycles, verify(%u)\n", 
+      corenum(), TEST_4_ITERATIONS, stop - start, k);
     
     start = *cycleCounter;
     for (unsigned int i = 0; i < TEST_4_ITERATIONS; i++) {
       mem_block[0] = i;
-      mem_block[128 * 32] = i;
+      mem_block[128 * 8] = i;
     }
+    k = mem_block[0] + mem_block[1] + 
+        mem_block[128 * 8] + mem_block[64 * 1024 * 8];
     stop = *cycleCounter;
-    xprintf("[%u]: %u L2 hits: %d cycles\n", core_id, TEST_4_ITERATIONS, stop - start);
-
+    xprintf("[%02u]: %u L2 hits: %d cycles, verify(%u)\n", 
+      corenum(), TEST_4_ITERATIONS, stop - start, k);
+    
     start = *cycleCounter;
     for (unsigned int i = 0; i < TEST_4_ITERATIONS; i++) {
       mem_block[0] = i;
-      mem_block[64 * 1024 * 32] = i;
+      mem_block[64 * 1024 * 8] = i;
     }
+    k = mem_block[0] + mem_block[1] + 
+        mem_block[128 * 8] + mem_block[64 * 1024 * 8];
     stop = *cycleCounter;
-    xprintf("[%u]: %u L2 miss: %d cycles\n", core_id, TEST_4_ITERATIONS, stop - start);
+    xprintf("[%02u]: %u L2 miss: %d cycles, verify(%u)\n", 
+      corenum(), TEST_4_ITERATIONS, stop - start, k);
   }
   
   // print cores in order
-  for (unsigned int i = 0; i < ncores; i++) {
-    if (core_id == i) {
-      xprintf("[%u]: all tests done \n", core_id);  
+  for (unsigned int i = 2; i <= nCores(); i++) {
+    if (corenum() == i) {
+      xprintf("[%02u]: all tests done \n", corenum());  
     }
-    barrier();
+    hw_barrier();
   }
-  */
 }

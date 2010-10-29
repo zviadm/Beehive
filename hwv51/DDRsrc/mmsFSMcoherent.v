@@ -49,7 +49,7 @@ module mmsFSMcoherent (
   output reg wrRDtoDC
 );
 
-  parameter DELAY_ON_HIT = 0;
+  parameter DELAY_ON_HIT = 2000;
 
   // we need 2^26 entries, each 2 bits 
   localparam MEM_DIR_PREFIX = {6'b001111};
