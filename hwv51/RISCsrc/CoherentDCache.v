@@ -100,7 +100,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   localparam sendCacheDataWaitToken = 4;
   localparam sendCacheData          = 5;
   localparam sendWA                 = 6;
-
   localparam setup                  = 7;
   localparam ioInvalidate           = 8;
   localparam ioFlush                = 9;
@@ -166,30 +165,28 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     else delayedSelDCache <= done ? 0 : selDCache;
     
   // Logic for DCache
-  wire handleDmcRingIn =
-    (state == idle) & (waitReadDataState == 0) & 
-    (SlotTypeIn == `DMCHeader) & (RingIn[27:24] == whichCore) & 
-    (RingIn[31:28] == DMCCachePush & ringLineStatus != MODIFIED);
-  wire handleRequestQ = 
-    (state == idle) & (~requestQempty) & 
-    (~handleDmcRingIn);
-  wire handleAQ = 
-    (state == idle) & (delayedSelDCache) & (waitReadDataState == 0) & 
-    (~handleDmcRingIn) & (~handleRequestQ);
-  wire handleIMiss = 
-    (state == idle) & (waitReadDataState == 0) & ~Ihit &
-    (~handleDmcRingIn) & (~handleRequestQ) & (~handleAQ);
-  wire resolveDCacheMiss = 
-    (state == idle) & (waitReadDataState == 3) &
-    (~handleDmcRingIn) & (~handleRequestQ) & (~handleAQ) & (~handleIMiss);    
-  wire handleIO = 
-    (state == idle) & (selDCacheIO) &
-    (~handleDmcRingIn) & (~handleRequestQ) & (~handleAQ) & (~handleIMiss) & 
-    (~resolveDCacheMiss);
+  localparam handleNone      = 0;
+  localparam handleDMCRingIn = 1;
+  localparam handleRequestQ  = 2;
+  localparam handleAQ        = 3;
+  localparam handleIMiss     = 4;
+  localparam resolveDMiss    = 5;
+  localparam handleIO        = 6;
   
-  wire AQReadHit = (handleAQ) & (read) & 
+  wire [2:0] select = 
+    (state != idle) ? handleNone :
+    ((SlotTypeIn == `DMCHeader) & (RingIn[27:24] == whichCore) &
+     (waitReadDataState == 0))                  ? handleDMCRingIn :
+    (~requestQempty)                            ? handleRequestQ  :
+    (delayedSelDCache & waitReadDataState == 0) ? handleAQ        :
+    (waitReadDataState == 0 & ~Ihit)            ? handleIMiss     :
+    (waitReadDataState == 3)                    ? resolveDMiss    :
+    (selDCacheIO)                               ? handleIO        :
+                                                  handleNone;
+  
+  wire AQReadHit = (select == handleAQ) & (read) & 
     (requestLineTag == aq[30:10]) & (requestLineStatus != INVALID);
-  wire AQWriteHit = (handleAQ) & (~read) & 
+  wire AQWriteHit = (select == handleAQ) & (~read) & 
     (requestLineTag == aq[30:10]) & (requestLineStatus == MODIFIED);
   // When we have DCache Write Miss but we already have data in SHARED, we do 
   // not request the data from Memory Controller to speed up the process
@@ -197,11 +194,11 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (~read) & (requestLineTag == aq[30:10]) & (requestLineStatus == SHARED);    
 
   // IO Module outputs
-  assign wrq = AQReadHit | (read & resolveDCacheMiss);  
+  assign wrq = AQReadHit | (read & (select == resolveDMiss));
   assign rqDCache = dcacheReadData;
-  assign rwq = AQWriteHit | (~read & resolveDCacheMiss);
+  assign rwq = AQWriteHit | (~read & (select == resolveDMiss));
   assign done = 
-    (AQReadHit | AQWriteHit) | (resolveDCacheMiss) |
+    (AQReadHit | AQWriteHit) | (select == resolveDMiss) |
     ((state == ioInvalidate) & (lineCnt == 0)) | 
     ((state == ioFlush)      & (lineCnt == 0)) |
     ((state == dmcCachePush) & (lineCnt == 0));
@@ -275,44 +272,52 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       preidle: state <= idle;
       
       idle: begin
-        if (handleDmcRingIn) begin
-          if (RingIn[31:28] == DMCCachePush) begin
-            state <= receiveCachePushAddress;
-            dmcAddr <= {RingIn[6:0], 3'b000};
-          end
-        end else if (handleRequestQ) begin
-          if ((requestLineStatus == MODIFIED) & 
-              (requestLineTag == requestQout[27:7])) begin
-            // if some other core requested the line that we have in MODIFIED
-            // state we need to flush it            
-            state <= sendCacheDataWaitToken_;
-            ioFlushing <= 0;
-            flushAddr <= {requestQout[6:0], 3'b000};
-            // requested flush, hence 29th bit is set
-            flushRequest <= {4'b0010, requestQout[27:0]};
-          end
-        end else if (handleAQ) begin
-          if (~AQReadHit & ~AQWriteHit) begin
-            state <= sendRAWaitToken;
-            readRequest <= {1'b0, doNotRequestRD, ~read, 1'b1, aq[30:3]}; 
+        case (select)
+          handleDMCRingIn:
+            if (RingIn[31:28] == DMCCachePush & 
+                ringLineStatus != MODIFIED) begin
+              state <= receiveCachePushAddress;
+              dmcAddr <= {RingIn[6:0], 3'b000};
+            end
             
-            ioFlushing <= 0;
-            doFlush <= (requestLineStatus == MODIFIED);
-            flushAddr <= {aq[9:3], 3'b000};
-            flushRequest <= {4'b0000, requestLineTag, aq[9:3]};
+          handleRequestQ:
+            if ((requestLineStatus == MODIFIED) & 
+                (requestLineTag == requestQout[27:7])) begin
+              // if some other core requested the line that we have in MODIFIED
+              // state we need to flush it            
+              state <= sendCacheDataWaitToken_;
+              ioFlushing <= 0;
+              flushAddr <= {requestQout[6:0], 3'b000};
+              // requested flush, hence 29th bit is set
+              flushRequest <= {4'b0010, requestQout[27:0]};
+            end
+          
+          handleAQ:
+            if (~AQReadHit & ~AQWriteHit) begin
+              state <= sendRAWaitToken;
+              readRequest <= {1'b0, doNotRequestRD, ~read, 1'b1, aq[30:3]}; 
+              
+              ioFlushing <= 0;
+              doFlush <= (requestLineStatus == MODIFIED);
+              flushAddr <= {aq[9:3], 3'b000};
+              flushRequest <= {4'b0000, requestLineTag, aq[9:3]};
+            end
+            
+          handleIMiss: begin
+            state <= sendRAWaitToken;
+            readRequest <= {4'b0001, pcx[30:3]};
+            doFlush <= 0;
           end
-        end else if (handleIMiss) begin
-          state <= sendRAWaitToken;
-          readRequest <= {4'b0001, pcx[30:3]};
-          doFlush <= 0;
-        end else if (resolveDCacheMiss) begin
-          // Nothing to do here
-        end else if (handleIO) begin
-          // Handle DCache IO requests
-          lineCnt <= aq[16:10];
-          if (aq[30:27] == 0) state <= (aq[17] ? ioInvalidate : ioFlush);
-          else if (aq[30:27] == 1) state <= dmcCachePush;
-        end
+          
+          // resolveDMiss: Nothing to do here
+          
+          handleIO: begin
+            // Handle DCache IO requests
+            lineCnt <= aq[16:10];
+            if (aq[30:27] == 0) state <= (aq[17] ? ioInvalidate : ioFlush);
+            else if (aq[30:27] == 1) state <= dmcCachePush;
+          end
+        endcase
       end
       
       sendRAWaitToken: begin
@@ -414,9 +419,9 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       readCnt <= 0;
     end
     else begin
-      if (handleAQ & ~AQReadHit & ~AQWriteHit) begin
+      if ((select == handleAQ) & ~AQReadHit & ~AQWriteHit) begin
         waitReadDataState <= 1;
-      end else if (handleIMiss) begin
+      end else if (select == handleIMiss) begin
         waitReadDataState <= 4;
       end else if (waitReadDataState == 1 & SourceIn == whichCore &
                    SlotTypeIn == `GrantExclusive) begin
@@ -428,7 +433,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
         end
       end else if ((waitReadDataState == 2) | (waitReadDataState == 5)) begin
         waitReadDataState <= waitReadDataState + 1;
-      end else if ((waitReadDataState == 3 & resolveDCacheMiss) | 
+      end else if ((waitReadDataState == 3 & select == resolveDMiss) | 
                    (waitReadDataState == 6)) begin
         waitReadDataState <= 0;
       end
@@ -445,14 +450,14 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   
   // Cache Line that we want Status and Tag for
   wire [6:0] requestLine = 
-    handleRequestQ                     ? requestQout[6:0] :
+    (select == handleRequestQ)         ? requestQout[6:0] :
     (state == setup)                   ? lineCnt[6:0]     :
     (state == receiveCachePushAddress) ? RingIn[6:0]      :
                                          aq[9:3];
                                                        
   wire wrDCacheTag = 
     (state == receiveCachePushAddress) |        
-    (handleAQ & (~AQReadHit & ~AQWriteHit));
+    ((select == handleAQ) & (~AQReadHit & ~AQWriteHit));
   wire [20:0] newTag = 
     (state == receiveCachePushAddress) ? RingIn[27:7] : 
                                          aq[30:10];
@@ -468,18 +473,18 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
 
   wire wrDCacheStatus = 
     (state == setup & whichCore == 4'b1)    |
-    (handleRequestQ)                        |
-    (resolveDCacheMiss & ~read)             |
-    (handleAQ & (~AQReadHit & ~AQWriteHit)) | 
+    (select == handleRequestQ)              |
+    (select == resolveDMiss & ~read)             |
+    ((select == handleAQ) & (~AQReadHit & ~AQWriteHit))     | 
     (state == ioInvalidate & requestLineStatus != MODIFIED) |
     (state == ioFlush & requestLineStatus == MODIFIED)      | 
     (state == dmcCachePush & requestLineStatus == MODIFIED) | 
     (state == receiveCachePushAddress);
   wire [1:0] newStatus = 
     (state == setup)                  ? MODIFIED :
-    (handleRequestQ)                  ? (~requestQout[29] ? SHARED : INVALID) :
-    (resolveDCacheMiss & ~read)       ? MODIFIED : 
-    (handleAQ)                        ? (read ? SHARED : INVALID) : 
+    (select == handleRequestQ)        ? (~requestQout[29] ? SHARED : INVALID) :
+    (select == resolveDMiss & ~read)  ? MODIFIED : 
+    (select == handleAQ)              ? (read ? SHARED : INVALID) : 
     (state == ioInvalidate)           ? INVALID  : 
     (state == ioFlush)                ? SHARED   : 
     (state == dmcCachePush)           ? SHARED   :
@@ -495,7 +500,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     .dpo(ringLineStatus)     // Bus [1 : 0] 
   ); 
   
-  wire rdRequestQ = handleRequestQ;
+  wire rdRequestQ = (select == handleRequestQ);
   // Check incoming AddressRequest-s on the ring and if someone is 
   // requesting a read or exclusive read on an Address that we have in our 
   // cache schedule in Request Queue to deal with it.
@@ -555,8 +560,8 @@ endgenerate
 
 
   wire wrDCache = 
-    AQWriteHit                  | 
-    (~read & resolveDCacheMiss) | 
+    AQWriteHit                       |
+    (~read & select == resolveDMiss) |
     (state == receiveCachePushData);
   wire [9:0] dcacheAddr =
     // on next cycle i am starting flush

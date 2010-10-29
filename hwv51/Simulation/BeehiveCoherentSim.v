@@ -167,7 +167,7 @@ module beehiveCoherent;
   always @(posedge clock) 
     if (wrResendQ & resendQfull) $display("*** write to full resendQ fifo!");
 
-  // Capture DMC flushes
+  // Capture modified DMC addresses
   reg [3:0] receiveDMCData;
   always @(posedge clock) begin
     if (reset) receiveDMCData <= 0;

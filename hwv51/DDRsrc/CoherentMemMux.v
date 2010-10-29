@@ -165,10 +165,27 @@ module CoherentMemMux (
   //Ack display controller's address.
   assign readAck = ~(SlotTypeIn == `Address) & readReq & memOpQempty; 
   
-  // decided what should go into memOpQ, stuff from ring or from DC
-  assign wrMemOpQ = (SlotTypeIn == `Address) | readAck;
-  assign memOpQIn = (SlotTypeIn == `Address) ? 
-    {SourceIn, RingIn} : {4'b0000, {6'b000100, RA}};
+  // Capture modified DMC addresses
+  reg [3:0] receiveDMCData;
+  always @(posedge clock) begin
+    if (reset) receiveDMCData <= 0;
+    else begin
+      if (SlotTypeIn == `DMCAddress & RingIn[31:30] == 2'b11)
+        receiveDMCData <= 8;
+      else if (receiveDMCData > 0) 
+        receiveDMCData <= receiveDMCData - 1;
+    end
+  end
+  
+  // decided what should go into memOpQ, stuff from ring or from DC  
+  assign wrMemOpQ = 
+    (SlotTypeIn == `Address) | 
+    (SlotTypeIn == `DMCAddress & RingIn[31:30] == 2'b11) | 
+    (readAck);
+  assign memOpQIn = 
+    (SlotTypeIn == `Address)    ? {SourceIn, RingIn} : 
+    (SlotTypeIn == `DMCAddress) ? {SourceIn, 4'b0000, RingIn[27:0]} :
+                                  {4'b0000, {6'b000100, RA}};
   
   // write to writeDataQ, also count number of elements in writeDataQ
   always @(posedge clock) begin
@@ -177,7 +194,8 @@ module CoherentMemMux (
       writeDataQelts <= 0;
     end
     else begin
-      if (SlotTypeIn == `WriteData) begin
+      if ((SlotTypeIn == `WriteData) | 
+          (SlotTypeIn == `DMCData & receiveDMCData > 0)) begin
         // get w0, w1, w2 & w3
         if (wcnt == 0) w0 <= RingIn;
         else if (wcnt == 1) w1 <= RingIn;
@@ -187,8 +205,7 @@ module CoherentMemMux (
         wcnt <= wcnt + 1;
       end
 
-      if (wcnt == 3 && (SlotTypeIn == `WriteData)) wrWriteDataQ <= 1;
-      else wrWriteDataQ <= 0;
+      wrWriteDataQ <= (wcnt == 3);
       
       if (wrWriteDataQ && ~rdWriteDataQ) 
         writeDataQelts <= writeDataQelts + 1;

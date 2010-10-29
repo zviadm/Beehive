@@ -49,52 +49,52 @@ module mmsFSMcoherent (
   output reg wrRDtoDC
 );
 
-   parameter DELAY_ON_HIT = 0;
-   
-   // we need 2^26 entries, each 2 bits 
-   localparam MEM_DIR_PREFIX = {6'b001111};
-   localparam MEM_DIR_ENTRY_BITS = 2;
-   
-   localparam MEM_CLEAN = 0;
-   localparam MEM_WAITING = 1;
-   localparam MEM_MODIFIED = 2;
-   
-   // RDs for hit
-   reg [127:0] RDonHit;  
-   reg [3:0] RDdestOnHit;
+  parameter DELAY_ON_HIT = 0;
 
-   // wires from delayers
-   wire rdDelayedRDonHit;
-   wire [31:0] delayedRDonHit;
-   wire [3:0] delayedRDdestOnHit;
-         
-   wire [1:0] memDirEntry;
-   wire readPossible;
-   wire [1:0] newState;
-   wire [127:0] newStateMask, eraseEntryMask, updateDirEntry;
-         
-   // FSM state and next_state
-   reg [3:0] state, next_state;
-   reg doUpdateDirEntry, set_doUpdateDirEntry;
-   
-   // counter for clearing mem directory initially
-   reg [20:0] dirClearLine, set_dirClearLine;
-   
-   //FSM States
-   localparam idle = 0; 
-   localparam handleMemOp = 1;
-   localparam checkDirectoryEntry = 2;
-   localparam returnRDonHit_clearRB = 3;
-   localparam returnRDonHit_1 = 4;
-   localparam returnRDonHit_2 = 5;
-   localparam clearRB = 6;
-   localparam clearRB_updateDirectoryEntry = 7;
-   localparam writeDataToMemory = 8;
-   localparam updateDirectoryEntry_1 = 9;
-   localparam updateDirectoryEntry_2 = 10;
-   localparam skipWrite = 11;
-   localparam returnRDtoDC_1 = 12;
-   localparam returnRDtoDC_2 = 13;
+  // we need 2^26 entries, each 2 bits 
+  localparam MEM_DIR_PREFIX = {6'b001111};
+  localparam MEM_DIR_ENTRY_BITS = 2;
+
+  localparam MEM_CLEAN = 0;
+  localparam MEM_WAITING = 1;
+  localparam MEM_MODIFIED = 2;
+
+  // RDs for hit
+  reg [127:0] RDonHit;  
+  reg [3:0] RDdestOnHit;
+
+  // wires from delayers
+  wire rdDelayedRDonHit;
+  wire [31:0] delayedRDonHit;
+  wire [3:0] delayedRDdestOnHit;
+       
+  wire [1:0] memDirEntry;
+  wire readPossible;
+  wire [1:0] newState;
+  wire [127:0] newStateMask, eraseEntryMask, updateDirEntry;
+       
+  // FSM state and next_state
+  reg [3:0] state, next_state;
+  reg doUpdateDirEntry, set_doUpdateDirEntry;
+
+  // counter for clearing mem directory initially
+  reg [20:0] dirClearLine, set_dirClearLine;
+
+  //FSM States
+  localparam idle = 0; 
+  localparam handleMemOp = 1;
+  localparam checkDirectoryEntry = 2;
+  localparam returnRDonHit_clearRB = 3;
+  localparam returnRDonHit_1 = 4;
+  localparam returnRDonHit_2 = 5;
+  localparam clearRB = 6;
+  localparam clearRB_updateDirectoryEntry = 7;
+  localparam writeDataToMemory = 8;
+  localparam updateDirectoryEntry_1 = 9;
+  localparam updateDirectoryEntry_2 = 10;
+  localparam skipWrite = 11;
+  localparam returnRDtoDC_1 = 12;
+  localparam returnRDtoDC_2 = 13;
    
 //---------------------End of Declarations-----------------
          
