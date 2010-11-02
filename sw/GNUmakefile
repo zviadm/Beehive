@@ -45,6 +45,7 @@ BINS	:= $(O)/hello.img  \
 	$(O)/seqtsp.img        \
 	$(O)/partsp.img        \
 	$(O)/parsum.img        \
+	$(O)/parsum_v2.img     \
 	$(O)/cachepushsim.img
 
 all: xxlibc $(OBJDIRS) $(BINS)
