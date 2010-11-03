@@ -15,7 +15,8 @@ void sum_worker(void);
 typedef struct WorkerState_ {
   int start_index;
   unsigned int partial_sum;
-  char padding[32 - 2 * sizeof(int)];
+  unsigned int run_time;
+  char padding[32 - 3 * sizeof(int)];
 } WorkerState;
 
 volatile WorkerState worker_state[16] CACHELINE;
@@ -25,7 +26,7 @@ volatile unsigned int* numbers CACHELINE;
 const unsigned int kWorkPerCore = 512;
 // Total amount of numbers to sum, should be multiple of kWorkPerCore
 // and greater than nCores() * kWorkPerCore to simplify rest of the code
-const unsigned int kNumbersSize = 512 * 1000;
+const unsigned int kNumbersSize = 512 * 1100;
 
 void mc_init(void) 
 {
@@ -46,6 +47,7 @@ void mc_main(void)
     for (unsigned int i = 2; i <= nCores(); i++) {
       worker_state[i].start_index = -1;
       worker_state[i].partial_sum = 0;
+      worker_state[i].run_time = 0;
     }
   }
   cache_invalidate(0, 127);
@@ -63,6 +65,7 @@ void mc_main(void)
     for (unsigned int i = 2; i <= nCores(); i++) {
       worker_state[i].start_index = -1;
       worker_state[i].partial_sum = 0;
+      worker_state[i].run_time = 0;
     }
   }
   cache_invalidate(0, 127);
@@ -90,7 +93,7 @@ void sum_master(int use_cache_push)
     // prepare numbers to give to next_core
     const unsigned int next_index = nNumbers;
     for (unsigned int k = 0; k < kWorkPerCore; k++) {
-      numbers[nNumbers] = rand();
+      numbers[nNumbers] = nNumbers;
       nNumbers++;
     }
     
@@ -134,6 +137,10 @@ void sum_master(int use_cache_push)
   //free((void*)numbers);
   
   xprintf("\n[%02u]: Done calculating SUM: %u\n", corenum(), sum);
+  for (unsigned int i = 3; i <= nCores(); i++) {
+    xprintf("[%02u]: Core %u time: %u\n", 
+      corenum(), i, worker_state[next_core].run_time);
+  }
   xprintf("[%02u]: Total time: %u\n", corenum(), time_2 - time_0);  
 }
 
@@ -144,14 +151,15 @@ void sum_worker()
     const int start = worker_state[corenum()].start_index;
     if (start == -2) break;
     
+    const unsigned int time_0 = *cycleCounter;
     unsigned int sum = 0;
-    for (unsigned int k = 0; k < 1024; k++) {
-      for (int i = start; i < start + (int)kWorkPerCore; i++) sum += numbers[i];
-    }
+    for (int i = start; i < start + (int)kWorkPerCore; i++) sum += numbers[i];
+    const unsigned int time_1 = *cycleCounter;
+    worker_state[corenum()].run_time += time_1 - time_0;
     //xprintf("[%02u]: Calculated Partial Sum (%d -> %d): %u\n", 
     //  corenum(), start, start + (int)kWorkPerCore, sum);
 
-    worker_state[corenum()].partial_sum = sum / 1024;
+    worker_state[corenum()].partial_sum = sum;
     worker_state[corenum()].start_index = -1;
   }
 }

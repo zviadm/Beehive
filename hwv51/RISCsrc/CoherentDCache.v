@@ -168,10 +168,10 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   
   wire [2:0] select = 
     (state != idle)                             ? handleNone      :
-    ((SlotTypeIn == `DMCHeader) & (RingIn[27:24] == whichCore) &
-     (waitReadDataState == 0))                  ? handleDMCRingIn :
+    (SlotTypeIn == `DMCHeader & 
+     RingIn[27:24] == whichCore)                ? handleDMCRingIn :
     (~requestQempty)                            ? handleRequestQ  :
-    (selDCache & ~done & waitReadDataState == 0)? handleAQ        :
+    (selDCache & waitReadDataState == 0)        ? handleAQ        :
     (waitReadDataState == 0 & ~Ihit)            ? handleIMiss     :
     (waitReadDataState == 3)                    ? resolveDMiss    :
     (selDCacheIO)                               ? handleIO        :
@@ -267,10 +267,14 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       idle: begin
         case (select)
           handleDMCRingIn:
-            if (RingIn[31:28] == DMCCachePush & 
-                ringLineStatus != MODIFIED) begin
-              state <= receiveCachePushAddress;
-              dmcAddr <= {RingIn[6:0], 3'b000};
+            if (RingIn[31:28] == DMCCachePush) begin
+              // perform cache push if line is not in MODFIED state and
+              // we are not in the middle of resolving DCache Miss for it
+              if (ringLineStatus != MODIFIED & (waitReadDataState == 0 | 
+                  waitReadDataState >= 4 | aq[9:3] != RingIn[6:0])) begin
+                state <= receiveCachePushAddress;
+                dmcAddr <= {RingIn[6:0], 3'b000};
+              end
             end
             
           handleRequestQ:
@@ -286,7 +290,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
             end
           
           handleAQ: 
-            state <= readAQ;
+            if (~done) state <= readAQ;
             
           handleIMiss: begin
             state <= sendRAWaitToken;
