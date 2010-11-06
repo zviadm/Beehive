@@ -253,7 +253,7 @@ module CoherentMemMux (
     .full(),
     .empty(writeDataQempty));
 
-  mmsFSMcoherent mmsFSM (
+  mmsFSMcoherentL2 mmsFSM (
     .clock(clock),
     .reset(reset),
     // mem op queue
