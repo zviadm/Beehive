@@ -76,10 +76,6 @@ utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path memOpQ.xco
 utilities_xmdf::xmdfSetData $instance FileSet $fcount type coregen_ip
 incr fcount
 
-utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path memOpQ_upgrade.txt
-utilities_xmdf::xmdfSetData $instance FileSet $fcount type text
-incr fcount
-
 utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path memOpQ_xmdf.tcl
 utilities_xmdf::xmdfSetData $instance FileSet $fcount type AnyView
 incr fcount

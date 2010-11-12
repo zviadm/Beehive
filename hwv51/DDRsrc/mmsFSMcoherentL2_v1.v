@@ -8,7 +8,7 @@
   Created By: Zviad Metreveli
 */
 
-module mmsFSMcoherentL2 (
+module mmsFSMcoherentL2_v1 (
   input clock,
   input reset,
   
@@ -16,6 +16,7 @@ module mmsFSMcoherentL2 (
   input memOpQempty,
   output reg rdMemOp,
   input [3:0] memOpDest,
+  input [3:0] memOpType,
   input [31:0] memOpData,
 
   // mem op write data queue

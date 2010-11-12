@@ -13,5 +13,4 @@ memOpQ.vho
 memOpQ.xco
 memOpQ.xise
 memOpQ_flist.txt
-memOpQ_upgrade.txt
 memOpQ_xmdf.tcl

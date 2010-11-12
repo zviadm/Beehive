@@ -4,3 +4,4 @@ _xmsgs/
 _cg/
 coregen.*
 *.gise
+*.bak

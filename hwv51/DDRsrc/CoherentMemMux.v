@@ -109,9 +109,10 @@ module CoherentMemMux (
   
   // wires to MemOpQ
   wire memOpQempty;
-  wire [35:0] memOpQIn;
+  wire [39:0] memOpQIn;
   wire wrMemOpQ, rdMemOpQ;
   wire [3:0] memOpQdest;
+  wire [3:0] memOpQtype;
   wire [31:0] memOpQout;
   
   // wires to WriteDataQ
@@ -183,9 +184,9 @@ module CoherentMemMux (
     (SlotTypeIn == `DMCAddress & RingIn[31:30] == 2'b11) | 
     (readAck);
   assign memOpQIn = 
-    (SlotTypeIn == `Address)    ? {SourceIn, RingIn} : 
-    (SlotTypeIn == `DMCAddress) ? {SourceIn, 4'b0000, RingIn[27:0]} :
-                                  {4'b0000, {6'b000100, RA}};
+    (SlotTypeIn == `Address)    ? {SourceIn, SlotTypeIn, RingIn} : 
+    (SlotTypeIn == `DMCAddress) ? {SourceIn, `Address, 4'b0000, RingIn[27:0]} :
+                                  {4'b0000, `Address, {6'b000100, RA}};
   
   // write to writeDataQ, also count number of elements in writeDataQ
   always @(posedge clock) begin
@@ -237,7 +238,7 @@ module CoherentMemMux (
     .din(memOpQIn),
     .wr_en(wrMemOpQ),
     .rd_en(rdMemOpQ),
-    .dout({memOpQdest, memOpQout}),
+    .dout({memOpQdest, memOpQtype, memOpQout}),
     .full(),
     .empty(memOpQempty)
   );
@@ -251,7 +252,8 @@ module CoherentMemMux (
     .rd_en(rdWriteDataQ),
     .dout(writeDataQout),
     .full(),
-    .empty(writeDataQempty));
+    .empty(writeDataQempty)
+  );
 
   mmsFSMcoherentL2 mmsFSM (
     .clock(clock),
@@ -259,6 +261,7 @@ module CoherentMemMux (
     // mem op queue
     .memOpQempty(memOpQempty),
     .rdMemOp(rdMemOpQ),
+    .memOpType(memOpQtype),
     .memOpDest(memOpQdest),
     .memOpData(memOpQout),
     // write data queue

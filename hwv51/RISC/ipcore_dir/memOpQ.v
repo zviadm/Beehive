@@ -50,10 +50,10 @@ module memOpQ(
 
 input clk;
 input rst;
-input [35 : 0] din;
+input [39 : 0] din;
 input wr_en;
 input rd_en;
-output [35 : 0] dout;
+output [39 : 0] dout;
 output full;
 output empty;
 
@@ -62,11 +62,11 @@ output empty;
       FIFO_GENERATOR_V6_2 #(
 		.C_COMMON_CLOCK(1),
 		.C_COUNT_TYPE(0),
-		.C_DATA_COUNT_WIDTH(10),
+		.C_DATA_COUNT_WIDTH(11),
 		.C_DEFAULT_VALUE("BlankString"),
-		.C_DIN_WIDTH(36),
+		.C_DIN_WIDTH(40),
 		.C_DOUT_RST_VAL("0"),
-		.C_DOUT_WIDTH(36),
+		.C_DOUT_WIDTH(40),
 		.C_ENABLE_RLOCS(0),
 		.C_ENABLE_RST_SYNC(1),
 		.C_ERROR_INJECTION_TYPE(0),
@@ -97,17 +97,17 @@ output empty;
 		.C_OVERFLOW_LOW(0),
 		.C_PRELOAD_LATENCY(0),
 		.C_PRELOAD_REGS(1),
-		.C_PRIM_FIFO_TYPE("512x36"),
+		.C_PRIM_FIFO_TYPE("1kx36"),
 		.C_PROG_EMPTY_THRESH_ASSERT_VAL(4),
 		.C_PROG_EMPTY_THRESH_NEGATE_VAL(5),
 		.C_PROG_EMPTY_TYPE(0),
-		.C_PROG_FULL_THRESH_ASSERT_VAL(511),
-		.C_PROG_FULL_THRESH_NEGATE_VAL(510),
+		.C_PROG_FULL_THRESH_ASSERT_VAL(1023),
+		.C_PROG_FULL_THRESH_NEGATE_VAL(1022),
 		.C_PROG_FULL_TYPE(0),
-		.C_RD_DATA_COUNT_WIDTH(10),
-		.C_RD_DEPTH(512),
+		.C_RD_DATA_COUNT_WIDTH(11),
+		.C_RD_DEPTH(1024),
 		.C_RD_FREQ(1),
-		.C_RD_PNTR_WIDTH(9),
+		.C_RD_PNTR_WIDTH(10),
 		.C_UNDERFLOW_LOW(0),
 		.C_USE_DOUT_RST(1),
 		.C_USE_ECC(0),
@@ -116,10 +116,10 @@ output empty;
 		.C_USE_FWFT_DATA_COUNT(1),
 		.C_VALID_LOW(0),
 		.C_WR_ACK_LOW(0),
-		.C_WR_DATA_COUNT_WIDTH(10),
-		.C_WR_DEPTH(512),
+		.C_WR_DATA_COUNT_WIDTH(11),
+		.C_WR_DEPTH(1024),
 		.C_WR_FREQ(1),
-		.C_WR_PNTR_WIDTH(9),
+		.C_WR_PNTR_WIDTH(10),
 		.C_WR_RESPONSE_LATENCY(1))
 	inst (
 		.CLK(clk),
