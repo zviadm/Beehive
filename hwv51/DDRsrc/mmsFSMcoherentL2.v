@@ -293,7 +293,7 @@ module mmsFSMcoherentL2 (
         end
         else begin
           currentCore <= currentCore + 1;
-          coresToInvalidate <= {1'b0, coresToInvalidate[11:0]};
+          coresToInvalidate <= {1'b0, coresToInvalidate[12:1]};
         
           if (coresToInvalidate[0] & (currentCore != opCore)) begin
             state <= writeL2Entry;
