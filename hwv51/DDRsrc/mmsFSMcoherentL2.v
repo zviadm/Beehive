@@ -76,7 +76,7 @@ module mmsFSMcoherentL2 (
   reg [4:0] state;
   reg [4:0] next_state;
   reg [4:0] saved_next_state;
-  reg [13:0] coresToInvalidate;
+  reg [12:0] coresToInvalidate;
   reg [3:0] currentCore;
   reg evictL2Entry;
   reg L2CTCMiss;
@@ -280,7 +280,7 @@ module mmsFSMcoherentL2 (
             memDirEntry[15:2] != 0 & memDirEntry[15:2] != (1 << opCore)) begin
           // Invalidate all other L2 entries when setting state to MEM_MODIFIED
           currentCore <= 1;
-          coresToInvalidate <= memDirEntry[15:2];
+          coresToInvalidate <= memDirEntry[15:3];
         
           next_state <= invalidateL2Entries;
           saved_next_state <= next_state;
@@ -293,9 +293,9 @@ module mmsFSMcoherentL2 (
         end
         else begin
           currentCore <= currentCore + 1;
-          coresToInvalidate <= {1'b0, coresToInvalidate[13:1]};
+          coresToInvalidate <= {1'b0, coresToInvalidate[11:0]};
         
-          if (coresToInvalidate[1] & (currentCore != opCore)) begin
+          if (coresToInvalidate[0] & (currentCore != opCore)) begin
             state <= writeL2Entry;
             next_state <= invalidateL2Entries;
             opCore <= currentCore;
@@ -414,7 +414,9 @@ module mmsFSMcoherentL2 (
         end
         else state <= returnRDonHit_1;
       end
+      
       returnRDonHit_1: if (~rbEmpty) state <= returnRDonHit_2;
+      
       returnRDonHit_2: if (~rbEmpty) begin
         if (memOpDest <= `nCores & memOpData[25:23] != MEM_DIR_PREFIX &
             memOpData[29]) begin
