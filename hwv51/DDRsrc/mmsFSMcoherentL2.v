@@ -276,7 +276,8 @@ module mmsFSMcoherentL2 (
         state <= writeMemDirEntry;
         opData <= updateDirEntry;
 
-        if (~opEvictCore & opAddress[29:28] == 2'b11) begin
+        if (~opEvictCore & opAddress[29:28] == 2'b11 & 
+            memDirEntry[15:2] != 0 & memDirEntry[15:2] != (1 << opCore)) begin
           // Invalidate all other L2 entries when setting state to MEM_MODIFIED
           currentCore <= 1;
           coresToInvalidate <= memDirEntry[15:2];
@@ -350,8 +351,7 @@ module mmsFSMcoherentL2 (
         // handle Memory Operation
         if (memOpType == `Address & memOpData[28]) begin
           // Read Address memory operation
-          if (memOpDest == 0 | memOpDest > `nCores | 
-              memOpData[25:23] == MEM_DIR_PREFIX) begin
+          if (memOpDest > `nCores | memOpData[25:23] == MEM_DIR_PREFIX) begin
             state <= returnRDonHit;
           end else begin
             // it is read request or an exclusive read request
@@ -363,7 +363,17 @@ module mmsFSMcoherentL2 (
         end else if (memOpType == `Address & ~memOpData[28]) begin
           // Flush memory operation
           if (memOpData[25:23] == MEM_DIR_PREFIX) state <= skipWrite;                
-          else state <= writeDataToMemory;
+          else begin
+            if (memOpDest <= `nCores) begin
+              state <= updateMemDirEntry;
+              next_state <= writeDataToMemory;
+              opAddress <= memOpData;
+              opCore <= memOpDest;
+              opEvictCore <= 0;
+            end else begin
+              state <= writeDataToMemory;
+            end
+          end
         end
       end
 
@@ -371,20 +381,7 @@ module mmsFSMcoherentL2 (
       checkL2Entry: begin
         if (opData[27:0] == memOpData[27:0] & opData[28]) begin
           // L2 cache hit
-          if (memOpData[29]) begin
-            // if read exclusive need to update memory directory entry to
-            // MODIFIED and invalidate all other l2 cache entries for same 
-            // address
-            state <= updateMemDirEntry;
-            next_state <= returnRDonHit;
-            opAddress <= memOpData;
-            opCore <= memOpDest;
-            opEvictCore <= 0;
-          end else begin
-            // if just read request we do not need to update anything in the
-            // memory directory
-            state <= returnRDonHit;
-          end
+          state <= returnRDonHit;
         end else begin
           // L2 cache Miss
           evictL2Entry <= opData[28];
@@ -405,14 +402,32 @@ module mmsFSMcoherentL2 (
                
       // States for returning ReadData when L2 hit occurs      
       returnRDonHit: begin
-        // if 30th bit of memOpData is set it means, core already has 
-        // latest data just wanted exclusive permision on the data, 
-        // i.e. changing from SHARED to MODIFIED      
-        if (memOpData[30]) state <= handleMemOpDone;
+        if (memOpData[30]) begin
+          // if 30th bit of memOpData is set it means, core already has 
+          // latest data just wanted exclusive permision on the data, 
+          // i.e. changing from SHARED to MODIFIED      
+          state <= updateMemDirEntry;
+          next_state <= handleMemOpDone;
+          opAddress <= memOpData;
+          opCore <= memOpDest;
+          opEvictCore <= 0;
+        end
         else state <= returnRDonHit_1;
-      end      
+      end
       returnRDonHit_1: if (~rbEmpty) state <= returnRDonHit_2;
-      returnRDonHit_2: if (~rbEmpty) state <= handleMemOpDone;
+      returnRDonHit_2: if (~rbEmpty) begin
+        if (memOpDest <= `nCores & memOpData[25:23] != MEM_DIR_PREFIX &
+            memOpData[29]) begin
+          // for read exclusive request need to update memory directory entry
+          state <= updateMemDirEntry;
+          next_state <= handleMemOpDone;
+          opAddress <= memOpData;
+          opCore <= memOpDest;
+          opEvictCore <= 0;
+        end else begin
+          state <= handleMemOpDone;
+        end
+      end
             
       // States for handling L2 miss      
       handleL2Miss: begin
@@ -466,17 +481,7 @@ module mmsFSMcoherentL2 (
       
       // States for handling flushes
       writeDataToMemory: if (~writeDataQempty) state <= writeDataToMemory_1;
-      writeDataToMemory_1: if (~writeDataQempty) begin
-        if (memOpDest <= `nCores) begin
-          state <= updateMemDirEntry;
-          next_state <= handleMemOpDone;
-          opAddress <= memOpData;
-          opCore <= memOpDest;
-          opEvictCore <= 0;
-        end else begin
-          state <= handleMemOpDone;
-        end
-      end
+      writeDataToMemory_1: if (~writeDataQempty) state <= handleMemOpDone;
       
       skipWrite: if (~writeDataQempty) state <= skipWrite_1;
       skipWrite_1: if (~writeDataQempty) state <= handleMemOpDone;
