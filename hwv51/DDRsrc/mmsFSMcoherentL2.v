@@ -73,9 +73,9 @@ module mmsFSMcoherentL2 (
   parameter L2_PREFIX = {MEM_DIR_PREFIX, MEM_DIR_PREFIX};
   
   // FSM state
-  reg [4:0] state;
-  reg [4:0] nextState;
-  reg [4:0] savedNextState;
+  reg [5:0] state;
+  reg [5:0] nextState;
+  reg [5:0] savedNextState;
   reg [12:0] coresToInvalidate;
   reg [3:0] currentCore;
   reg evictL2Entry;
@@ -135,7 +135,13 @@ module mmsFSMcoherentL2 (
   localparam writeDataToMemory_1 = 27;
   localparam skipWrite           = 28;
   localparam skipWrite_1         = 29;
-  localparam handleMemOpDone     = 30;
+  // Handling CachePush
+  localparam handleCachePush     = 30;
+  localparam handleCachePush_1   = 31;
+  localparam handleCachePush_2   = 32;
+  localparam handleCachePush_3   = 33;
+  // Final State
+  localparam handleMemOpDone     = 35;
   
 //---------------------End of Declarations-----------------
 
@@ -374,6 +380,10 @@ module mmsFSMcoherentL2 (
               state <= writeDataToMemory;
             end
           end
+        end else if (memOpType == `DMCCachePush) begin
+          state <= readMemDirEntry;
+          nextState <= handleCachePush;
+          opAddress <= {4'b0, memOpData[27:0]};
         end
       end
 
@@ -487,6 +497,48 @@ module mmsFSMcoherentL2 (
       
       skipWrite: if (~writeDataQempty) state <= skipWrite_1;
       skipWrite_1: if (~writeDataQempty) state <= handleMemOpDone;
+      
+      // States for handling Cache Pushes
+      handleCachePush: begin
+        if (((memDirEntry[15:2] & (1 << memOpDest)) == 0) |
+            ((memDirEntry[15:2] & (1 << memOpData[31:28])) != 0)) begin
+          state <= handleMemOpDone;
+        end else begin
+          state <= updateMemDirEntry_2;
+          nextState <= handleCachePush_1;
+          opCore <= memOpData[31:28];
+          opAddress <= {4'b0001, memOpData[27:0]};
+          opEvictCore <= 0;
+        end
+      end
+      
+      handleCachePush_1: begin
+        state <= readL2Entry;
+        nextState <= handleCachePush_2;
+        opCore <= memOpData[31:28];
+        opAddress <= {4'b0000, memOpData[27:0]};
+      end
+      
+      handleCachePush_2: begin
+        if (~opData[28]) begin
+          state <= (opData[27:0] == memOpData[27:0]) ? handleMemOpDone : 
+                                                       handleCachePush_3;
+        end else begin
+          state <= updateMemDirEntry;
+          nextState <= handleCachePush_3;
+          opCore <= memOpData[31:28];
+          opAddress <= {4'b0000, opData[27:0]};
+          opEvictCore <= 1;
+        end
+      end
+      
+      handleCachePush_3: begin
+        state <= writeL2Entry;
+        nextState <= handleMemOpDone;
+        opCore <= memOpData[31:28];
+        opAddress <= {4'b0000, memOpData[27:0]};
+        opData <= {99'b0, 1'b1, memOpData[27:0]};
+      end
       
       handleMemOpDone: state <= handleMemOp;
     endcase

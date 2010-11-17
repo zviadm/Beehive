@@ -217,6 +217,16 @@ void mc_main(void)
       corenum(), stop - start, k);
   }
   hw_barrier();
+  if (corenum() == 2) {
+    start = *cycleCounter;
+    for (unsigned int i = 0; i < 64 * 1024; i++) {
+      mem_block[i * 8] = i;
+    }
+    unsigned int k = mem_block[0] + mem_block[1] + mem_block[64 * 1024 * 8 - 8];
+    stop = *cycleCounter;
+    xprintf("[%02u]: L2 CTC miss:    %u, verify(%u) cycles\n", 
+      corenum(), stop - start, k);
+  }
   
   // print cores in order
   for (unsigned int i = 2; i <= nCores(); i++) {

@@ -34,8 +34,9 @@ void produceConsume(int use_cache_push) {
   }
   hw_barrier();
   const unsigned int start = *cycleCounter;
-  if (use_cache_push)
-    cache_pushMem(3, &test_numbers, kPushSize * sizeof(int));
+  if ((corenum() == 2) & use_cache_push) {
+    cache_pushMem(3, test_numbers, kPushSize * sizeof(int));
+  }
   hw_barrier();
   if (corenum() == 3) {
     unsigned int k = 0;

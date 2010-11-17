@@ -13,5 +13,4 @@ writeDataQ.vho
 writeDataQ.xco
 writeDataQ.xise
 writeDataQ_flist.txt
-writeDataQ_upgrade.txt
 writeDataQ_xmdf.tcl
