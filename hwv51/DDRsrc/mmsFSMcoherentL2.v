@@ -2,7 +2,7 @@
 /*
 Memory Model FSM.
   This FSM supports coherent DCaches using a directory based cache coherence.
-  Directory is instantiated in RAM. Also simulates coherent L2 cache for each 
+Directory is instantiated in RAM. Also simulates coherent L2 cache for each 
   core. L2 cache data is also located in RAM.
   
   Created By: Zviad Metreveli
@@ -121,27 +121,29 @@ module mmsFSMcoherentL2 (
   localparam handleMemOp         = 14;
   localparam checkL2Entry        = 15;
   localparam returnRDonHit       = 16;
-  localparam returnRDonHit_1     = 17;
-  localparam returnRDonHit_2     = 18;
-  localparam handleL2Miss        = 19;
-  localparam handleL2Miss_1      = 20;
-  localparam handleL2Miss_2      = 21;
-  localparam resendOnMiss        = 22;
-  localparam returnRDonMiss      = 23;
-  localparam returnRDonMiss_1    = 24;
-  localparam returnRDonMiss_2    = 25;
+  localparam returnRDonHit_0     = 17;
+  localparam returnRDonHit_1     = 18;
+  localparam returnRDonHit_2     = 19;
+  localparam returnRDonHit_3     = 20;
+  localparam handleL2Miss        = 21;
+  localparam handleL2Miss_1      = 22;
+  localparam handleL2Miss_2      = 23;
+  localparam resendOnMiss        = 24;
+  localparam returnRDonMiss      = 25;
+  localparam returnRDonMiss_1    = 26;
+  localparam returnRDonMiss_2    = 27;
   // Handling Writes
-  localparam writeDataToMemory   = 26;
-  localparam writeDataToMemory_1 = 27;
-  localparam skipWrite           = 28;
-  localparam skipWrite_1         = 29;
+  localparam writeDataToMemory   = 28;
+  localparam writeDataToMemory_1 = 29;
+  localparam skipWrite           = 30;
+  localparam skipWrite_1         = 31;
   // Handling CachePush
-  localparam handleCachePush     = 30;
-  localparam handleCachePush_1   = 31;
-  localparam handleCachePush_2   = 32;
-  localparam handleCachePush_3   = 33;
+  localparam handleCachePush     = 32;
+  localparam handleCachePush_1   = 33;
+  localparam handleCachePush_2   = 34;
+  localparam handleCachePush_3   = 35;
   // Final State
-  localparam handleMemOpDone     = 35;
+  localparam handleMemOpDone     = 36;
   
 //---------------------End of Declarations-----------------
 
@@ -174,12 +176,14 @@ module mmsFSMcoherentL2 (
     (state == readL2Entry) | (state == writeL2Entry) | 
     (state == readMemDirEntry) | (state == writeMemDirEntry) | 
     (state == returnRDonHit & ~memOpData[30]) | 
+    (state == returnRDonHit_0) |
     (state == returnRDonMiss) |
     (state == writeDataToMemory & ~writeDataQempty);
   
   assign afRead = 
     (state == readL2Entry) | (state == readMemDirEntry) |
-    (state == returnRDonHit & ~memOpData[30]) |
+    (state == returnRDonHit & ~memOpData[30]) | 
+    (state == returnRDonHit_0) |
     (state == returnRDonMiss);
     
   assign afAddress = 
@@ -188,6 +192,8 @@ module mmsFSMcoherentL2 (
     (state == readMemDirEntry | state == writeMemDirEntry)  ?
       {MEM_DIR_PREFIX, opAddress[25:3]}                     :
     (state == returnRDonHit & ~memOpData[30])               ? memOpData[25:0] :
+    (state == returnRDonHit_0)                              ?
+      {MEM_DIR_PREFIX, memOpData[25:3]}                     :    
     (state == returnRDonMiss)                               ? memOpData[25:0] :
     (state == writeDataToMemory)                            ? memOpData[25:0] :
                                                               26'b0;
@@ -421,24 +427,37 @@ module mmsFSMcoherentL2 (
           opAddress <= memOpData;
           opCore <= memOpDest;
           opEvictCore <= 0;
-        end
-        else state <= returnRDonHit_1;
+        end else begin 
+          if (memOpDest <= `nCores & memOpData[29] & 
+            memOpData[25:23] != MEM_DIR_PREFIX) begin
+            // for read exclusive request need to update memory directory entry
+            state <= returnRDonHit_0;
+          end else begin
+            state <= returnRDonHit_1;
+          end
+        end 
       end
+      
+      returnRDonHit_0: state <= returnRDonHit_1;
       
       returnRDonHit_1: if (~rbEmpty) state <= returnRDonHit_2;
       
       returnRDonHit_2: if (~rbEmpty) begin
-        if (memOpDest <= `nCores & memOpData[25:23] != MEM_DIR_PREFIX &
-            memOpData[29]) begin
-          // for read exclusive request need to update memory directory entry
-          state <= updateMemDirEntry;
-          nextState <= handleMemOpDone;
-          opAddress <= memOpData;
-          opCore <= memOpDest;
-          opEvictCore <= 0;
+        if (memOpDest <= `nCores & memOpData[29] &
+            memOpData[25:23] != MEM_DIR_PREFIX) begin
+          state <= readMemDirEntry_;
+          nextState <= returnRDonHit_3;          
         end else begin
           state <= handleMemOpDone;
         end
+      end
+      
+      returnRDonHit_3: begin
+        state <= updateMemDirEntry_2;
+        nextState <= handleMemOpDone;
+        opAddress <= memOpData;
+        opCore <= memOpDest;
+        opEvictCore <= 0;
       end
             
       // States for handling L2 miss      

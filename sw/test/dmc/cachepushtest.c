@@ -37,7 +37,6 @@ void produceConsume(int use_cache_push) {
   if ((corenum() == 2) & use_cache_push) {
     cache_pushMem(3, test_numbers, kPushSize * sizeof(int));
   }
-  hw_barrier();
   if (corenum() == 3) {
     unsigned int k = 0;
     for (unsigned int i = 0; i < kPushSize; i++) k += test_numbers[i];

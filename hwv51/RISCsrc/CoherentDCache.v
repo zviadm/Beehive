@@ -174,6 +174,25 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   wire doNotRequestRD = 
     (~read) & (requestLineTag == aq[30:10]) & (requestLineStatus == SHARED);    
 
+  // If we receive on the ring request for address that we are currently
+  // resolving we should flush it right after resolve
+  reg [1:0] savedStateAfterResolve;
+  wire [1:0] stateAfterResolve = 
+    (SourceIn > 0 & SourceIn <= `nCores & SourceIn != whichCore) ?
+    (
+      ((SlotTypeIn == `Address) & (aq[30:3] == RingIn[27:0]) & RingIn[28] &
+       (RingIn[29] | (savedStateAfterResolve == MODIFIED))) ? 
+        (RingIn[29] ? INVALID : SHARED) :
+      (SlotTypeIn == `DMCCachePush & aq[18:3] == RingIn[15:0] & 
+       aq[30:19] != RingIn[27:16]) ? INVALID : savedStateAfterResolve
+    ) : savedStateAfterResolve;
+  
+  always @(posedge clock)
+    if (reset) savedStateAfterResolve <= 0;
+    else savedStateAfterResolve <= 
+      (state == readAQ & ~read)                  ? MODIFIED             : 
+                                                   stateAfterResolve;
+                                                   
   // IO Module outputs
   assign wrq = AQReadHit | (read & (select == resolveDMiss));
   assign rqDCache = dcacheReadData;
@@ -265,7 +284,14 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
             doFlush <= 0;
           end
           
-          // resolveDMiss: Nothing to do here
+          resolveDMiss: begin
+            if (~read & stateAfterResolve != MODIFIED) begin
+              state <= sendCacheDataWaitToken;
+              flushNextState <= idle;
+              flushAddr <= {aq[9:3], 3'b000};
+              flushRequest <= {4'b0000, aq[30:3]};
+            end
+          end
           
           handleIO: begin
             // Handle DCache IO requests
@@ -355,7 +381,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
           dmcAddr <= dmcAddr + 1;
         end
       end
-                        
+      
       dmcCachePush: begin
         state <= sendDMCCachePushWaitToken;
         flushNextState <= (lineCnt == 0) ? idle : dmcCachePush;
@@ -435,7 +461,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   wire [1:0] newStatus = 
     (state == setup)                  ? MODIFIED :
     (select == handleRequestQ)        ? (~requestQout[29] ? SHARED : INVALID) :
-    (select == resolveDMiss & ~read)  ? MODIFIED : 
+    (select == resolveDMiss & ~read)  ? stateAfterResolve : 
     (state == readAQ)                 ? (read ? SHARED : INVALID) : 
     (state == ioInvalidate)           ? INVALID  : 
     (state == ioFlush)                ? SHARED   : 
@@ -457,13 +483,12 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   wire wrRequestQ = 
     // Handle stuff that comes on the ring from other cores
     // Address Request from some other core, the tag is valid and matches
-    (SlotTypeIn == `Address & SourceIn > 0 & SourceIn <= `nCores & 
-     ringLineTag == RingIn[27:7] &
-     ((RingIn[29:28] == 2'b01 & ringLineStatus == MODIFIED) | 
-      (RingIn[29:28] == 2'b11 & ringLineStatus != INVALID))) | 
-    (SlotTypeIn == `DMCCachePush & SourceIn != whichCore & 
-     ringLineTag[8:0] == RingIn[15:7] & ringLineTag[20:9] != RingIn[27:16] &
-     ringLineStatus != INVALID);
+    (SourceIn > 0 & SourceIn <= `nCores & SourceIn != whichCore) &
+    ((SlotTypeIn == `Address & ringLineTag == RingIn[27:7] &
+      ((RingIn[29:28] == 2'b01 & ringLineStatus == MODIFIED) | 
+       (RingIn[29:28] == 2'b11 & ringLineStatus != INVALID))) | 
+     (SlotTypeIn == `DMCCachePush & ringLineTag[8:0] == RingIn[15:7] & 
+      ringLineTag[20:9] != RingIn[27:16] & ringLineStatus != INVALID));
   wire [31:0] requestQin = 
     (SlotTypeIn == `Address)      ? RingIn :
     (SlotTypeIn == `DMCCachePush) ? {4'b0011, RingIn[27:0]} : 
