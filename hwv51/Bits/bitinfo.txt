@@ -19,3 +19,8 @@
   -- Coherent caches. L1 caches only (no L2 cache simulation), added delay
      of 1000 cycles per L1 cache miss.
   -- DMC Cache Push supported
+  
+*** risc13_coherentL2_v1.bit ***
+  -- New ring architecture
+  -- Coherent caches with L2s
+  -- DMC Cache Push supported
