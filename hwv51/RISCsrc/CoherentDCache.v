@@ -183,8 +183,9 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       ((SlotTypeIn == `Address) & (aq[30:3] == RingIn[27:0]) & RingIn[28] &
        (RingIn[29] | (savedStateAfterResolve == MODIFIED))) ? 
         (RingIn[29] ? INVALID : SHARED) :
-      (SlotTypeIn == `DMCCachePush & aq[18:3] == RingIn[15:0] & 
-       aq[30:19] != RingIn[27:16]) ? INVALID : savedStateAfterResolve
+      (SlotTypeIn == `DMCCachePush & RingIn[31:28] == whichCore &
+       aq[18:3] == RingIn[15:0] & aq[30:19] != RingIn[27:16]) ? 
+        INVALID : savedStateAfterResolve
     ) : savedStateAfterResolve;
   
   always @(posedge clock)
@@ -487,8 +488,9 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     ((SlotTypeIn == `Address & ringLineTag == RingIn[27:7] &
       ((RingIn[29:28] == 2'b01 & ringLineStatus == MODIFIED) | 
        (RingIn[29:28] == 2'b11 & ringLineStatus != INVALID))) | 
-     (SlotTypeIn == `DMCCachePush & ringLineTag[8:0] == RingIn[15:7] & 
-      ringLineTag[20:9] != RingIn[27:16] & ringLineStatus != INVALID));
+     (SlotTypeIn == `DMCCachePush & RingIn[31:28] == whichCore & 
+      ringLineTag[8:0] == RingIn[15:7] & ringLineTag[20:9] != RingIn[27:16] & 
+      ringLineStatus != INVALID));
   wire [31:0] requestQin = 
     (SlotTypeIn == `Address)      ? RingIn :
     (SlotTypeIn == `DMCCachePush) ? {4'b0011, RingIn[27:0]} : 

@@ -1,8 +1,9 @@
 `timescale 1ns / 1ps
 /*
-Memory Model FSM.
+  Memory Model FSM.
+  
   This FSM supports coherent DCaches using a directory based cache coherence.
-Directory is instantiated in RAM. Also simulates coherent L2 cache for each 
+  Directory is instantiated in RAM. Also simulates coherent L2 cache for each   
   core. L2 cache data is also located in RAM.
   
   Created By: Zviad Metreveli
@@ -119,12 +120,11 @@ module mmsFSMcoherentL2 (
   localparam setupL2Cache        = 13;
   // Handling Reads
   localparam handleMemOp         = 14;
-  localparam checkL2Entry        = 15;
-  localparam returnRDonHit       = 16;
-  localparam returnRDonHit_0     = 17;
+  localparam handleReadRequest   = 15;
+  localparam handleReadRequest_1 = 16;
+  localparam returnRDonHit       = 17;
   localparam returnRDonHit_1     = 18;
   localparam returnRDonHit_2     = 19;
-  localparam returnRDonHit_3     = 20;
   localparam handleL2Miss        = 21;
   localparam handleL2Miss_1      = 22;
   localparam handleL2Miss_2      = 23;
@@ -176,14 +176,12 @@ module mmsFSMcoherentL2 (
     (state == readL2Entry) | (state == writeL2Entry) | 
     (state == readMemDirEntry) | (state == writeMemDirEntry) | 
     (state == returnRDonHit & ~memOpData[30]) | 
-    (state == returnRDonHit_0) |
     (state == returnRDonMiss) |
     (state == writeDataToMemory & ~writeDataQempty);
   
   assign afRead = 
     (state == readL2Entry) | (state == readMemDirEntry) |
     (state == returnRDonHit & ~memOpData[30]) | 
-    (state == returnRDonHit_0) |
     (state == returnRDonMiss);
     
   assign afAddress = 
@@ -192,8 +190,6 @@ module mmsFSMcoherentL2 (
     (state == readMemDirEntry | state == writeMemDirEntry)  ?
       {MEM_DIR_PREFIX, opAddress[25:3]}                     :
     (state == returnRDonHit & ~memOpData[30])               ? memOpData[25:0] :
-    (state == returnRDonHit_0)                              ?
-      {MEM_DIR_PREFIX, memOpData[25:3]}                     :    
     (state == returnRDonMiss)                               ? memOpData[25:0] :
     (state == writeDataToMemory)                            ? memOpData[25:0] :
                                                               26'b0;
@@ -367,9 +363,8 @@ module mmsFSMcoherentL2 (
             state <= returnRDonHit;
           end else begin
             // it is read request or an exclusive read request
-            state <= readL2Entry;
-            nextState <= checkL2Entry; 
-            opCore <= memOpDest;
+            state <= readMemDirEntry;
+            nextState <= handleReadRequest; 
             opAddress <= memOpData;
           end
         end else if (memOpType == `Address & ~memOpData[28]) begin
@@ -394,104 +389,61 @@ module mmsFSMcoherentL2 (
       end
 
       // states for handling memory read      
-      checkL2Entry: begin
-        if (opData[27:0] == memOpData[27:0] & opData[28]) begin
+      handleReadRequest: begin
+        if ((memDirEntry[15:2] & (1 << memOpDest)) != 0) begin
           // L2 cache hit
-          state <= returnRDonHit;
-        end else begin
-          // L2 cache Miss
-          evictL2Entry <= opData[28];
-          
-          if (opData[28]) begin
-            // first step is to evict the line from L2 cache
-            state <= updateMemDirEntry;
-            nextState <= handleL2Miss;
-            opAddress <= {4'b0, opData[27:0]};
-            opCore <= memOpDest;
-            opEvictCore <= 1;
-          end
-          else begin
-            state <= handleL2Miss;
-          end
-        end
-      end
-               
-      // States for returning ReadData when L2 hit occurs      
-      returnRDonHit: begin
-        if (memOpData[30]) begin
-          // if 30th bit of memOpData is set it means, core already has 
-          // latest data just wanted exclusive permision on the data, 
-          // i.e. changing from SHARED to MODIFIED      
-          state <= updateMemDirEntry;
-          nextState <= handleMemOpDone;
+          state <= updateMemDirEntry_2;
+          nextState <= returnRDonHit;
           opAddress <= memOpData;
           opCore <= memOpDest;
           opEvictCore <= 0;
-        end else begin 
-          if (memOpDest <= `nCores & memOpData[29] & 
-            memOpData[25:23] != MEM_DIR_PREFIX) begin
-            // for read exclusive request need to update memory directory entry
-            state <= returnRDonHit_0;
-          end else begin
-            state <= returnRDonHit_1;
-          end
-        end 
-      end
-      
-      returnRDonHit_0: state <= returnRDonHit_1;
-      
-      returnRDonHit_1: if (~rbEmpty) state <= returnRDonHit_2;
-      
-      returnRDonHit_2: if (~rbEmpty) begin
-        if (memOpDest <= `nCores & memOpData[29] &
-            memOpData[25:23] != MEM_DIR_PREFIX) begin
-          state <= readMemDirEntry_;
-          nextState <= returnRDonHit_3;          
         end else begin
-          state <= handleMemOpDone;
+          // L2 cache Miss
+          if ((memDirEntry[1:0] == MEM_CLEAN) | 
+              (memDirEntry[1:0] == MEM_WAITING & memOpData[31])) begin
+            // read is possible
+            state <= updateMemDirEntry_2;
+            nextState <= handleL2Miss;
+            opAddress <= memOpData;
+            opCore <= memOpDest;
+            opEvictCore <= 0;
+            
+            L2CTCMiss <= (memDirEntry[15:2] != 0);
+          end
+          else begin
+            state <= resendOnMiss;
+          end
         end
       end
       
-      returnRDonHit_3: begin
-        state <= updateMemDirEntry_2;
-        nextState <= handleMemOpDone;
-        opAddress <= memOpData;
-        opCore <= memOpDest;
-        opEvictCore <= 0;
+      // States for returning ReadData when L2 hit occurs      
+      returnRDonHit: begin
+        // if 30th bit of memOpData is set it means, core already has 
+        // latest data just wanted exclusive permision on the data, 
+        // i.e. changing from SHARED to MODIFIED      
+        state <= (memOpData[30]) ? handleMemOpDone : returnRDonHit_1;
       end
-            
+      returnRDonHit_1: if (~rbEmpty) state <= returnRDonHit_2;      
+      returnRDonHit_2: if (~rbEmpty) state <= handleMemOpDone;
+      
       // States for handling L2 miss      
       handleL2Miss: begin
-        state <= readMemDirEntry;
+        state <= readL2Entry;
         nextState <= handleL2Miss_1;
         opAddress <= memOpData;
+        opCore <= memOpDest;
       end
       
       handleL2Miss_1: begin
-        // check directory entry if read is possible
-        if ((memDirEntry[1:0] == MEM_CLEAN) | 
-            (memDirEntry[1:0] == MEM_WAITING & memOpData[31])) begin
-          // read is possible
-          state <= updateMemDirEntry_2;
+        if (opData[28] & opData[27:0] != memOpData[27:0]) begin
+          // evict L2 entry
+          state <= updateMemDirEntry;
           nextState <= handleL2Miss_2;
-          opAddress <= memOpData;
+          opAddress <= {4'b0, opData[27:0]};
           opCore <= memOpDest;
-          opEvictCore <= 0;
-          
-          L2CTCMiss <= (memDirEntry[15:2] != 0);
-        end
-        else begin
-          // if read is not possible resend the read request
-          // also if we evicted an address make sure to clear the L2 entry
-          if (evictL2Entry) begin
-            state <= writeL2Entry;
-            nextState <= resendOnMiss;
-            opAddress <= memOpData;
-            opCore <= memOpDest;
-            opData <= 128'b0;
-          end else begin
-            state <= resendOnMiss;
-          end
+          opEvictCore <= 1;
+        end else begin
+          state <= handleL2Miss_2;
         end
       end
       

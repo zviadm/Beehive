@@ -15,8 +15,11 @@ void sum_worker(void);
 //volatile DEFINE_PER_CORE(int, start_index);
 //volatile DEFINE_PER_CORE(int, partial_sum);
 
+#define kMaxWorkerCore 7
+
 volatile int start_index[16] CACHELINE;
 volatile int partial_sum[16] CACHELINE;
+volatile int partial_time[16] CACHELINE;
 volatile int* numbers CACHELINE;
 
 void mc_init(void) 
@@ -40,7 +43,7 @@ void mc_main(void)
   
   if (corenum() == 2) {
     sum_master(0);
-  } else {
+  } else if (corenum() <= kMaxWorkerCore) {
     sum_worker();
   }
   hw_barrier();
@@ -57,7 +60,7 @@ void mc_main(void)
   
   if (corenum() == 2) {
     sum_master(1);
-  } else {
+  } else if (corenum() <= kMaxWorkerCore) {
     sum_worker();
   }
 }
@@ -65,7 +68,7 @@ void mc_main(void)
 void sum_master(int use_cache_push) 
 {
   // generate random numbers and start workers
-  const unsigned int kWorkPerCore = 1024; // Size of Cache, for easier test
+  const unsigned int kWorkPerCore = 64; // Size of Cache, for easier test
   numbers = (int*)malloc(kWorkPerCore * (nCores() - 2) * sizeof(int));
     
   xprintf("[%02u]: Starting SUM_MASTER cache_push: %d...\n", 
@@ -74,28 +77,30 @@ void sum_master(int use_cache_push)
   srand(2010);
   const unsigned int time_0 = *cycleCounter;
   unsigned int nNumbers = 0;
-  for (unsigned int i = 3; i <= nCores(); i++) {
+  for (unsigned int i = 3; i <= kMaxWorkerCore; i++) {
     for (unsigned int k = 0; k < kWorkPerCore; k++) {
       numbers[nNumbers] = rand();
       nNumbers++;
     }
     
     // Do Cache Push Here
-    if (use_cache_push) 
+    if (use_cache_push) {
       cache_pushMem(i, 
-                    (void*)&numbers[start_index[i]], 
-                    kWorkPerCore * sizeof(int));
+        (void*)&numbers[(i - 3) * kWorkPerCore], 
+        kWorkPerCore * sizeof(int));
+    }
   }
   
   const unsigned int time_1 = *cycleCounter;
-  for (unsigned int i = 3; i <= nCores() + 1; i++) {
+  for (unsigned int i = 3; i <= kMaxWorkerCore + 1; i++) {
     start_index[i] = (i - 3) * kWorkPerCore;
   }
 
   unsigned int sum = 0;
-  for (unsigned int i = 3; i <= nCores(); i++) {
+  for (unsigned int i = 3; i <= kMaxWorkerCore; i++) {
     while (partial_sum[i] == -1) { icSleep(100); }
     sum += partial_sum[i];
+    partial_time[i] = *cycleCounter;
   }
   const unsigned int time_2 = *cycleCounter;
 
@@ -110,6 +115,10 @@ void sum_master(int use_cache_push)
   xprintf("[%02u]: Done calculating SUM: %u\n", corenum(), sum);
   xprintf("[%02u]: Setup time: %u, Computation time: %u, Total time: %u\n", 
     corenum(), time_1 - time_0, time_2 - time_1, time_2 - time_0);  
+  for (unsigned int i = 3; i <= kMaxWorkerCore; i++) {
+    xprintf("[%02u]: Core %02u Computation time: %u\n", 
+      corenum(), i, partial_time[i] - time_1);  
+  }
 }
 
 void sum_worker() 
@@ -119,7 +128,7 @@ void sum_worker()
   do {
     icSleep(100); // sleep for a bit then retry
     start = start_index[corenum()];
-    end   = start_index[corenum() + 1];      
+    end   = start_index[corenum() + 1];
   }while (start == -1 || end == -1);
   
   unsigned int sum = 0;
