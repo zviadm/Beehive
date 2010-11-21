@@ -22,5 +22,5 @@
   
 *** risc13_coherentL2_v1.bit ***
   -- New ring architecture
-  -- Coherent caches with L2s
+  -- Coherent caches with L2s: 1000 cycle CTC, 2000 cycle memory miss.
   -- DMC Cache Push supported
