@@ -27,7 +27,8 @@ LIBS	:= lib/longjump.S \
 	lib/print.c \
 	lib/msg.c \
 	lib/meters.c \
-	lib/barrier.c
+	lib/barrier.c \
+	lib/mrand.c
 
 LIBOBJS	:= $(LIBS)
 LIBOBJS	:= $(patsubst %.S, $(O)/%.o, $(LIBOBJS))
@@ -46,7 +47,8 @@ BINS	:= $(O)/hello.img  \
 	$(O)/partsp.img        \
 	$(O)/parsum.img        \
 	$(O)/parsum_v2.img     \
-	$(O)/cachepushsim.img
+	$(O)/cachepushsim.img  \
+	$(O)/dhtaccess.img
 
 all: xxlibc $(OBJDIRS) $(BINS)
 

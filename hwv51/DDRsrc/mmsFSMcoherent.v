@@ -49,8 +49,6 @@ module mmsFSMcoherent (
   output reg wrRDtoDC
 );
 
-  parameter DELAY_ON_HIT = 1000;
-
   // we need 2^26 entries, each 2 bits 
   localparam MEM_DIR_PREFIX = {6'b001111};
   localparam MEM_DIR_ENTRY_BITS = 2;
@@ -413,7 +411,7 @@ module mmsFSMcoherent (
     endcase
   end
    
-  RDDelayer #(.DELAY_CYCLES(DELAY_ON_HIT)) DelayOnHit(
+  RDDelayer #(.DELAY_CYCLES(`DelayOnMemoryMiss)) DelayOnHit(
     .clock(clock),
     .reset(reset),
     .RD(RDonHit),

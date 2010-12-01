@@ -167,22 +167,8 @@ module beehiveCoherent;
   always @(posedge clock) 
     if (wrResendQ & resendQfull) $display("*** write to full resendQ fifo!");
 
-  // Capture modified DMC addresses
-  reg [3:0] receiveDMCData;
-  always @(posedge clock) begin
-    if (reset) receiveDMCData <= 0;
-    else begin
-      if (mctrlSlotTypeIn == `DMCAddress & mctrlRingIn[31:30] == 2'b11)
-        receiveDMCData <= 8;
-      else if (receiveDMCData > 0) 
-        receiveDMCData <= receiveDMCData - 1;
-    end
-  end
-
   // capture memory addresses arriving from the ring
-  wire ma_wr = 
-    ((mctrlSlotTypeIn == `Address) | 
-     (mctrlSlotTypeIn == `DMCAddress & mctrlRingIn[31:30] == 2'b11));
+  wire ma_wr = (mctrlSlotTypeIn == `Address);
   wire ma_rd;
   wire ma_empty;
   wire [3:0] ma_dest;
@@ -202,7 +188,7 @@ module beehiveCoherent;
     if (ma_wr & ma_full) $display("*** write to full ma fifo");
 
   // capture write data arriving from the ring
-  wire md_wr = ((mctrlSlotTypeIn == `WriteData) | (receiveDMCData > 0));
+  wire md_wr = (mctrlSlotTypeIn == `WriteData);
   wire md_rd;
   wire md_empty;
   wire [31:0] md_data;
