@@ -191,8 +191,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
 
   // Ring Interactions
   assign dcWantsToken = 
-    (state == sendRAWaitToken)        | 
-    (state == sendCacheDataWaitToken);
+    (state == sendRAWaitToken) | (state == sendCacheDataWaitToken);
     
   wire resendMessage = 
     (SourceIn == whichCore & SlotTypeIn == `Address & RingIn[31]);
