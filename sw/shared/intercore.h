@@ -209,7 +209,11 @@ static void cache_invalidateMem(void *addr, unsigned int len) {
 }
 
 static void cache_pushMem(unsigned int dest, void *addr, unsigned int len) {
+  // No support for cache pushing
 }
+
+// Read Meter value from DCache module
+unsigned int cache_readMeter(unsigned int meter);
 
 ////////////////////////////////////////////////////////////////////////////
 //                                                                        //

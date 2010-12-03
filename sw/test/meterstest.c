@@ -3,9 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "shared/intercore.h"
+#include "lib/barrier.h"
 #include "lib/lib.h"
 #include "lib/meters.h"
+#include "shared/intercore.h"
 
 #define NMEMS    1024
 
@@ -14,28 +15,19 @@ void mc_main(void);
 
 void mc_init(void) 
 {
+  xprintf("[%02u]: mc_init\n", corenum());  
 }
 
 void mc_main(void) 
 {
-  if (corenum() != 2)
-    return;
-
-  __mcalign__ unsigned int *a;
-
-  xprintf("corenum %u\n", corenum());
-
+  xprintf("[%02u]: mc_main\n", corenum());
+  hw_barrier();
+  
+  __mcalign__ unsigned int *a;  
   a = malloc(sizeof(*a) * NMEMS);
-  if (a == NULL)
-    die("malloc");
-  cache_invalidateMem(a, sizeof(*a) * NMEMS);
-
-  meters_start();
+  assert(a != NULL);
   
-  for (unsigned int i = 0; i < NMEMS; i++)
-    a[i] = 0xdeadface;
-
-  cache_flushMem(a, sizeof(*a) * NMEMS);
-  
-  meters_report();
+  dcache_meters_start();  
+  for (unsigned int i = 0; i < NMEMS; i++)  a[i] = 0xdeadface;  
+  dcache_meters_report();
 }

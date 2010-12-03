@@ -273,6 +273,7 @@
   </files>
 
   <properties>
+    <property xil_pn:name="Compile for HDL Debugging" xil_pn:value="false" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Device" xil_pn:value="xc5vlx110t" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Device Family" xil_pn:value="Virtex5" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Enable Message Filtering" xil_pn:value="true" xil_pn:valueState="non-default"/>
@@ -283,7 +284,7 @@
     <property xil_pn:name="Keep Hierarchy" xil_pn:value="Soft" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Optimization Effort" xil_pn:value="High" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Optimization Strategy (Cover Mode)" xil_pn:value="Balanced" xil_pn:valueState="non-default"/>
-    <property xil_pn:name="Other Ngdbuild Command Line Options" xil_pn:value="-bm ../mem/memX13a.bmm" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="Other Ngdbuild Command Line Options" xil_pn:value="-bm ../mem/memX3a.bmm" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Pack I/O Registers/Latches into IOBs" xil_pn:value="For Inputs and Outputs" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Package" xil_pn:value="ff1136" xil_pn:valueState="default"/>
     <property xil_pn:name="Placer Extra Effort Map" xil_pn:value="Normal" xil_pn:valueState="non-default"/>
@@ -299,6 +300,7 @@
     <property xil_pn:name="Top-Level Source Type" xil_pn:value="HDL" xil_pn:valueState="default"/>
     <property xil_pn:name="User Browsed Strategy Files" xil_pn:value="/opt/Xilinx/12.2/ISE_DS/ISE/data/default.xds" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Wait for DLL Lock (Output Events) virtex5" xil_pn:value="6" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="Waveform Database Filename Behavioral" xil_pn:value="" xil_pn:valueState="non-default"/>
     <!--                                                                                  -->
     <!-- The following properties are for internal use only. These should not be modified.-->
     <!--                                                                                  -->

@@ -24,19 +24,6 @@
     1'b0 - 29th bit is always 0 for write address slot type
     [28 bits of Address]
   
-  -- DMC Descriptions
-  There are three different slot types for DMC, DmcHeader, DmcAddress and
-  DmcData
-  
-    -- Ring Data of DmcHeader SlotType
-    [4 bits describing DMC primitive]
-    [4 bits describing DMC destination]    
-      Rest of The 24 bits depends on primitive
-      -- Dmc Cache Push
-      [2 bits cache line state before pushing]
-      2'b00
-      [28 bits of Address]
-  
   Created By: Zviad Metreveli
 */
 
@@ -104,6 +91,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   localparam setup                  = 8;
   localparam ioInvalidate           = 9;
   localparam ioFlush                = 10;
+  localparam ioReadMeter            = 11;
 
   // FSM State
   reg [4:0] state;
@@ -116,13 +104,13 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   reg [6:0] lineCnt;
   
   // This holds state when we are waiting for ReadData
-  // 0 - not waiting for RD
-  // 1 - waiting for RD for DCache
-  // 2 - waste cycle after DMiss
-  // 3 - update tag & status for DCache
-  // 4 - waiting for RD for ICache 
-  // 5, 6 - waste two cycles after resolving ICache miss
-  // this probably can be changed so those 2 cycles are not wasted
+  //    0 - not waiting for RD
+  //    1 - waiting for RD for DCache
+  //    2 - waste cycle after DMiss
+  //    3 - update tag & status for DCache
+  //    4 - waiting for RD for ICache 
+  //    5, 6 - waste two cycles after resolving ICache miss this probably 
+  //           can be changed so those 2 cycles are not wasted
   reg [2:0] waitReadDataState;
   
   // Wires from request queue
@@ -142,6 +130,16 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   wire [9:0] Iaddr;
   reg writeItag;
   wire [20:0] Itag;
+  
+  // DCache Meters. 16 32-bit counters.
+  //    0 - # of Read Misses
+  //    1 - # of Write Misses
+  //    2 - # of Reads
+  //    3 - # of Writes
+  (* ram_style = "distributed" *)
+  reg [31:0] meters[15:0];
+  integer i;
+  initial for (i = 0; i < 16; i = i + 1) meters[i] = 0;
   // ------------------END OF DECLARATIONS---------------------------
     
   // Logic for DCache
@@ -171,13 +169,17 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (~read) & (requestLineTag == aq[30:10]) & (requestLineStatus == SHARED);    
 
   // IO Module outputs
-  assign wrq = AQReadHit | (read & (select == resolveDMiss));
-  assign rqDCache = dcacheReadData;
-  assign rwq = AQWriteHit | (~read & (select == resolveDMiss));
+  assign wrq = 
+    AQReadHit | (read & (select == resolveDMiss)) | (state == ioReadMeter);
+  assign rqDCache = 
+    (state == ioReadMeter) ? meters[aq[6:3]] : dcacheReadData;
+  assign rwq = 
+    AQWriteHit | (~read & (select == resolveDMiss));
   assign done = 
-    (AQReadHit | AQWriteHit) | (select == resolveDMiss) |
+    (AQReadHit | AQWriteHit) | (select == resolveDMiss) | 
     ((state == ioInvalidate) & (lineCnt == 0)) | 
-    ((state == ioFlush)      & (lineCnt == 0));
+    ((state == ioFlush)      & (lineCnt == 0)) |
+    (state == ioReadMeter);
     
   assign decLineAddr = 
     (lineCnt > 0) & (state == ioInvalidate | state == ioFlush);
@@ -188,6 +190,19 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   wire preWriteItag = 
     (waitReadDataState == 4) & (readCnt == 7) & (RDdest == whichCore);
   always @(posedge clock) writeItag <= preWriteItag;
+
+  // Logic for DCache meters
+  always @(posedge clock) if (!reset) begin
+    if (state == readAQ) begin
+      // Read/Write Miss
+      if (read & ~AQReadHit) meters[0] <= meters[0] + 1;
+      else if (~read & ~AQWriteHit) meters[1] <= meters[1] + 1;
+      
+      // Read/Write Total count
+      if (read) meters[2] <= meters[2] + 1;
+      else meters[3] <= meters[3] + 1;
+    end    
+  end
 
   // Ring Interactions
   assign dcWantsToken = 
@@ -258,8 +273,14 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
           
           handleIO: begin
             // Handle DCache IO requests
-            lineCnt <= aq[16:10];
-            state <= (aq[17] ? ioInvalidate : ioFlush);
+            if (aq[30:27] == 4'h0) begin
+              // flush/invalidate
+              state <= (aq[17] ? ioInvalidate : ioFlush);
+              lineCnt <= aq[16:10];
+            end else if (aq[30:27] == 7) begin
+              // Return DCache meter value
+              state <= ioReadMeter;              
+            end
           end
         endcase
       end
@@ -331,7 +352,9 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
           state <= idle;
         end
         lineCnt <= lineCnt - 1;          
-      end      
+      end
+      
+      ioReadMeter: state <= idle;
     endcase
   end
   

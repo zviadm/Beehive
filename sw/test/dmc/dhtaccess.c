@@ -59,7 +59,7 @@ void access_test(int dht_size, int iterations)
   for (int i = 0; i < iterations; i++) {
     const int k = mrand() & (dht_size - 1);
     if (test_numbers[k] != k) {
-      xprintf("[%02u]: fail, test_numbers[%d] == %d\n", 
+      die("[%02u]: fail, test_numbers[%d] == %d\n", 
         corenum(), k, test_numbers[k]);
     }
   }
@@ -122,7 +122,7 @@ void access_test_with_messaging(int dht_size, int iterations)
     };    
     
     if (value != k) {
-      xprintf("[%02u]: fail, test_numbers[%d] == %d\n", corenum(), k, value);
+      die("[%02u]: fail, test_numbers[%d] == %d\n", corenum(), k, value);
     }
   }
   
