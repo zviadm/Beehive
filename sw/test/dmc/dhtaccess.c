@@ -92,7 +92,6 @@ void access_test_with_messaging(int dht_size, int iterations)
 
   dcache_meters_start();
   hw_barrier();
-  //unsigned int value_requests = 0;
   const unsigned int start_time = *cycleCounter;
   const unsigned int data_per_core = (dht_size >> 3) / (nCores() - 1);
   
@@ -105,33 +104,27 @@ void access_test_with_messaging(int dht_size, int iterations)
     unsigned int owner_core = ((k >> 3) / data_per_core) + 2;
     if (owner_core > nCores()) owner_core = nCores();
     
-    int value;
+    int value = -1;
     if (owner_core == corenum()) {
       value = test_numbers[k];
     } else {
       message_send(owner_core, msgTypeRequestValue, (IntercoreMessage*) &k, 1);
-      while (1) {
-        while ((msg_status = message_recv(&msg)) == 0) { };
-        if (message_type(msg_status) == msgTypeReturnValue) {
-          value = msg[0];
-          break;
-        } else if (message_type(msg_status) == msgTypeRequestValue) {
-          //value_requests++;
-          message_send(message_srce(msg_status), msgTypeReturnValue, 
-            (IntercoreMessage*) &test_numbers[msg[0]], 1);
-        } else {
-          assert(0); // fail, unknown message type received
-        }
-      }
     }
     
-    // Handle All Request messages
-    while ((msg_status = message_recv(&msg)) != 0) { 
-      assert(message_type(msg_status) == msgTypeRequestValue);
-      //value_requests++;
-      message_send(message_srce(msg_status), msgTypeReturnValue, 
-        (IntercoreMessage*) &test_numbers[msg[0]], 1);
-    };    
+    // Handle All message requests and wait for "value"
+    while (((msg_status = message_recv(&msg)) != 0) || (value == -1)) { 
+      if (msg_status == 0) continue;
+      
+      if (message_type(msg_status) == msgTypeReturnValue) {
+        value = msg[0];
+      }else if (message_type(msg_status) == msgTypeRequestValue) {
+        message_send(message_srce(msg_status), msgTypeReturnValue, 
+          (IntercoreMessage*) &test_numbers[msg[0]], 1);
+      }else {
+        die("[%02u]: Invalid message_type: %u received\n", 
+          corenum(), message_type(msg_status));
+      }
+    };
     
     if (value != k) {
       die("[%02u]: fail, test_numbers[%d] == %d\n", corenum(), k, value);
@@ -141,10 +134,10 @@ void access_test_with_messaging(int dht_size, int iterations)
   icSema_P(sem_done);
   done++;
   icSema_V(sem_done);
+  
   while (done < nCores() - 1) {
     while ((msg_status = message_recv(&msg)) != 0) { 
       assert(message_type(msg_status) == msgTypeRequestValue);
-      //value_requests++;
       message_send(message_srce(msg_status), msgTypeReturnValue, 
         (IntercoreMessage*) &test_numbers[msg[0]], 1);
     }
