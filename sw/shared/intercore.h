@@ -70,7 +70,7 @@ static void releaseRS232() {
 typedef unsigned int IntercoreMessage[63];
 
 void message_send(unsigned int dest, unsigned int type,
-      IntercoreMessage *buf, unsigned int len);
+  IntercoreMessage *buf, unsigned int len);
 // Send a message to core number "dest", using "len" words at "buf".
 //
 // Note that message lengths are measured in words, not bytes.
