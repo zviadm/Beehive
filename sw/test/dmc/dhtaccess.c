@@ -5,6 +5,7 @@
 
 #include "lib/barrier.h"
 #include "lib/lib.h"
+#include "lib/meters.h"
 #include "lib/mrand.h"
 #include "lib/msg.h"
 #include "shared/intercore.h"
@@ -39,21 +40,29 @@ void mc_main(void)
     }
   }
   msrand(2000 + corenum());
+  
+  if (corenum() == 2) 
+    xprintf("[%02u]: Access Test\n\n", corenum());    
   access_test(1 << 10, 100000);
   access_test(1 << 11, 100000);
   access_test(1 << 12, 100000);
   access_test(1 << 13, 100000);
   access_test(1 << 14, 100000);
+
+  if (corenum() == 2) 
+    xprintf("[%02u]: Access Test with Messaging\n\n", corenum());    
   access_test_with_messaging(1 << 10, 100000);
   access_test_with_messaging(1 << 11, 100000);
   access_test_with_messaging(1 << 12, 100000);
   access_test_with_messaging(1 << 13, 100000);
   access_test_with_messaging(1 << 14, 100000);
+  
   xprintf("[%02u]: Done\n", corenum());  
 }
 
 void access_test(int dht_size, int iterations) 
 {
+  dcache_meters_start();
   hw_barrier();
   const unsigned int start_time = *cycleCounter;
   for (int i = 0; i < iterations; i++) {
@@ -65,12 +74,14 @@ void access_test(int dht_size, int iterations)
   }
   hw_barrier();
   const unsigned int end_time = *cycleCounter;
+  dcache_meters_report();
+  hw_barrier();
   if (corenum() == 2) {
-    xprintf("[%02u]: dht_size: %d, iterations: %d, run time: %d, time per iteration: %d\n",
-      corenum(), dht_size, iterations, 
-      end_time - start_time, (end_time - start_time) / iterations);
+    xprintf("[%02u]: dht_size: %d, iterations: %d, "
+            "run time: %d, time per iteration: %d\n\n",
+            corenum(), dht_size, iterations, 
+            end_time - start_time, (end_time - start_time) / iterations);
   }
-  xprintf("[%02u]: msg_recv: %u\n", corenum(), 5/*value_requests*/);
 }
 
 void access_test_with_messaging(int dht_size, int iterations) 
@@ -79,6 +90,7 @@ void access_test_with_messaging(int dht_size, int iterations)
     done = 0;
   }
 
+  dcache_meters_start();
   hw_barrier();
   //unsigned int value_requests = 0;
   const unsigned int start_time = *cycleCounter;
@@ -140,10 +152,12 @@ void access_test_with_messaging(int dht_size, int iterations)
   
   hw_barrier();
   const unsigned int end_time = *cycleCounter;
+  dcache_meters_report();
+  hw_barrier();
   if (corenum() == 2) {
-    xprintf("[%02u]: MSGing dht_size: %d, iterations: %d, run time: %d, time per iteration: %d\n",
-      corenum(), dht_size, iterations, 
-      end_time - start_time, (end_time - start_time) / iterations);
+    xprintf("[%02u]: dht_size: %d, iterations: %d, "
+            "run time: %d, time per iteration: %d\n\n",
+            corenum(), dht_size, iterations, 
+            end_time - start_time, (end_time - start_time) / iterations);
   }  
-  xprintf("[%02u]: msg_recv: %u\n", corenum(), 5/*value_requests*/);
 }

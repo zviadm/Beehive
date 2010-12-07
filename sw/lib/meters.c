@@ -45,8 +45,11 @@ void dcache_meters_report()
   // compute the delta for each meter
   for (int i = 0; i < NDCACHE_METERS; i++) {
     delta[i] = cache_readMeter(i) - dcache_meters[corenum()].meter[i];
-    xprintf("%u\n", cache_readMeter(i));
   }
-  xprintf("[%02u]: DCache Meters (Miss/Total) - Read: %u/%u, Write %u/%u \n",
-    corenum(), delta[0], delta[2], delta[1], delta[3]);
+  xprintf("[%02u]: DCache miss rates - "
+          "Read: %u/%u (%u%%), Write %u/%u (%u%%), IMiss %u \n",
+    corenum(), 
+    delta[0], delta[2], delta[0] * 100 / delta[2], 
+    delta[1], delta[3], delta[1] * 100 / delta[3],
+    delta[4]);
 }

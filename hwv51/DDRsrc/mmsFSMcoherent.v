@@ -57,15 +57,6 @@ module mmsFSMcoherent (
   localparam MEM_WAITING = 1;
   localparam MEM_MODIFIED = 2;
 
-  // RDs for hit
-  reg [127:0] RDonHit;  
-  reg [3:0] RDdestOnHit;
-
-  // wires from delayers
-  wire rdDelayedRDonHit;
-  wire [31:0] delayedRDonHit;
-  wire [3:0] delayedRDdestOnHit;
-       
   wire [1:0] memDirEntry;
   wire readPossible;
   wire [1:0] newState;
@@ -79,20 +70,22 @@ module mmsFSMcoherent (
   reg [20:0] dirClearLine, set_dirClearLine;
 
   //FSM States
-  localparam idle = 0; 
-  localparam handleMemOp = 1;
-  localparam checkDirectoryEntry = 2;
-  localparam returnRDonHit_clearRB = 3;
-  localparam returnRDonHit_1 = 4;
-  localparam returnRDonHit_2 = 5;
-  localparam clearRB = 6;
-  localparam clearRB_updateDirectoryEntry = 7;
-  localparam writeDataToMemory = 8;
-  localparam updateDirectoryEntry_1 = 9;
-  localparam updateDirectoryEntry_2 = 10;
-  localparam skipWrite = 11;
-  localparam returnRDtoDC_1 = 12;
-  localparam returnRDtoDC_2 = 13;
+  localparam idle                         = 0; 
+  localparam handleMemOp                  = 1;
+  localparam returnRD_1                   = 2;
+  localparam returnRD_2                   = 3;
+  localparam checkDirectoryEntry          = 4;
+  localparam returnRDonMiss_clearRB       = 5;
+  localparam returnRDonMiss_1             = 6;
+  localparam returnRDonMiss_2             = 7;
+  localparam clearRB                      = 8;
+  localparam clearRB_updateDirectoryEntry = 9;
+  localparam writeDataToMemory            = 10;
+  localparam updateDirectoryEntry_1       = 11;
+  localparam updateDirectoryEntry_2       = 12;
+  localparam skipWrite                    = 13;
+  localparam returnRDtoDC_1               = 14;
+  localparam returnRDtoDC_2               = 15;
    
 //---------------------End of Declarations-----------------
          
@@ -153,11 +146,7 @@ module mmsFSMcoherent (
     rdRB = 0;
     wrWB = 0;
     writeData = 0;
-     
-    // RD on hit
-    RDdestOnHit = 0;
-    RDonHit = 0;
-      
+    
     // RD to Display Controller
     wrRDtoDC = 0;
     RDtoDC = 0;
@@ -198,20 +187,22 @@ module mmsFSMcoherent (
             afAddress = memOpData[25:0];
           end
           else begin
-            if (memOpData[28]) begin                     
-              if (memOpDest <= `nCores && 
-                  memOpData[25:20] != MEM_DIR_PREFIX) begin
+            if (memOpData[28]) begin            
+              if ((memOpDest > `nCores) | (memOpData[30] & ~memOpData[29]) |
+                  (memOpData[25:20] == MEM_DIR_PREFIX)) begin
+                // Reads made by non application cores, reads made by ICache 
+                // and reads made on directory addresses, do not go through 
+                // memory directory
+                next_state = returnRD_1;
+                wrAF = 1;
+                afRead = 1;
+                afAddress = memOpData[25:0];
+              end else begin
                 // it is read or an exclusive read request
                 next_state = checkDirectoryEntry; 
                 wrAF = 1;
                 afRead = 1;
                 afAddress = {MEM_DIR_PREFIX, memOpData[25:6]};
-              end
-              else begin
-                next_state = returnRDonHit_1;
-                wrAF = 1;
-                afRead = 1;
-                afAddress = memOpData[25:0];
               end
             end
             else if (~writeDataQempty) begin   
@@ -241,6 +232,21 @@ module mmsFSMcoherent (
         end
       end
 
+      returnRD_1: begin
+        if (~rbEmpty) begin
+          rdRB = 1;
+          next_state = returnRD_2;             
+        end
+      end
+       
+      returnRD_2: begin
+        if (~rbEmpty) begin
+          rdRB = 1;
+          next_state = handleMemOp;
+          rdMemOp = 1;
+        end
+      end
+
       // states for handling memory read
       checkDirectoryEntry: begin
         if (~rbEmpty) begin
@@ -248,7 +254,7 @@ module mmsFSMcoherent (
         
           // check directory entry
           if (readPossible) begin
-            next_state = returnRDonHit_clearRB;
+            next_state = returnRDonMiss_clearRB;
             if (~memOpData[30]) begin
               // ask ddr to read value from memory
               wrAF = 1;
@@ -292,10 +298,10 @@ module mmsFSMcoherent (
       end
                 
       // States for Outputing RDonHit
-      returnRDonHit_clearRB: begin
+      returnRDonMiss_clearRB: begin
         if (~rbEmpty) begin
           rdRB = 1;
-          if (~memOpData[30]) next_state = returnRDonHit_1;
+          if (~memOpData[30]) next_state = returnRDonMiss_1;
           else begin
             next_state = handleMemOp;
             rdMemOp = 1;
@@ -313,24 +319,18 @@ module mmsFSMcoherent (
         end
       end
        
-      returnRDonHit_1: begin
+      returnRDonMiss_1: begin
         if (~rbEmpty) begin
           rdRB = 1;
-          next_state = returnRDonHit_2;
-             
-          RDonHit = readData;
-          RDdestOnHit = memOpDest;
+          next_state = returnRDonMiss_2;             
         end
       end
        
-      returnRDonHit_2: begin
+      returnRDonMiss_2: begin
         if (~rbEmpty) begin
           rdRB = 1;
           next_state = handleMemOp;
           rdMemOp = 1;
-             
-          RDonHit = readData;
-          RDdestOnHit = memOpDest;
         end
       end
                 
@@ -411,18 +411,45 @@ module mmsFSMcoherent (
     endcase
   end
    
-  RDDelayer #(.DELAY_CYCLES(`DelayOnMemoryMiss)) DelayOnHit(
+  wire rdDelayedRD;
+  wire [31:0] delayedRD;
+  wire [3:0] delayedRDdest;
+  wire [3:0] RDdestNoDelay = 
+    ((~rbEmpty) & 
+     (state == returnRD_1 | state == returnRD_2)) ? memOpDest : 0;
+  RDDelayer #(.DELAY_CYCLES(0)) NoDelay(
     .clock(clock),
     .reset(reset),
-    .RD(RDonHit),
-    .dest(RDdestOnHit),
-    .rdDelayedRD(rdDelayedRDonHit),
-    .delayedRD(delayedRDonHit),
-    .delayedDest(delayedRDdestOnHit)
+    .RD(readData),
+    .dest(RDdestNoDelay),
+    .rdDelayedRD(rdDelayedRD),
+    .delayedRD(delayedRD),
+    .delayedDest(delayedRDdest)
   );
 
-  // Output RDreturn and RDdest.
-  assign rdDelayedRDonHit = (delayedRDdestOnHit != 0);
-  assign RDreturn = delayedRDonHit;
-  assign RDdest = delayedRDdestOnHit;
+  wire rdDelayedRDonMiss;
+  wire [31:0] delayedRDonMiss;
+  wire [3:0] delayedRDdestOnMiss;
+  wire [3:0] RDdestOnMiss = 
+    ((~rbEmpty) & 
+     (state == returnRDonMiss_1 | state == returnRDonMiss_2)) ? memOpDest : 0;
+  RDDelayer #(.DELAY_CYCLES(`DelayOnMemoryMiss)) DelayOnMiss(
+    .clock(clock),
+    .reset(reset),
+    .RD(readData),
+    .dest(RDdestOnMiss),
+    .rdDelayedRD(rdDelayedRDonMiss),
+    .delayedRD(delayedRDonMiss),
+    .delayedDest(delayedRDdestOnMiss)
+  );
+
+  // Output RDdest and RDreturn.
+  assign rdDelayedRD = (delayedRDdest != 0);
+  assign rdDelayedRDonMiss = ~rdDelayedRD & (delayedRDdestOnMiss != 0);
+                                      
+  assign RDdest  = rdDelayedRD       ? delayedRDdest       : 
+                   rdDelayedRDonMiss ? delayedRDdestOnMiss : 4'b0;
+                   
+  assign RDreturn = rdDelayedRD       ? delayedRD       : 
+                    rdDelayedRDonMiss ? delayedRDonMiss : 32'b0;
 endmodule

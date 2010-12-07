@@ -201,7 +201,11 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       // Read/Write Total count
       if (read) meters[2] <= meters[2] + 1;
       else meters[3] <= meters[3] + 1;
-    end    
+    end
+    
+    // ICache meters
+    if (select == handleIMiss) meters[4] <= meters[4] + 1;
+    if (Ihit & ~stall) meters[5] <= meters[5] + 1;
   end
 
   // Ring Interactions
@@ -265,7 +269,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
             
           handleIMiss: begin
             state <= sendRAWaitToken;
-            readRequest <= {4'b0001, pcx[30:3]};
+            readRequest <= {4'b0101, pcx[30:3]};
             doFlush <= 0;
           end
           
