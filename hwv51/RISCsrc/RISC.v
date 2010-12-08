@@ -279,7 +279,7 @@ and may be instantiated several times on a single chip.
     
     //Signals for ICache operation
     .pcMux(pcMux[8:0]),
-    .pcx(pcx),
+    .pcx(pcx[30:3]),
     .stall(stall),
     .instx(instx),
     .Ihit(Ihit),

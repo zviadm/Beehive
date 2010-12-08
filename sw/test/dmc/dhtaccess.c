@@ -13,8 +13,9 @@
 void mc_init(void);
 void mc_main(void);
 
-void access_test(int dht_size, int iterations);
-void access_test_with_messaging(int dht_size, int iterations);
+void AccessTest(int dht_size, int iterations);
+void AccessTestWithMessaging(int dht_size, int iterations);
+unsigned int GetOwnerCore(unsigned int index, unsigned int data_per_core);
 
 const unsigned int msgTypeRequestValue = msgTypeDefault + 1;
 const unsigned int msgTypeReturnValue  = msgTypeDefault + 2;
@@ -43,24 +44,24 @@ void mc_main(void)
   
   if (corenum() == 2) 
     xprintf("[%02u]: Access Test\n\n", corenum());    
-  access_test(1 << 10, 100000);
-  access_test(1 << 11, 100000);
-  access_test(1 << 12, 100000);
-  access_test(1 << 13, 100000);
-  access_test(1 << 14, 100000);
+  AccessTest(1 << 10, 100000);
+  AccessTest(1 << 11, 100000);
+  AccessTest(1 << 12, 100000);
+  AccessTest(1 << 13, 100000);
+  AccessTest(1 << 14, 100000);
 
   if (corenum() == 2) 
     xprintf("[%02u]: Access Test with Messaging\n\n", corenum());    
-  access_test_with_messaging(1 << 10, 100000);
-  access_test_with_messaging(1 << 11, 100000);
-  access_test_with_messaging(1 << 12, 100000);
-  access_test_with_messaging(1 << 13, 100000);
-  access_test_with_messaging(1 << 14, 100000);
+  AccessTestWithMessaging(1 << 10, 100000);
+  AccessTestWithMessaging(1 << 11, 100000);
+  AccessTestWithMessaging(1 << 12, 100000);
+  AccessTestWithMessaging(1 << 13, 100000);
+  AccessTestWithMessaging(1 << 14, 100000);
   
   xprintf("[%02u]: Done\n", corenum());  
 }
 
-void access_test(int dht_size, int iterations) 
+void AccessTest(int dht_size, int iterations) 
 {
   dcache_meters_start();
   hw_barrier();
@@ -84,7 +85,28 @@ void access_test(int dht_size, int iterations)
   }
 }
 
-void access_test_with_messaging(int dht_size, int iterations) 
+inline unsigned int GetOwnerCore(unsigned int index, unsigned int data_per_core) {
+  unsigned int k = index >> 3;
+  unsigned int owner_core = 0;
+  if (k >= (data_per_core << 3)) {
+    k -= (data_per_core << 3);
+    owner_core += 8;
+  }
+  if (k >= (data_per_core << 2)) {
+    k -= (data_per_core << 2);
+    owner_core += 4;
+  }
+  if (k >= (data_per_core << 1)) {
+    k -= (data_per_core << 1);
+    owner_core += 2;
+  }
+  if (k >= data_per_core) owner_core += 1;
+  
+  if (owner_core + 2 <= nCores()) return owner_core + 2;
+  else return nCores();
+}
+
+void AccessTestWithMessaging(int dht_size, int iterations) 
 {
   if (corenum() == 2) {
     done = 0;
@@ -101,9 +123,8 @@ void access_test_with_messaging(int dht_size, int iterations)
     const int k = mrand() & (dht_size - 1);
     
     // Get the value of index "k" from DHT table
-    unsigned int owner_core = ((k >> 3) / data_per_core) + 2;
-    if (owner_core > nCores()) owner_core = nCores();
-    
+    unsigned int owner_core = GetOwnerCore(k, data_per_core);
+        
     int value = -1;
     if (owner_core == corenum()) {
       value = test_numbers[k];

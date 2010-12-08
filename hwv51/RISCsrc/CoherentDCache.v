@@ -64,7 +64,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
 
   //instruction cache signals
   input [8:0] pcMux,
-  input [30:0] pcx,
+  input [30:3] pcx,
   input stall,
   output [31:0] instx,
   output Ihit  
@@ -459,8 +459,8 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   
   // which of 2 sets of ICaches will be replace after the IMiss is resolved
   wire replaceICache = icacheLRU[pcx[8:3]];
-  // ICache addresses for port A and port B. Port B is used when writing new 
-  // data from memory to the ICache.
+  // ICache addresses for port A and port B. Port B is also used when writing 
+  // new data from memory to the ICache.
   wire [9:0] Iaddr0 = {1'b0, pcMux[8:0]};
   wire [9:0] Iaddr1 = 
     (waitReadDataState == 4) ? {replaceICache, pcx[8:3], readCnt} :

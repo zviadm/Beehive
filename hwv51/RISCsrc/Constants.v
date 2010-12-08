@@ -5,7 +5,7 @@
   Created By: Zviad Metreveli
 */
 
-`define nCores         4'd3
+`define nCores         4'd13
 `define EtherCore      `nCores + 4'd1
 `define CopyCore       `nCores + 4'd2
 
