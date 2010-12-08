@@ -45,18 +45,18 @@ module itagmemX(
 	spo);
 
 
-input [6 : 0] a;
-input [20 : 0] d;
+input [5 : 0] a;
+input [21 : 0] d;
 input clk;
 input we;
-output [20 : 0] spo;
+output [21 : 0] spo;
 
 // synthesis translate_off
 
       DIST_MEM_GEN_V5_1 #(
-		.C_ADDR_WIDTH(7),
+		.C_ADDR_WIDTH(6),
 		.C_DEFAULT_DATA("0"),
-		.C_DEPTH(128),
+		.C_DEPTH(64),
 		.C_FAMILY("virtex5"),
 		.C_HAS_CLK(1),
 		.C_HAS_D(1),
@@ -85,7 +85,7 @@ output [20 : 0] spo;
 		.C_REG_A_D_INPUTS(0),
 		.C_REG_DPRA_INPUT(0),
 		.C_SYNC_ENABLE(1),
-		.C_WIDTH(21))
+		.C_WIDTH(22))
 	inst (
 		.A(a),
 		.D(d),

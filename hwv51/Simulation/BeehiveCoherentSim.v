@@ -302,48 +302,28 @@ module beehiveCoherent;
     cycle_count <= reset ? 0 : cycle_count + 1;
   end   
 
+  localparam N = 1;
   always @(negedge clock) if (!reset) begin
-//    if (mctrlSlotTypeIn >= `DMCHeader /* | 
-//        mctrlSlotTypeIn == `Address    |
-//        mctrlSlotTypeIn == `WriteData*/) begin
-//      $write("MCTRL Ring: type=%x, src=%x, data=%x ",
-//                mctrlSlotTypeIn, mctrlSourceIn, mctrlRingIn);
-//      $write("receiveDMCData = %x", receiveDMCData);
-//      $display("");
-//    end 
-    
-//    if ((coreBlk[2].riscN.dCacheN.selDCacheIO == 1 & 
-//         coreBlk[2].riscN.aq[30:27] == 1) | 
-//        (~coreBlk[2].riscN.dCacheN.Ihit)) begin
-//      $write("cycle=%5d ", cycle_count);
-//      $write("pc=%x ", coreBlk[2].riscN.pc);
-//      $write("State=%x ", coreBlk[2].riscN.dCacheN.state);
-//      $write("AQ=%x ", coreBlk[2].riscN.dCacheN.aq);
-//      $write("Ihit=%x ", coreBlk[2].riscN.dCacheN.Ihit);
-//      $write("done=%x ", coreBlk[2].riscN.dCacheN.done);
-//      $write("NextCoreRingIn: SourceIn=%x, Type=%x, Ring=%x ", 
-//        coreBlk[3].riscN.SourceIn,
-//        coreBlk[3].riscN.SlotTypeIn,
-//        coreBlk[3].riscN.RingIn);      
-//      $display("");
-//    end    
-
-//    if ((coreBlk[3].riscN.SlotTypeIn == `DMCHeader |
-//         coreBlk[3].riscN.dCacheN.state >= sendDMCHeaderWaitToken)) begin
-//      $write("cycle=%5d ", cycle_count);
-//      $write("pc=%x ", coreBlk[3].riscN.pc);
-//      $write("State=%d ", coreBlk[3].riscN.dCacheN.state);
-//      $write("AQ=%x ", coreBlk[3].riscN.dCacheN.aq);
-//      $write("DMCRingIn=%x ", coreBlk[3].riscN.dCacheN.handleDmcRingIn);
-//      $write("ringLineStatus=%x ", coreBlk[3].riscN.dCacheN.ringLineStatus);
-//      $write("Ihit=%x ", coreBlk[3].riscN.dCacheN.Ihit);
-//      $write("done=%x ", coreBlk[3].riscN.dCacheN.done);
-//      $write("Ring: SourceIn=%x, Type=%x, Ring=%x ", 
-//        coreBlk[3].riscN.SourceIn,
-//        coreBlk[3].riscN.SlotTypeIn,
-//        coreBlk[3].riscN.RingIn);      
-//      $display("");
-//    end    
+    $write("cycle=%5d ", cycle_count);
+    $write("pc=%x ", coreBlk[N].riscN.pc);
+    $write("pcx=%x ", coreBlk[N].riscN.pcx);
+    $write("inst=%x ", coreBlk[N].riscN.inst);
+    $write("State=%x ", coreBlk[N].riscN.dCacheN.state);
+    $write("AQ=%x/%x/%x ", 
+      coreBlk[N].riscN.aqe, 
+      coreBlk[N].riscN.aqrd,
+      coreBlk[N].riscN.aq);
+    $write("Ihit=%x/%x ", 
+      coreBlk[N].riscN.dCacheN.Ihit0, coreBlk[N].riscN.dCacheN.Ihit1);
+    $write("replaceICache=%x ", 
+      coreBlk[N].riscN.dCacheN.replaceICache);
+    $write("done=%x ", coreBlk[N].riscN.dCacheN.done);
+    $write("SrcIn=%x, Type=%x, Ring=%x ", 
+      coreBlk[N + 1].riscN.SourceIn,
+      coreBlk[N + 1].riscN.SlotTypeIn,
+      coreBlk[N + 1].riscN.RingIn);      
+    $write("RD=%x/%x", coreBlk[N].riscN.RDdest, coreBlk[N].riscN.RDreturn);
+    $display("");
   end
 
   integer k;

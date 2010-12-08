@@ -1,7 +1,7 @@
 ##############################################################
 #
 # Xilinx Core Generator version 12.2
-# Date: Thu Oct 14 22:09:58 2010
+# Date: Tue Dec  7 23:03:50 2010
 #
 ##############################################################
 #
@@ -40,10 +40,10 @@ CSET coefficient_file=no_coe_file_loaded
 CSET common_output_ce=false
 CSET common_output_clk=false
 CSET component_name=itagmemX
-CSET data_width=21
+CSET data_width=22
 CSET default_data=0
 CSET default_data_radix=16
-CSET depth=128
+CSET depth=64
 CSET dual_port_address=non_registered
 CSET dual_port_output_clock_enable=false
 CSET input_clock_enable=false
@@ -63,4 +63,4 @@ CSET sync_reset_qsdpo=false
 CSET sync_reset_qspo=false
 # END Parameters
 GENERATE
-# CRC: d1dc65bf
+# CRC: e8a17306

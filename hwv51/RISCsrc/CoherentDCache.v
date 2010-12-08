@@ -1,4 +1,4 @@
-/*
+  /*
   Coherent DCache
   
   -- Cache Line states
@@ -125,11 +125,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   
   // Wires from DCache
   wire [31:0] dcacheReadData;
-  
-  // Wires for ICache
-  wire [9:0] Iaddr;
-  reg writeItag;
-  wire [20:0] Itag;
+
   
   // DCache Meters. 16 32-bit counters.
   //    0 - # of Read Misses
@@ -183,13 +179,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     
   assign decLineAddr = 
     (lineCnt > 0) & (state == ioInvalidate | state == ioFlush);
-
-  // Logic for instruction cache
-  assign Ihit = (Itag[20:0] == pcx[30:10]);
-  assign Iaddr = Ihit ? pcMux[9:0] : pcx[9:0];
-  wire preWriteItag = 
-    (waitReadDataState == 4) & (readCnt == 7) & (RDdest == whichCore);
-  always @(posedge clock) writeItag <= preWriteItag;
 
   // Logic for DCache meters
   always @(posedge clock) if (!reset) begin
@@ -269,7 +258,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
             
           handleIMiss: begin
             state <= sendRAWaitToken;
-            readRequest <= {4'b0101, pcx[30:3]};
+            readRequest <= {4'b0001, pcx[30:3]};
             doFlush <= 0;
           end
           
@@ -390,15 +379,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       end
     end
   end
-  
-  itagmemX instTag (
-    .a(pcx[9:3]), 
-    .d(pcx[30:10]),
-    .clk(clock),
-    .we(writeItag),
-    .spo(Itag)
-  ); 
-  
+    
   // Cache Line that we want Status and Tag for
   wire [6:0] requestLine = 
     (state == idle & ~requestQempty)   ? requestQout[6:0] :
@@ -463,6 +444,37 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     .almost_empty()
   );    
 
+  // Logic for instruction cache. We have a 2-Way Set Associative ICache
+  // with 64 lines each line being 8 words in size.
+  
+  // for each cache line which of 2 sets is Least Recently Used
+  (* ram_style = "distributed" *)
+  reg icacheLRU[63:0]; 
+  
+  wire [21:0] Itag0;
+  wire [21:0] Itag1;
+  
+  wire Ihit0 = (Itag0[21:0] == pcx[30:9]);
+  wire Ihit1 = (Itag1[21:0] == pcx[30:9]);
+  assign Ihit = Ihit0 | Ihit1;
+  
+  // which of 2 sets of ICaches will be replace after the IMiss is resolved
+  wire replaceICache = icacheLRU[pcx[8:3]];
+  wire [9:0] Iaddr = Ihit0 ? {1'b0, pcMux[8:0]} :
+                     Ihit1 ? {1'b1, pcMux[8:0]} :
+                             {replaceICache, pcx[8:0]};
+
+  wire preWriteItag = 
+    (waitReadDataState == 4) & (readCnt == 7) & (RDdest == whichCore);
+  reg writeItag0, writeItag1;
+  always @(posedge clock) begin
+    writeItag0 <= preWriteItag & (replaceICache == 0);
+    writeItag1 <= preWriteItag & (replaceICache == 1);
+    
+    // update LRU
+    if (Ihit) icacheLRU[pcx[8:3]] <= ~Iaddr[9];
+  end
+  
 generate
   if (I_INIT == "NONE") begin : icache_synth
     dpbram32 instCache (
@@ -474,7 +486,7 @@ generate
       .clka(clock),
       .rdb(),
       .wdb(RDreturn), //the data from memory 
-      .ab({pcx[9:3], readCnt}), //line address , cnt 
+      .ab({replaceICache, pcx[8:3], readCnt}), //line address , cnt 
       .web((waitReadDataState == 4) && (RDdest == whichCore)), //write enable 
       .enb(1'b1),
       .clkb(clock)
@@ -486,18 +498,34 @@ generate
     always @(posedge clock) begin
       if (~stall | ~Ihit) instAddr <= Iaddr;  // sync read for BRAM	
       if ((waitReadDataState == 4) && (RDdest == whichCore))
-        instCache[{pcx[9:3], readCnt}] <= RDreturn;
+        instCache[{replaceICache, pcx[8:3], readCnt}] <= RDreturn;
     end
     assign instx = instCache[instAddr];
 
     integer k;
     initial begin
+      for (k = 0; k < 64; k = k + 1) icacheLRU[k] = 0;
       for (k = 0; k < 1024; k = k + 1) instCache[k] = 32'hDEADBEEF;
       $readmemh(I_INIT,instCache);
     end
   end
 endgenerate
 
+  itagmemX instTag0 (
+    .a(pcx[8:3]), 
+    .d(pcx[30:9]),
+    .clk(clock),
+    .we(writeItag0),
+    .spo(Itag0)
+  );
+  
+  itagmemX instTag1 (
+    .a(pcx[8:3]), 
+    .d(pcx[30:9]),
+    .clk(clock),
+    .we(writeItag1),
+    .spo(Itag1)
+  );
 
   wire wrDCache = AQWriteHit | (~read & (select == resolveDMiss));
   wire [9:0] dcacheAddr =

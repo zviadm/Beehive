@@ -42,22 +42,22 @@ Library XilinxCoreLib;
 -- synthesis translate_on
 ENTITY itagmemX IS
 	port (
-	a: IN std_logic_VECTOR(6 downto 0);
-	d: IN std_logic_VECTOR(20 downto 0);
+	a: IN std_logic_VECTOR(5 downto 0);
+	d: IN std_logic_VECTOR(21 downto 0);
 	clk: IN std_logic;
 	we: IN std_logic;
-	spo: OUT std_logic_VECTOR(20 downto 0));
+	spo: OUT std_logic_VECTOR(21 downto 0));
 END itagmemX;
 
 ARCHITECTURE itagmemX_a OF itagmemX IS
 -- synthesis translate_off
 component wrapped_itagmemX
 	port (
-	a: IN std_logic_VECTOR(6 downto 0);
-	d: IN std_logic_VECTOR(20 downto 0);
+	a: IN std_logic_VECTOR(5 downto 0);
+	d: IN std_logic_VECTOR(21 downto 0);
 	clk: IN std_logic;
 	we: IN std_logic;
-	spo: OUT std_logic_VECTOR(20 downto 0));
+	spo: OUT std_logic_VECTOR(21 downto 0));
 end component;
 
 -- Configuration specification 
@@ -71,7 +71,7 @@ end component;
 			c_has_spo => 1,
 			c_read_mif => 0,
 			c_has_qspo => 0,
-			c_width => 21,
+			c_width => 22,
 			c_reg_a_d_inputs => 0,
 			c_has_we => 1,
 			c_pipeline_stages => 0,
@@ -80,7 +80,7 @@ end component;
 			c_qualify_we => 0,
 			c_family => "virtex5",
 			c_sync_enable => 1,
-			c_depth => 128,
+			c_depth => 64,
 			c_has_qspo_srst => 0,
 			c_has_qdpo_srst => 0,
 			c_has_dpra => 0,
@@ -92,7 +92,7 @@ end component;
 			c_default_data => "0",
 			c_has_spra => 0,
 			c_has_qspo_ce => 0,
-			c_addr_width => 7,
+			c_addr_width => 6,
 			c_has_qspo_rst => 0,
 			c_has_qdpo => 0);
 -- synthesis translate_on
