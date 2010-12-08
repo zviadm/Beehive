@@ -72,8 +72,6 @@ module mmsFSMcoherent (
   //FSM States
   localparam idle                         = 0; 
   localparam handleMemOp                  = 1;
-  localparam returnRD_1                   = 2;
-  localparam returnRD_2                   = 3;
   localparam checkDirectoryEntry          = 4;
   localparam returnRDonMiss_clearRB       = 5;
   localparam returnRDonMiss_1             = 6;
@@ -188,12 +186,12 @@ module mmsFSMcoherent (
           end
           else begin
             if (memOpData[28]) begin            
-              if ((memOpDest > `nCores) | (memOpData[30] & ~memOpData[29]) |
+              if ((memOpDest > `nCores) | 
                   (memOpData[25:20] == MEM_DIR_PREFIX)) begin
                 // Reads made by non application cores, reads made by ICache 
                 // and reads made on directory addresses, do not go through 
                 // memory directory
-                next_state = returnRD_1;
+                next_state = returnRDonMiss_1;
                 wrAF = 1;
                 afRead = 1;
                 afAddress = memOpData[25:0];
@@ -229,21 +227,6 @@ module mmsFSMcoherent (
               end
             end
           end
-        end
-      end
-
-      returnRD_1: begin
-        if (~rbEmpty) begin
-          rdRB = 1;
-          next_state = returnRD_2;             
-        end
-      end
-       
-      returnRD_2: begin
-        if (~rbEmpty) begin
-          rdRB = 1;
-          next_state = handleMemOp;
-          rdMemOp = 1;
         end
       end
 
@@ -411,22 +394,6 @@ module mmsFSMcoherent (
     endcase
   end
    
-  wire rdDelayedRD;
-  wire [31:0] delayedRD;
-  wire [3:0] delayedRDdest;
-  wire [3:0] RDdestNoDelay = 
-    ((~rbEmpty) & 
-     (state == returnRD_1 | state == returnRD_2)) ? memOpDest : 0;
-  RDDelayer #(.DELAY_CYCLES(0)) NoDelay(
-    .clock(clock),
-    .reset(reset),
-    .RD(readData),
-    .dest(RDdestNoDelay),
-    .rdDelayedRD(rdDelayedRD),
-    .delayedRD(delayedRD),
-    .delayedDest(delayedRDdest)
-  );
-
   wire rdDelayedRDonMiss;
   wire [31:0] delayedRDonMiss;
   wire [3:0] delayedRDdestOnMiss;
@@ -444,12 +411,7 @@ module mmsFSMcoherent (
   );
 
   // Output RDdest and RDreturn.
-  assign rdDelayedRD = (delayedRDdest != 0);
-  assign rdDelayedRDonMiss = ~rdDelayedRD & (delayedRDdestOnMiss != 0);
-                                      
-  assign RDdest  = rdDelayedRD       ? delayedRDdest       : 
-                   rdDelayedRDonMiss ? delayedRDdestOnMiss : 4'b0;
-                   
-  assign RDreturn = rdDelayedRD       ? delayedRD       : 
-                    rdDelayedRDonMiss ? delayedRDonMiss : 32'b0;
+  assign rdDelayedRDonMiss = (delayedRDdestOnMiss != 0);
+  assign RDdest  = delayedRDdestOnMiss;
+  assign RDreturn = delayedRDonMiss;
 endmodule
