@@ -278,7 +278,7 @@ and may be instantiated several times on a single chip.
     .dcAcquireToken(dcAcquireToken),
     
     //Signals for ICache operation
-    .pcMux(pcMux[9:0]),
+    .pcMux(pcMux[8:0]),
     .pcx(pcx),
     .stall(stall),
     .instx(instx),

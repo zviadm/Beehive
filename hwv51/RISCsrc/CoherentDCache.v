@@ -63,7 +63,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   input  dcAcquireToken,  
 
   //instruction cache signals
-  input [9:0] pcMux,
+  input [8:0] pcMux,
   input [30:0] pcx,
   input stall,
   output [31:0] instx,
@@ -75,9 +75,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   localparam SHARED    = 1;
   localparam EXCLUSIVE = 2;  // Not Used for now
   localparam MODIFIED  = 3;
-  
-  // DMC primitives
-  localparam DMCCachePush = 4'd0;
   
   // FSM States
   localparam preidle                = 0;
@@ -321,13 +318,13 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       end
       
       setup: begin
-        // setup initial dcache state. For Master Core (1) all cache
-        // lines are in MODIFIED state initially.
-        if (whichCore != 1) state <= idle;
-        else begin
-          if (lineCnt == 7'h7F) state <= idle;
-          lineCnt <= lineCnt + 1;
-        end
+        // setup initial dcache state. For Master Core (1) all cache lines are 
+        // in MODIFIED state initially. 
+        // Also need to setup ICache tags. instTag0 tags are all zeros but
+        // instTag1 tags need to be all ones, since our ICache initially
+        // containes addresses from 0x0 till 0x400
+        if (lineCnt == 7'h7F) state <= idle;
+        lineCnt <= lineCnt + 1;
       end
       
       ioInvalidate: begin
@@ -451,18 +448,23 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   (* ram_style = "distributed" *)
   reg icacheLRU[63:0]; 
   
+  wire [31:0] instx0;
+  wire [31:0] instx1;
+  
   wire [21:0] Itag0;
   wire [21:0] Itag1;
-  
-  wire Ihit0 = (Itag0[21:0] == pcx[30:9]);
-  wire Ihit1 = (Itag1[21:0] == pcx[30:9]);
-  assign Ihit = Ihit0 | Ihit1;
+
+  assign Ihit = (Itag0[21:0] == pcx[30:9]) | (Itag1[21:0] == pcx[30:9]);
+  assign instx = (Itag0[21:0] == pcx[30:9]) ? instx0 : instx1;
   
   // which of 2 sets of ICaches will be replace after the IMiss is resolved
   wire replaceICache = icacheLRU[pcx[8:3]];
-  wire [9:0] Iaddr = Ihit0 ? {1'b0, pcMux[8:0]} :
-                     Ihit1 ? {1'b1, pcMux[8:0]} :
-                             {replaceICache, pcx[8:0]};
+  // ICache addresses for port A and port B. Port B is used when writing new 
+  // data from memory to the ICache.
+  wire [9:0] Iaddr0 = {1'b0, pcMux[8:0]};
+  wire [9:0] Iaddr1 = 
+    (waitReadDataState == 4) ? {replaceICache, pcx[8:3], readCnt} :
+                               {1'b1, pcMux[8:0]};
 
   wire preWriteItag = 
     (waitReadDataState == 4) & (readCnt == 7) & (RDdest == whichCore);
@@ -472,21 +474,25 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     writeItag1 <= preWriteItag & (replaceICache == 1);
     
     // update LRU
-    if (Ihit) icacheLRU[pcx[8:3]] <= ~Iaddr[9];
+    if (Itag0[21:0] == pcx[30:9]) icacheLRU[pcx[8:3]] <= 1;
+    else if (Itag1[21:0] == pcx[30:9]) icacheLRU[pcx[8:3]] <= 0;
   end
   
 generate
   if (I_INIT == "NONE") begin : icache_synth
     dpbram32 instCache (
-      .rda(instx), //the instruction
+      // Port A is used for 1st set of ICache
+      .rda(instx0),
       .wda(32'b0),
-      .aa(Iaddr),  
-      .wea(1'b0), //write enable 
-      .ena(~stall | ~Ihit),
+      .aa(Iaddr0),  
+      .wea(1'b0), 
+      .ena(1'b1),
       .clka(clock),
-      .rdb(),
+      
+      // Port B is used for 2nd set of ICache, plus to write data from memory
+      .rdb(instx1),
       .wdb(RDreturn), //the data from memory 
-      .ab({replaceICache, pcx[8:3], readCnt}), //line address , cnt 
+      .ab(Iaddr1),
       .web((waitReadDataState == 4) && (RDdest == whichCore)), //write enable 
       .enb(1'b1),
       .clkb(clock)
@@ -494,13 +500,15 @@ generate
   end
   else begin : icache_sim
     reg [31:0] instCache[1023:0];
-    reg [9:0] instAddr;
+    reg [9:0] iAddrA, iAddrB;
     always @(posedge clock) begin
-      if (~stall | ~Ihit) instAddr <= Iaddr;  // sync read for BRAM	
+      iAddrA <= Iaddr0;
+      iAddrB <= Iaddr1;
       if ((waitReadDataState == 4) && (RDdest == whichCore))
-        instCache[{replaceICache, pcx[8:3], readCnt}] <= RDreturn;
+        instCache[Iaddr1] <= RDreturn;
     end
-    assign instx = instCache[instAddr];
+    assign instx0 = instCache[iAddrA];
+    assign instx1 = instCache[iAddrB];
 
     integer k;
     initial begin
@@ -512,18 +520,18 @@ generate
 endgenerate
 
   itagmemX instTag0 (
-    .a(pcx[8:3]), 
-    .d(pcx[30:9]),
+    .a((state == setup) ? lineCnt[5:0] : pcx[8:3]), 
+    .d((state == setup) ? 22'b0 : pcx[30:9]),
     .clk(clock),
-    .we(writeItag0),
+    .we((state == setup) ? 1'b1 : writeItag0),
     .spo(Itag0)
   );
   
   itagmemX instTag1 (
-    .a(pcx[8:3]), 
-    .d(pcx[30:9]),
+    .a((state == setup) ? lineCnt[5:0] : pcx[8:3]), 
+    .d((state == setup) ? 22'b1 : pcx[30:9]),
     .clk(clock),
-    .we(writeItag1),
+    .we((state == setup) ? 1'b1 : writeItag1),
     .spo(Itag1)
   );
 

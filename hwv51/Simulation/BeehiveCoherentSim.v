@@ -304,26 +304,26 @@ module beehiveCoherent;
 
   localparam N = 1;
   always @(negedge clock) if (!reset) begin
-    $write("cycle=%5d ", cycle_count);
-    $write("pc=%x ", coreBlk[N].riscN.pc);
-    $write("pcx=%x ", coreBlk[N].riscN.pcx);
-    $write("inst=%x ", coreBlk[N].riscN.inst);
-    $write("State=%x ", coreBlk[N].riscN.dCacheN.state);
-    $write("AQ=%x/%x/%x ", 
-      coreBlk[N].riscN.aqe, 
-      coreBlk[N].riscN.aqrd,
-      coreBlk[N].riscN.aq);
-    $write("Ihit=%x/%x ", 
-      coreBlk[N].riscN.dCacheN.Ihit0, coreBlk[N].riscN.dCacheN.Ihit1);
-    $write("replaceICache=%x ", 
-      coreBlk[N].riscN.dCacheN.replaceICache);
-    $write("done=%x ", coreBlk[N].riscN.dCacheN.done);
-    $write("SrcIn=%x, Type=%x, Ring=%x ", 
-      coreBlk[N + 1].riscN.SourceIn,
-      coreBlk[N + 1].riscN.SlotTypeIn,
-      coreBlk[N + 1].riscN.RingIn);      
-    $write("RD=%x/%x", coreBlk[N].riscN.RDdest, coreBlk[N].riscN.RDreturn);
-    $display("");
+//    $write("cycle=%5d ", cycle_count);
+//    $write("pc=%x ", coreBlk[N].riscN.pc);
+//    $write("pcx=%x ", coreBlk[N].riscN.pcx);
+//    $write("inst=%x ", coreBlk[N].riscN.inst);
+//    $write("State=%x ", coreBlk[N].riscN.dCacheN.state);
+//    $write("AQ=%x/%x/%x ", 
+//      coreBlk[N].riscN.aqe, 
+//      coreBlk[N].riscN.aqrd,
+//      coreBlk[N].riscN.aq);
+//    $write("Ihit=%x ", coreBlk[N].riscN.dCacheN.Ihit);
+//    $write("replaceICache=%x ", 
+//      coreBlk[N].riscN.dCacheN.replaceICache);
+//    $write("done=%x ", coreBlk[N].riscN.dCacheN.done);
+//    $write("SrcIn=%x, Type=%x, Ring=%x ", 
+//      coreBlk[N + 1].riscN.SourceIn,
+//      coreBlk[N + 1].riscN.SlotTypeIn,
+//      coreBlk[N + 1].riscN.RingIn);      
+//    $write("RD=%x/%x ", coreBlk[N].riscN.RDdest, coreBlk[N].riscN.RDreturn);
+//    
+//    $display("");
   end
 
   integer k;

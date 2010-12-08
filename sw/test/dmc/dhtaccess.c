@@ -124,7 +124,7 @@ void access_test_with_messaging(int dht_size, int iterations)
         die("[%02u]: Invalid message_type: %u received\n", 
           corenum(), message_type(msg_status));
       }
-    };
+    }
     
     if (value != k) {
       die("[%02u]: fail, test_numbers[%d] == %d\n", corenum(), k, value);
