@@ -278,8 +278,8 @@ and may be instantiated several times on a single chip.
     .dcAcquireToken(dcAcquireToken),
     
     //Signals for ICache operation
-    .pcMux(pcMux[9:0]),
-    .pcx(pcx),
+    .pcMux(pcMux[8:0]),
+    .pcx(pcx[30:3]),
     .stall(stall),
     .instx(instx),
     .Ihit(Ihit),
@@ -370,12 +370,14 @@ and may be instantiated several times on a single chip.
   );
     
   wire raq = | done;
-    
-  assign rqIn = ~aq[31] ? rqDCache :   // mux for read queue input 
-                (aq[2:0] == 0)? rqRS232 : 
-                (aq[2:0] == 1)? rqMul :
-                (aq[2:0] == 4)? rqMsgr :
-                (aq[2:0] == 5)? rqLock :
+  
+  // mux for read queue input 
+  assign rqIn = ~aq[31] ? rqDCache       :   
+                (aq[2:0] == 0)? rqRS232  : 
+                (aq[2:0] == 1)? rqMul    :
+                (aq[2:0] == 3)? rqDCache :
+                (aq[2:0] == 4)? rqMsgr   :
+                (aq[2:0] == 5)? rqLock   :
                 32'b0;
 
   //State Machine that handles Interactions with the ring

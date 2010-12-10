@@ -3,7 +3,7 @@
 
 /*
  * Allocation of intercore messages
- * Types 1 - 7 are used by system libraries, 
+ * Types 1 - 7 are used by libraries, 
  * Types 8 - 15 can be used by software as desired.
  */
 enum {

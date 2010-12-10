@@ -2,14 +2,13 @@
 #define _METERS_H_
 
 /*
- * Grab the current values from the meter system
+ * Reset DCache meter counters
  */
-void meters_start( void );
+void dcache_meters_start( void );
 
 /*
- * report on changes in meter values since the
- * call to meters_start()
+ * Report on changes in meter values since the call to dcache_meters_start()
  */
-void meters_report( void );
+void dcache_meters_report( void );
 
 #endif

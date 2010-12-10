@@ -1,4 +1,4 @@
-/*
+  /*
   Coherent DCache
   
   -- Cache Line states
@@ -23,19 +23,6 @@
     [1 bit = if set this is requested flush because some other core wants data]
     1'b0 - 29th bit is always 0 for write address slot type
     [28 bits of Address]
-  
-  -- DMC Descriptions
-  There are three different slot types for DMC, DmcHeader, DmcAddress and
-  DmcData
-  
-    -- Ring Data of DmcHeader SlotType
-    [4 bits describing DMC primitive]
-    [4 bits describing DMC destination]    
-      Rest of The 24 bits depends on primitive
-      -- Dmc Cache Push
-      [2 bits cache line state before pushing]
-      2'b00
-      [28 bits of Address]
   
   Created By: Zviad Metreveli
 */
@@ -76,8 +63,8 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   input  dcAcquireToken,  
 
   //instruction cache signals
-  input [9:0] pcMux,
-  input [30:0] pcx,
+  input [8:0] pcMux,
+  input [30:3] pcx,
   input stall,
   output [31:0] instx,
   output Ihit  
@@ -88,9 +75,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   localparam SHARED    = 1;
   localparam EXCLUSIVE = 2;  // Not Used for now
   localparam MODIFIED  = 3;
-  
-  // DMC primitives
-  localparam DMCCachePush = 4'd0;
   
   // FSM States
   localparam preidle                = 0;
@@ -104,13 +88,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   localparam setup                  = 8;
   localparam ioInvalidate           = 9;
   localparam ioFlush                = 10;
-  // FSM States for DMC operation
-  localparam sendDMCHeaderWaitToken  = 11;
-  localparam sendDMCAddress          = 12;
-  localparam sendDMCData             = 13;
-  localparam receiveCachePushAddress = 14;
-  localparam receiveCachePushData    = 15;
-  localparam dmcCachePush            = 16;
+  localparam ioReadMeter            = 11;
 
   // FSM State
   reg [4:0] state;
@@ -122,20 +100,14 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   reg ioFlushing;
   reg [6:0] lineCnt;
   
-  // DMC State
-  reg [9:0] dmcAddr;
-  reg [31:0] dmcHeader;
-  reg [31:0] dmcRequest;
-  reg [4:0] dmcNextState;
-
   // This holds state when we are waiting for ReadData
-  // 0 - not waiting for RD
-  // 1 - waiting for RD for DCache
-  // 2 - waste cycle after DMiss
-  // 3 - update tag & status for DCache
-  // 4 - waiting for RD for ICache 
-  // 5, 6 - waste two cycles after resolving ICache miss
-  // this probably can be changed so those 2 cycles are not wasted
+  //    0 - not waiting for RD
+  //    1 - waiting for RD for DCache
+  //    2 - waste cycle after DMiss
+  //    3 - update tag & status for DCache
+  //    4 - waiting for RD for ICache 
+  //    5, 6 - waste two cycles after resolving ICache miss this probably 
+  //           can be changed so those 2 cycles are not wasted
   reg [2:0] waitReadDataState;
   
   // Wires from request queue
@@ -150,16 +122,21 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   
   // Wires from DCache
   wire [31:0] dcacheReadData;
+
   
-  // Wires for ICache
-  wire [9:0] Iaddr;
-  reg writeItag;
-  wire [20:0] Itag;
+  // DCache Meters. 16 32-bit counters.
+  //    0 - # of Read Misses
+  //    1 - # of Write Misses
+  //    2 - # of Reads
+  //    3 - # of Writes
+  (* ram_style = "distributed" *)
+  reg [31:0] meters[15:0];
+  integer i;
+  initial for (i = 0; i < 16; i = i + 1) meters[i] = 0;
   // ------------------END OF DECLARATIONS---------------------------
     
   // Logic for DCache
   localparam handleNone      = 0;
-  localparam handleDMCRingIn = 1;
   localparam handleRequestQ  = 2;
   localparam handleAQ        = 3;
   localparam handleIMiss     = 4;
@@ -168,8 +145,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
   
   wire [2:0] select = 
     (state != idle)                             ? handleNone      :
-    (SlotTypeIn == `DMCHeader & 
-     RingIn[27:24] == whichCore)                ? handleDMCRingIn :
     (~requestQempty)                            ? handleRequestQ  :
     (selDCache & waitReadDataState == 0)        ? handleAQ        :
     (waitReadDataState == 0 & ~Ihit)            ? handleIMiss     :
@@ -187,31 +162,41 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (~read) & (requestLineTag == aq[30:10]) & (requestLineStatus == SHARED);    
 
   // IO Module outputs
-  assign wrq = AQReadHit | (read & (select == resolveDMiss));
-  assign rqDCache = dcacheReadData;
-  assign rwq = AQWriteHit | (~read & (select == resolveDMiss));
+  assign wrq = 
+    AQReadHit | (read & (select == resolveDMiss)) | (state == ioReadMeter);
+  assign rqDCache = 
+    (state == ioReadMeter) ? meters[aq[6:3]] : dcacheReadData;
+  assign rwq = 
+    AQWriteHit | (~read & (select == resolveDMiss));
   assign done = 
-    (AQReadHit | AQWriteHit) | (select == resolveDMiss) |
+    (AQReadHit | AQWriteHit) | (select == resolveDMiss) | 
     ((state == ioInvalidate) & (lineCnt == 0)) | 
     ((state == ioFlush)      & (lineCnt == 0)) |
-    ((state == dmcCachePush) & (lineCnt == 0));
+    (state == ioReadMeter);
     
   assign decLineAddr = 
-    (lineCnt > 0) &
-    (state == ioInvalidate | state == ioFlush | state == dmcCachePush);
+    (lineCnt > 0) & (state == ioInvalidate | state == ioFlush);
 
-  // Logic for instruction cache
-  assign Ihit = (Itag[20:0] == pcx[30:10]);
-  assign Iaddr = Ihit ? pcMux[9:0] : pcx[9:0];
-  wire preWriteItag = 
-    (waitReadDataState == 4) & (readCnt == 7) & (RDdest == whichCore);
-  always @(posedge clock) writeItag <= preWriteItag;
+  // Logic for DCache meters
+  always @(posedge clock) if (!reset) begin
+    if (state == readAQ) begin
+      // Read/Write Miss
+      if (read & ~AQReadHit) meters[0] <= meters[0] + 1;
+      else if (~read & ~AQWriteHit) meters[1] <= meters[1] + 1;
+      
+      // Read/Write Total count
+      if (read) meters[2] <= meters[2] + 1;
+      else meters[3] <= meters[3] + 1;
+    end
+    
+    // ICache meters
+    if (select == handleIMiss) meters[4] <= meters[4] + 1;
+    if (Ihit & ~stall) meters[5] <= meters[5] + 1;
+  end
 
   // Ring Interactions
   assign dcWantsToken = 
-    (state == sendRAWaitToken)        | 
-    (state == sendCacheDataWaitToken) | 
-    (state == sendDMCHeaderWaitToken);
+    (state == sendRAWaitToken) | (state == sendCacheDataWaitToken);
     
   wire resendMessage = 
     (SourceIn == whichCore & SlotTypeIn == `Address & RingIn[31]);
@@ -222,11 +207,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (state == sendRAWaitToken & dcAcquireToken)        | 
     (state == sendCacheDataWaitToken & dcAcquireToken) | 
     (state == sendCacheData)                           | 
-    (state == sendWA)                                  |
-    (state == sendDMCHeaderWaitToken & dcAcquireToken) |
-    (state == sendDMCAddress)                          |
-    (state == sendDMCData);
-    
+    (state == sendWA);    
 
   assign dcSourceOut = whichCore;
   assign dcSlotTypeOut = 
@@ -235,9 +216,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     // Ring Additions
     (state == sendRAWaitToken | state == sendWA)               ? `Address    : 
     (state == sendCacheDataWaitToken | state == sendCacheData) ? `WriteData  : 
-    (state == sendDMCHeaderWaitToken)                          ? `DMCHeader  :
-    (state == sendDMCAddress)                                  ? `DMCAddress :
-    (state == sendDMCData)                                     ? `DMCData    :
                                                                   4'b0;
   assign dcRingOut = 
     // Ring Modifications
@@ -247,9 +225,6 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (state == sendCacheDataWaitToken | 
      state == sendCacheData)          ? dcacheReadData          :
     (state == sendWA)                 ? flushRequest            : 
-    (state == sendDMCHeaderWaitToken) ? dmcHeader               :
-    (state == sendDMCAddress)         ? dmcRequest              :
-    (state == sendDMCData)            ? dcacheReadData          :
                                         32'b0; 
     
   always @(posedge clock) begin
@@ -258,25 +233,11 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       lineCnt <= 0;
       readRequest  <= 0;
       flushRequest <= 0;
-      dmcHeader    <= 0;
-      dmcRequest   <= 0;
-      dmcNextState <= 0;
     end else case (state)
       preidle: state <= idle;
       
       idle: begin
         case (select)
-          handleDMCRingIn:
-            if (RingIn[31:28] == DMCCachePush) begin
-              // perform cache push if line is not in MODFIED state and
-              // we are not in the middle of resolving DCache Miss for it
-              if (ringLineStatus != MODIFIED & (waitReadDataState == 0 | 
-                  waitReadDataState >= 4 | aq[9:3] != RingIn[6:0])) begin
-                state <= receiveCachePushAddress;
-                dmcAddr <= {RingIn[6:0], 3'b000};
-              end
-            end
-            
           handleRequestQ:
             if ((requestLineStatus == MODIFIED) & 
                 (requestLineTag == requestQout[27:7])) begin
@@ -302,9 +263,14 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
           
           handleIO: begin
             // Handle DCache IO requests
-            lineCnt <= aq[16:10];
-            if (aq[30:27] == 0) state <= (aq[17] ? ioInvalidate : ioFlush);
-            else if (aq[30:27] == 1) state <= dmcCachePush;
+            if (aq[30:27] == 4'h0) begin
+              // flush/invalidate
+              state <= (aq[17] ? ioInvalidate : ioFlush);
+              lineCnt <= aq[16:10];
+            end else if (aq[30:27] == 7) begin
+              // Return DCache meter value
+              state <= ioReadMeter;              
+            end
           end
         endcase
       end
@@ -352,13 +318,13 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       end
       
       setup: begin
-        // setup initial dcache state. For Master Core (1) all cache
-        // lines are in MODIFIED state initially.
-        if (whichCore != 1) state <= idle;
-        else begin
-          if (lineCnt == 7'h7F) state <= idle;
-          lineCnt <= lineCnt + 1;
-        end
+        // setup initial dcache state. For Master Core (1) all cache lines are 
+        // in MODIFIED state initially. 
+        // Also need to setup ICache tags. instTag0 tags are all zeros but
+        // instTag1 tags need to be all ones, since our ICache initially
+        // containes addresses from 0x0 till 0x400
+        if (lineCnt == 7'h7F) state <= idle;
+        lineCnt <= lineCnt + 1;
       end
       
       ioInvalidate: begin
@@ -378,38 +344,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
         lineCnt <= lineCnt - 1;          
       end
       
-      sendDMCHeaderWaitToken: begin
-        if (dcAcquireToken) state <= sendDMCAddress;
-      end
-      
-      sendDMCAddress: begin
-        state <= sendDMCData;
-      end
-      
-      sendDMCData: begin
-        dmcAddr <= dmcAddr + 1;
-        if (dmcAddr[2:0] == 3'h7) state <= dmcNextState;
-      end
-                  
-      dmcCachePush: begin
-        if (requestLineStatus != INVALID) begin
-          state <= sendDMCHeaderWaitToken;          
-          dmcNextState <= (lineCnt == 0) ? idle : dmcCachePush;
-          dmcAddr <= {aq[9:3], 3'b000};          
-          dmcHeader <= {DMCCachePush, aq[26:23], 17'b0, aq[9:3]};
-          dmcRequest <= {requestLineStatus, 2'b00, requestLineTag, aq[9:3]};
-        end else if (lineCnt == 0) state <= idle;
-        lineCnt <= lineCnt - 1;
-      end
-      
-      receiveCachePushAddress: begin
-        state <= receiveCachePushData;
-      end
-      
-      receiveCachePushData: begin
-        if (dmcAddr[2:0] == 3'h7) state <= preidle;
-        dmcAddr <= dmcAddr + 1;
-      end
+      ioReadMeter: state <= idle;
     endcase
   end
   
@@ -441,31 +376,17 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
       end
     end
   end
-  
-  itagmemX instTag (
-    .a(pcx[9:3]), 
-    .d(pcx[30:10]),
-    .clk(clock),
-    .we(writeItag),
-    .spo(Itag)
-  ); 
-  
+    
   // Cache Line that we want Status and Tag for
   wire [6:0] requestLine = 
     (state == idle & ~requestQempty)   ? requestQout[6:0] :
     (state == setup)                   ? lineCnt[6:0]     :
-    (state == receiveCachePushAddress) ? RingIn[6:0]      :
                                          aq[9:3];
                                                        
-  wire wrDCacheTag = 
-    (state == receiveCachePushAddress) |        
-    (state == readAQ & (~AQReadHit & ~AQWriteHit));
-  wire [20:0] newTag = 
-    (state == receiveCachePushAddress) ? RingIn[27:7] : 
-                                         aq[30:10];
+  wire wrDCacheTag = (state == readAQ & (~AQReadHit & ~AQWriteHit));
   dcacheTag DataCacheTag (
-    .a(requestLine), // Bus [6 : 0] 
-    .d(newTag),      // Bus [20 : 0] 
+    .a(requestLine),    // Bus [6 : 0] 
+    .d(aq[30:10]),      // Bus [20 : 0] 
     .dpra(RingIn[6:0]), // Bus [6 : 0] 
     .clk(clock),
     .we(wrDCacheTag),
@@ -479,18 +400,14 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     (select == resolveDMiss & ~read)                        |
     (state == readAQ & (~AQReadHit & ~AQWriteHit))          | 
     (state == ioInvalidate & requestLineStatus != MODIFIED) |
-    (state == ioFlush & requestLineStatus == MODIFIED)      | 
-    (state == dmcCachePush & requestLineStatus == MODIFIED) | 
-    (state == receiveCachePushAddress);
+    (state == ioFlush & requestLineStatus == MODIFIED);
   wire [1:0] newStatus = 
     (state == setup)                  ? MODIFIED :
     (select == handleRequestQ)        ? (~requestQout[29] ? SHARED : INVALID) :
     (select == resolveDMiss & ~read)  ? MODIFIED : 
     (state == readAQ)                 ? (read ? SHARED : INVALID) : 
     (state == ioInvalidate)           ? INVALID  : 
-    (state == ioFlush)                ? SHARED   : 
-    (state == dmcCachePush)           ? SHARED   :
-    (state == receiveCachePushAddress)? SHARED   : INVALID;
+    (state == ioFlush)                ? SHARED   : INVALID;
   dcacheStatus DataCacheStatus (
     .a(requestLine), // Bus [6 : 0] 
     .d(newStatus), // Bus [1 : 0] 
@@ -509,7 +426,7 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     // Handle stuff that comes on the ring from other cores
     // Address Request from some other core, the tag is valid and matches
     ((SlotTypeIn == `Address) & (SourceIn > 0) & (SourceIn <= `nCores) & 
-     (ringLineTag == RingIn[27:7])) &
+     (SourceIn != whichCore) & (ringLineTag == RingIn[27:7])) &
     (((RingIn[29:28] == 2'b01) & (ringLineStatus == MODIFIED)) | 
      ((RingIn[29:28] == 2'b11) & (ringLineStatus != INVALID)));
   dcacheRequestQ DataCacheRequestQueue (
@@ -524,18 +441,58 @@ module CoherentDCache #(parameter I_INIT="NONE",D_INIT="NONE") (
     .almost_empty()
   );    
 
+  // Logic for instruction cache. We have a 2-Way Set Associative ICache
+  // with 64 lines each line being 8 words in size.
+  
+  // for each cache line which of 2 sets is Least Recently Used
+  (* ram_style = "distributed" *)
+  reg icacheLRU[63:0]; 
+  
+  wire [31:0] instx0;
+  wire [31:0] instx1;
+  
+  wire [21:0] Itag0;
+  wire [21:0] Itag1;
+
+  assign Ihit = (Itag0[21:0] == pcx[30:9]) | (Itag1[21:0] == pcx[30:9]);
+  assign instx = (Itag0[21:0] == pcx[30:9]) ? instx0 : instx1;
+  
+  // which of 2 sets of ICaches will be replace after the IMiss is resolved
+  wire replaceICache = icacheLRU[pcx[8:3]];
+  // ICache addresses for port A and port B. Port B is also used when writing 
+  // new data from memory to the ICache.
+  wire [9:0] Iaddr0 = {1'b0, pcMux[8:0]};
+  wire [9:0] Iaddr1 = 
+    (waitReadDataState == 4) ? {replaceICache, pcx[8:3], readCnt} :
+                               {1'b1, pcMux[8:0]};
+
+  wire preWriteItag = 
+    (waitReadDataState == 4) & (readCnt == 7) & (RDdest == whichCore);
+  reg writeItag0, writeItag1;
+  always @(posedge clock) begin
+    writeItag0 <= preWriteItag & (replaceICache == 0);
+    writeItag1 <= preWriteItag & (replaceICache == 1);
+    
+    // update LRU
+    if (Itag0[21:0] == pcx[30:9]) icacheLRU[pcx[8:3]] <= 1;
+    else if (Itag1[21:0] == pcx[30:9]) icacheLRU[pcx[8:3]] <= 0;
+  end
+  
 generate
   if (I_INIT == "NONE") begin : icache_synth
     dpbram32 instCache (
-      .rda(instx), //the instruction
+      // Port A is used for 1st set of ICache
+      .rda(instx0),
       .wda(32'b0),
-      .aa(Iaddr),  
-      .wea(1'b0), //write enable 
-      .ena(~stall | ~Ihit),
+      .aa(Iaddr0),  
+      .wea(1'b0), 
+      .ena(1'b1),
       .clka(clock),
-      .rdb(),
+      
+      // Port B is used for 2nd set of ICache, plus to write data from memory
+      .rdb(instx1),
       .wdb(RDreturn), //the data from memory 
-      .ab({pcx[9:3], readCnt}), //line address , cnt 
+      .ab(Iaddr1),
       .web((waitReadDataState == 4) && (RDdest == whichCore)), //write enable 
       .enb(1'b1),
       .clkb(clock)
@@ -543,27 +500,42 @@ generate
   end
   else begin : icache_sim
     reg [31:0] instCache[1023:0];
-    reg [9:0] instAddr;
+    reg [9:0] iAddrA, iAddrB;
     always @(posedge clock) begin
-      if (~stall | ~Ihit) instAddr <= Iaddr;  // sync read for BRAM	
+      iAddrA <= Iaddr0;
+      iAddrB <= Iaddr1;
       if ((waitReadDataState == 4) && (RDdest == whichCore))
-        instCache[{pcx[9:3], readCnt}] <= RDreturn;
+        instCache[Iaddr1] <= RDreturn;
     end
-    assign instx = instCache[instAddr];
+    assign instx0 = instCache[iAddrA];
+    assign instx1 = instCache[iAddrB];
 
     integer k;
     initial begin
+      for (k = 0; k < 64; k = k + 1) icacheLRU[k] = 0;
       for (k = 0; k < 1024; k = k + 1) instCache[k] = 32'hDEADBEEF;
       $readmemh(I_INIT,instCache);
     end
   end
 endgenerate
 
+  itagmemX instTag0 (
+    .a((state == setup) ? lineCnt[5:0] : pcx[8:3]), 
+    .d((state == setup) ? 22'b0 : pcx[30:9]),
+    .clk(clock),
+    .we((state == setup) ? 1'b1 : writeItag0),
+    .spo(Itag0)
+  );
+  
+  itagmemX instTag1 (
+    .a((state == setup) ? lineCnt[5:0] : pcx[8:3]), 
+    .d((state == setup) ? 22'b1 : pcx[30:9]),
+    .clk(clock),
+    .we((state == setup) ? 1'b1 : writeItag1),
+    .spo(Itag1)
+  );
 
-  wire wrDCache = 
-    AQWriteHit                       |
-    (~read & select == resolveDMiss) |
-    (state == receiveCachePushData);
+  wire wrDCache = AQWriteHit | (~read & (select == resolveDMiss));
   wire [9:0] dcacheAddr =
     // on next cycle i am starting flush
     ((state == sendRAWaitToken & doFlush) |
@@ -572,16 +544,8 @@ endgenerate
     // when flushing
     ((state == sendCacheData & flushAddr[2:0] != 3'h7) |                         
      (state == sendCacheDataWaitToken & dcAcquireToken))  ? flushAddr + 1 :
-    // on next cycle sending DMC data
-    (state == sendDMCAddress)                             ? dmcAddr :
-    // sending DMC data
-    (state == sendDMCData & dmcAddr[2:0] != 3'h7)         ? dmcAddr + 1 :
-    // receiving Cache Push data
-    (state == receiveCachePushData)                       ? dmcAddr :
                                                             aq[9:0];
-  wire [31:0] dcacheWriteData =
-    (state == receiveCachePushData)                       ? RingIn[31:0] :
-                                                            wq;
+  wire [31:0] dcacheWriteData = wq;
 generate
   if (D_INIT == "NONE") begin : dcache_synth
     dpbram32 dataCache (

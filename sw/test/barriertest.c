@@ -5,7 +5,6 @@
 
 #include "shared/intercore.h"
 #include "lib/lib.h"
-#include "lib/meters.h"
 #include "lib/barrier.h"
 
 #define DEBUG 0
@@ -36,11 +35,8 @@ void test1(void (*barrier)(void), const char *type)
 {
   if (corenum() == 2) { 
     xprintf("[%02u]: test1 for %s barrier start\n", corenum(), type);
-    barrier();
-    meters_start();
-  } else {
-    barrier();
   }
+  barrier();
 
   for (unsigned int i = 0; i < 10; i++) {
     barrier();
@@ -66,11 +62,8 @@ void test1(void (*barrier)(void), const char *type)
     }
   }
 
+  barrier();
   if (corenum() == 2) {
-    meters_report();
-    barrier();
     xprintf("[%02u]: test1 for %s barrier passed\n", corenum(), type);
-  } else {
-    barrier();
   }
 }

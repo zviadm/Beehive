@@ -32,11 +32,11 @@
 
 //----------- Begin Cut here for INSTANTIATION Template ---// INST_TAG
 itagmemX YourInstanceName (
-	.a(a), // Bus [6 : 0] 
-	.d(d), // Bus [20 : 0] 
+	.a(a), // Bus [5 : 0] 
+	.d(d), // Bus [21 : 0] 
 	.clk(clk),
 	.we(we),
-	.spo(spo)); // Bus [20 : 0] 
+	.spo(spo)); // Bus [21 : 0] 
 
 // INST_TAG_END ------ End INSTANTIATION Template ---------
 

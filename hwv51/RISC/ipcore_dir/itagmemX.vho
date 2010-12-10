@@ -31,11 +31,11 @@
 ------------- Begin Cut here for COMPONENT Declaration ------ COMP_TAG
 component itagmemX
 	port (
-	a: IN std_logic_VECTOR(6 downto 0);
-	d: IN std_logic_VECTOR(20 downto 0);
+	a: IN std_logic_VECTOR(5 downto 0);
+	d: IN std_logic_VECTOR(21 downto 0);
 	clk: IN std_logic;
 	we: IN std_logic;
-	spo: OUT std_logic_VECTOR(20 downto 0));
+	spo: OUT std_logic_VECTOR(21 downto 0));
 end component;
 
 -- Synplicity black box declaration

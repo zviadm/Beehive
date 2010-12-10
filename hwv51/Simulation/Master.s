@@ -546,38 +546,7 @@ hexloop:
 // ------------------------------------------------------------
     
   call     0x1000
-  ld       t1, 0xfff
-sleep_a_bit:
-  sub      t1, t1, 1
-  jnz      sleep_a_bit
-  
-  ld       Char, "S"
-  call     printCh
-  aqr_ld   void, 0x0
-  ld       N, rq
-  call     printNum
-  
-  ld       wq, 0xFAF
-  aqw_ld   void, 0x0
-  
-  ld       Char, "S"
-  call     printCh
-  aqr_ld   void, 0x1000
-  ld       N, rq
-  call     printNum
-  
-  ld       Char, "S"
-  call     printCh
-  aqr_ld   void, 0x0
-  ld       N, rq
-  call     printNum
-  //aqr_ld   void, 0x1040
-  //ld       N, rq
-  //call     printNum
-  
-loop_forever:
-  ld       void, 0
-  j        loop_forever
+
 // ------------------------------------------------------------
 // Shell initialization.
 // ------------------------------------------------------------

@@ -5,8 +5,11 @@
 #include "lib/lib.h"
 #include "lib/meters.h"
 
-#define NMETERS 64
-int meters[NMETERS];
+// 16 Meters per each DCache Module
+#define NDCACHE_METERS 16
+struct {
+  unsigned int meter[NDCACHE_METERS]; 
+} dcache_meters[16];
 
 const char *slot_type[] = {
   "Startup",
@@ -27,43 +30,26 @@ const char *slot_type[] = {
   "???"
 };
 
-// grab the current values from the meter system
-void meters_start()
+void dcache_meters_start()
 {
-  int i;
-  for (i = 0; i < NMETERS; i++) meters[i] = read_meter(i);
+  // grab the current values from the meter system
+  for (int i = 0; i < NDCACHE_METERS; i++) {
+    dcache_meters[corenum()].meter[i] = cache_readMeter(i);
+  }
 }
 
-// report on changes in meter values since the
-// call to meters_start()
-void meters_report()
+void dcache_meters_report()
 {
-  int i;
-  int delta[NMETERS];
+  unsigned int delta[NDCACHE_METERS];
 
   // compute the delta for each meter
-  for (i = 0; i < NMETERS; i++) delta[i] = read_meter(i) - meters[i];
-
-  xprintf("\n**** METERING REPORT ****\n");
-
-  // print out the number of ring slots of each type
-  xprintf("Count of ring slots by type:\n");
-  for (i = 0; i < 16; i++) {
-    if (i == 2) {
-      // Address slots are counted by core and type;
-      int sum = 0;  // add together all Address counts
-      int j;
-      for (j = 16; j < 64; j++) sum += delta[j];
-      xprintf("  %d ring slots of type \"Address\"\n", sum);
-    }
-    else if (delta[i] > 0)
-      xprintf("  %d ring slots of type \"%s\"\n",
-              delta[i], slot_type[i]);
+  for (int i = 0; i < NDCACHE_METERS; i++) {
+    delta[i] = cache_readMeter(i) - dcache_meters[corenum()].meter[i];
   }
-
-  // for each core, print out number of memory requests
-  xprintf("\nCount of Address slots by core:\n");
-  for (i = 1; i < 16; i++)   // there is no core 0...
-    xprintf("  core %2d: I=%d, Dwrite=%d, Dread=%d\n",
-            i, delta[i+16], delta[i+32], delta[i+48]);
+  xprintf("[%02u]: DCache miss rates - "
+          "Read: %u/%u (%u%%), Write %u/%u (%u%%), IMiss %u \n",
+    corenum(), 
+    delta[0], delta[2], delta[0] * 100 / delta[2], 
+    delta[1], delta[3], delta[1] * 100 / delta[3],
+    delta[4]);
 }

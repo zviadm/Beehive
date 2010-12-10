@@ -70,7 +70,7 @@ static void releaseRS232() {
 typedef unsigned int IntercoreMessage[63];
 
 void message_send(unsigned int dest, unsigned int type,
-      IntercoreMessage *buf, unsigned int len);
+  IntercoreMessage *buf, unsigned int len);
 // Send a message to core number "dest", using "len" words at "buf".
 //
 // Note that message lengths are measured in words, not bytes.
@@ -165,11 +165,6 @@ void cache_invalidate(unsigned int line, unsigned int countMinus1);
 // Flushes them first, since nothing else makes sense.
 // There is no argument validation; both should be in [0..127]
 
-void cache_push(unsigned int dest, unsigned int line, unsigned int countMinus1);
-// Push cache lines to dest core.
-// There is no argument validation; dest should be 4 bits, 
-// line and countMinus1 should be in [0..127]
-
 static unsigned int cacheLineAddress(void *addr) {
   // Return the starting cache line address for the given data address
   return (unsigned int)addr >> 5;
@@ -214,18 +209,11 @@ static void cache_invalidateMem(void *addr, unsigned int len) {
 }
 
 static void cache_pushMem(unsigned int dest, void *addr, unsigned int len) {
-  // Invalidate memory for addresses [addr..addr+len-1]
-  if (len > 0) {
-    unsigned int countMinus1 =
-      cacheLineAddress(addr+len-1) - cacheLineAddress(addr);
-    if (countMinus1 >= 127) {
-      cache_push(dest & 0xF, 0, 127);
-    } else {
-      cache_push(dest & 0xF, cacheLineAddress(addr) & 127, countMinus1);
-    }
-  }
-  // If len <= 0, countMinus1 could be negative, so don't do that
+  // No support for cache pushing
 }
+
+// Read Meter value from DCache module
+unsigned int cache_readMeter(unsigned int meter);
 
 ////////////////////////////////////////////////////////////////////////////
 //                                                                        //

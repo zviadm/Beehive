@@ -5,8 +5,6 @@
   Created By: Zviad Metreveli
 */
 
-`default_nettype none
-
 `define nCores         4'd13
 `define EtherCore      `nCores + 4'd1
 `define CopyCore       `nCores + 4'd2
@@ -23,6 +21,6 @@
 `define Pfail          4'd10
 `define Vreq           4'd11
 `define Barrier        4'd12
-`define DMCHeader      4'd13
-`define DMCAddress     4'd14
-`define DMCData        4'd15
+
+// Define Memory Miss penalites in cycles
+`define DelayOnMemoryMiss 1000
