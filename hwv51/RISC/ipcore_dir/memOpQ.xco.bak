@@ -1,7 +1,7 @@
 ##############################################################
 #
 # Xilinx Core Generator version 12.2
-# Date: Thu Oct 14 22:11:49 2010
+# Date: Thu Oct 14 15:03:52 2010
 #
 ##############################################################
 #
@@ -32,7 +32,7 @@ SET verilogsim = true
 SET vhdlsim = true
 # END Project Options
 # BEGIN Select
-SELECT Fifo_Generator family Xilinx,_Inc. 6.2
+SELECT Fifo_Generator family Xilinx,_Inc. 5.3
 # END Select
 # BEGIN Parameters
 CSET almost_empty_flag=false
@@ -53,9 +53,9 @@ CSET full_threshold_assert_value=511
 CSET full_threshold_negate_value=510
 CSET inject_dbit_error=false
 CSET inject_sbit_error=false
-CSET input_data_width=36
+CSET input_data_width=40
 CSET input_depth=512
-CSET output_data_width=36
+CSET output_data_width=40
 CSET output_depth=512
 CSET overflow_flag=false
 CSET overflow_sense=Active_High
@@ -81,4 +81,4 @@ CSET write_data_count=false
 CSET write_data_count_width=10
 # END Parameters
 GENERATE
-# CRC: 2bbb573f
+# CRC: 67bb34a1

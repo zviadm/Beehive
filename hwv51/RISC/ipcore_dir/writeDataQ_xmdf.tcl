@@ -76,6 +76,10 @@ utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path writeDataQ.x
 utilities_xmdf::xmdfSetData $instance FileSet $fcount type coregen_ip
 incr fcount
 
+utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path writeDataQ_upgrade.txt
+utilities_xmdf::xmdfSetData $instance FileSet $fcount type text
+incr fcount
+
 utilities_xmdf::xmdfSetData $instance FileSet $fcount relative_path writeDataQ_xmdf.tcl
 utilities_xmdf::xmdfSetData $instance FileSet $fcount type AnyView
 incr fcount

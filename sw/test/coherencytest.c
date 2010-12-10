@@ -17,15 +17,13 @@ const unsigned int TEST_3_ITERATIONS       = 1000;
 const unsigned int TEST_4_ITERATIONS       = 100000;
 
 // some test variables
-typedef union {
-  int val;
-  char pad[32];
-} AlignedValue;
-
 volatile int done_val[16];
 int test_val[16];
-CACHELINE AlignedValue aligned_test_val[16];
-CACHELINE AlignedValue stress_test_val[128];
+CACHELINE union {
+  int val;
+  char pad[32];
+} aligned_test_val[16];
+
 CACHELINE volatile int* mem_block;
 
 void mc_init(void) 
@@ -114,42 +112,6 @@ void mc_main(void)
   }
   hw_barrier();
   
-  // Coherency Stress Test 1
-  if (corenum() == 2) {
-    xprintf("[%02u]: stress test 1\n", corenum());
-  }
-  if (corenum() == nCores()) {
-    for (unsigned int i = 0; i < 128; i++) {
-      stress_test_val[i].val = i;
-    }
-    cache_flushMem(
-      &stress_test_val[128 - nCores()], nCores() * sizeof(AlignedValue));
-  }
-  hw_barrier();
-  if (corenum() < nCores()) {    
-    unsigned int sum = 0;
-    for (unsigned int i = 0; i < ((128 - nCores()) / nCores()); i++) {
-      sum += stress_test_val[i * nCores() + corenum()].val;
-    }
-    unsigned int real_sum = 0;
-    for (unsigned int i = 0; i < ((128 - nCores()) / nCores()); i++) {
-      real_sum += i * nCores() + corenum();
-    }
-    stress_test_val[128 - corenum()].val = corenum();
-    assert(sum == real_sum);
-  }
-  hw_barrier();
-  if (corenum() == nCores()) {
-    for (unsigned int i = 2; i < nCores(); i++) {
-      assert(stress_test_val[128 - i].val == (int)i);
-    }
-  }
-  hw_barrier();
-  if (corenum() == 2) {
-    xprintf("[%02u]: stress test 1 PASSED\n", corenum());  
-  }  
-  hw_barrier();  
-  
   // Test L2 cache simulation
   if (corenum() == 2) {
     xprintf("[%02u]: Testing L2 cache simulation for single core\n", corenum());
@@ -193,39 +155,6 @@ void mc_main(void)
     stop = *cycleCounter;
     xprintf("[%02u]: %u L2 miss: %d cycles, verify(%u)\n", 
       corenum(), TEST_4_ITERATIONS, stop - start, k);
-  }
-  hw_barrier();
-  if (corenum() == 2) {
-    start = *cycleCounter;
-    for (unsigned int i = 0; i < 64 * 1024; i++) {
-      mem_block[i * 8] = i;
-    }
-    unsigned int k = mem_block[0] + mem_block[1] + mem_block[64 * 1024 * 8 - 8];
-    stop = *cycleCounter;
-    xprintf("[%02u]: L2 memory miss: %u, verify(%u) cycles VS \n", 
-      corenum(), stop - start, k);
-  }
-  hw_barrier();
-  if (corenum() == 3) {
-    start = *cycleCounter;
-    for (unsigned int i = 0; i < 64 * 1024; i++) {
-      mem_block[i * 8] = i;
-    }
-    unsigned int k = mem_block[0] + mem_block[1] + mem_block[64 * 1024 * 8 - 8];
-    stop = *cycleCounter;
-    xprintf("[%02u]: L2 CTC miss:    %u, verify(%u) cycles\n", 
-      corenum(), stop - start, k);
-  }
-  hw_barrier();
-  if (corenum() == 2) {
-    start = *cycleCounter;
-    for (unsigned int i = 0; i < 64 * 1024; i++) {
-      mem_block[i * 8] = i;
-    }
-    unsigned int k = mem_block[0] + mem_block[1] + mem_block[64 * 1024 * 8 - 8];
-    stop = *cycleCounter;
-    xprintf("[%02u]: L2 CTC miss:    %u, verify(%u) cycles\n", 
-      corenum(), stop - start, k);
   }
   
   // print cores in order

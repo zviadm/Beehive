@@ -109,10 +109,9 @@ module CoherentMemMux (
   
   // wires to MemOpQ
   wire memOpQempty;
-  wire [39:0] memOpQIn;
+  wire [35:0] memOpQIn;
   wire wrMemOpQ, rdMemOpQ;
   wire [3:0] memOpQdest;
-  wire [3:0] memOpQtype;
   wire [31:0] memOpQout;
   
   // wires to WriteDataQ
@@ -122,31 +121,25 @@ module CoherentMemMux (
   reg wrWriteDataQ;
   wire rdWriteDataQ;
   wire [127:0] writeDataQout;
-  
-  // counters for number of elements in queues
-  reg [15:0] writeDataQcnt;
-  reg [15:0] memOpQcnt;
-  
+  reg [15:0] writeDataQelts;
+  wire WDQalmostFull;
+    
   localparam idle = 0; //States
   localparam dumpResendQ = 1;
   localparam waitToken = 2;
 
 //---------------------End of Declarations-----------------
-  // stall ring if DDR is not ready or queues are almost full
-  wire stallRing = 
-    InhibitDDR | ResetDDR |
-    (writeDataQcnt >= (512 - 32)) | (memOpQcnt >= (1024 - 32));
 
   always @(posedge clock) 
     if(reset) state <= idle;
     else case(state)
-      idle: if(~stallRing) state <= dumpResendQ;
+      idle: if(~InhibitDDR & ~ResetDDR & ~WDQalmostFull) state <= dumpResendQ;
 
       dumpResendQ: if (resendQempty) state <= waitToken;
 
       waitToken: 
         if(SlotTypeIn == `Token) begin
-          if(~stallRing) state <= dumpResendQ;
+          if(~InhibitDDR & ~ResetDDR & ~WDQalmostFull) state <= dumpResendQ;
           else state <= idle;
         end
     endcase
@@ -170,23 +163,39 @@ module CoherentMemMux (
     nullifyMessage                           ? 4'b0 : SourceIn;
 
   //Ack display controller's address.
-  assign readAck = 
-    ~(SlotTypeIn == `Address | SlotTypeIn == `DMCCachePush) & 
-    readReq & memOpQempty; 
+  assign readAck = ~(SlotTypeIn == `Address) & readReq & memOpQempty; 
+  
+  // Capture modified DMC addresses
+  reg [3:0] receiveDMCData;
+  always @(posedge clock) begin
+    if (reset) receiveDMCData <= 0;
+    else begin
+      if (SlotTypeIn == `DMCAddress & RingIn[31:30] == 2'b11)
+        receiveDMCData <= 8;
+      else if (receiveDMCData > 0) 
+        receiveDMCData <= receiveDMCData - 1;
+    end
+  end
   
   // decided what should go into memOpQ, stuff from ring or from DC  
   assign wrMemOpQ = 
-    (SlotTypeIn == `Address) | (SlotTypeIn == `DMCCachePush) | (readAck);
+    (SlotTypeIn == `Address) | 
+    (SlotTypeIn == `DMCAddress & RingIn[31:30] == 2'b11) | 
+    (readAck);
   assign memOpQIn = 
-    (SlotTypeIn == `Address | 
-     SlotTypeIn == `DMCCachePush) ? {SourceIn, SlotTypeIn, RingIn} : 
-                                    {4'b0000, `Address, {6'b000100, RA}};
+    (SlotTypeIn == `Address)    ? {SourceIn, RingIn} : 
+    (SlotTypeIn == `DMCAddress) ? {SourceIn, 4'b0000, RingIn[27:0]} :
+                                  {4'b0000, {6'b000100, RA}};
   
-  // write to writeDataQ
+  // write to writeDataQ, also count number of elements in writeDataQ
   always @(posedge clock) begin
-    if (reset) wcnt <= 0;
+    if (reset) begin
+      wcnt <= 0;
+      writeDataQelts <= 0;
+    end
     else begin
-      if (SlotTypeIn == `WriteData) begin
+      if ((SlotTypeIn == `WriteData) | 
+          (SlotTypeIn == `DMCData & receiveDMCData > 0)) begin
         // get w0, w1, w2 & w3
         if (wcnt == 0) w0 <= RingIn;
         else if (wcnt == 1) w1 <= RingIn;
@@ -195,24 +204,20 @@ module CoherentMemMux (
         
         wcnt <= wcnt + 1;
       end
+
       wrWriteDataQ <= (wcnt == 3);
+      
+      if (wrWriteDataQ && ~rdWriteDataQ) 
+        writeDataQelts <= writeDataQelts + 1;
+      else if (~wrWriteDataQ && rdWriteDataQ) 
+        writeDataQelts <= writeDataQelts - 1;
     end
   end
   
-  // count number of elements in queues
-  always @(posedge clock) begin
-    if (reset) begin
-      writeDataQcnt <= 0;
-      memOpQcnt <= 0;    
-    end else begin
-      if (wrWriteDataQ & ~rdWriteDataQ) writeDataQcnt <= writeDataQcnt + 1;
-      else if (~wrWriteDataQ & rdWriteDataQ) writeDataQcnt <= writeDataQcnt -1;
-        
-      if (wrMemOpQ & ~rdMemOpQ) memOpQcnt <= memOpQcnt + 1;
-      else if (~wrMemOpQ & rdMemOpQ) memOpQcnt <= memOpQcnt - 1;
-    end
-  end        
-
+  // check if writeDataQ is almost full in this case we should not release new 
+  // token. This might not be necessary but just to be safe we do it, so that 
+  // WDQ does not overflow. also depth of WDQ now is 1024.
+  assign WDQalmostFull = (writeDataQelts[15:9] != 0);
 
   assign rdResendQ = (state == dumpResendQ) & ~resendQempty;    
   resendQ resendQueue (
@@ -232,7 +237,7 @@ module CoherentMemMux (
     .din(memOpQIn),
     .wr_en(wrMemOpQ),
     .rd_en(rdMemOpQ),
-    .dout({memOpQdest, memOpQtype, memOpQout}),
+    .dout({memOpQdest, memOpQout}),
     .full(),
     .empty(memOpQempty)
   );
@@ -246,16 +251,14 @@ module CoherentMemMux (
     .rd_en(rdWriteDataQ),
     .dout(writeDataQout),
     .full(),
-    .empty(writeDataQempty)
-  );
+    .empty(writeDataQempty));
 
-  mmsFSMcoherentL2 mmsFSM (
+  mmsFSMcoherent mmsFSM (
     .clock(clock),
     .reset(reset),
     // mem op queue
     .memOpQempty(memOpQempty),
     .rdMemOp(rdMemOpQ),
-    .memOpType(memOpQtype),
     .memOpDest(memOpQdest),
     .memOpData(memOpQout),
     // write data queue

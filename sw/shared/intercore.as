@@ -129,7 +129,7 @@ _cache_invalidate:
 
 ////////////////////////////////////////////////////////////////////////////
 //                                                                        //
-// void cache_push(int dest, int addr, int countMinus1)                   //
+// void cache_push(int dest, int line, int countMinus1)                   //
 //                                                                        //
 // Push cache lines to dest core                                          //
 //                                                                        //
@@ -141,12 +141,12 @@ _cache_invalidate:
 ////////////////////////////////////////////////////////////////////////////
   .type  _cache_push, @function
 _cache_push:
-  // AQ: (1 << 29) + (r3 << 25) + (r5 << 5) + cacheControl
-  // WQ: r4
+  // AQ value for Cache Push:
+  // (1 << 29) + (r3 << 25) + (r4 << 5) + (r5 << 12) + cacheControl
   lsl      r6,1,4
-  add_lsl  r6,r6,r3,20
-  add_lsl  r6,r6,r5,5
-  ld       wq,r4
+  add_lsl  r6,r6,r3,13
+  add_lsl  r6,r6,r5,7
+  add_lsl  r6,r6,r4,5
   aqw_add  r6,r6,cacheControl
   j  link
   .size  _cache_push,.-_cache_push

@@ -192,17 +192,12 @@
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="../DDRsrc/mmsFSMcoherent.v" xil_pn:type="FILE_VERILOG">
-      <association xil_pn:name="BehavioralSimulation"/>
-      <association xil_pn:name="PostMapSimulation"/>
-      <association xil_pn:name="PostRouteSimulation"/>
-      <association xil_pn:name="PostTranslateSimulation"/>
+      <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="../DDRsrc/mmsFSMcoherentL2.v" xil_pn:type="FILE_VERILOG">
-      <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="../DDRsrc/RDDelayer.v" xil_pn:type="FILE_VERILOG">
-      <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="../DDRsrc/CoherentMemMux.v" xil_pn:type="FILE_VERILOG">
@@ -224,6 +219,7 @@
       <association xil_pn:name="PostRouteSimulation"/>
       <association xil_pn:name="PostTranslateSimulation"/>
     </file>
+    <file xil_pn:name="../RISCsrc/CoherentDCacheV1.v" xil_pn:type="FILE_VERILOG"/>
     <file xil_pn:name="ipcore_dir/dcacheRequestQ.xco" xil_pn:type="FILE_COREGEN">
       <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
@@ -237,11 +233,9 @@
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="ipcore_dir/memOpQ.xco" xil_pn:type="FILE_COREGEN">
-      <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="ipcore_dir/delayQ.xco" xil_pn:type="FILE_COREGEN">
-      <association xil_pn:name="BehavioralSimulation"/>
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="ipcore_dir/writeDataQ.xco" xil_pn:type="FILE_COREGEN">
@@ -252,12 +246,8 @@
       <association xil_pn:name="Implementation"/>
     </file>
     <file xil_pn:name="../RISCsrc/Constants.v" xil_pn:type="FILE_VERILOG">
-      <association xil_pn:name="BehavioralSimulation" xil_pn:seqIDinc="71"/>
-      <association xil_pn:name="Implementation" xil_pn:seqIDinc="71"/>
-    </file>
-    <file xil_pn:name="../DDRsrc/mmsFSMcoherentL2_v1.v" xil_pn:type="FILE_VERILOG">
-      <association xil_pn:name="BehavioralSimulation"/>
-      <association xil_pn:name="Implementation"/>
+      <association xil_pn:name="BehavioralSimulation" xil_pn:seqIDinc="72"/>
+      <association xil_pn:name="Implementation" xil_pn:seqIDinc="72"/>
     </file>
     <file xil_pn:name="ipcore_dir/dcacheRequestQ.xise" xil_pn:type="FILE_COREGENISE">
       <association xil_pn:name="Implementation"/>
@@ -283,7 +273,6 @@
   </files>
 
   <properties>
-    <property xil_pn:name="Compile for HDL Debugging" xil_pn:value="false" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Device" xil_pn:value="xc5vlx110t" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Device Family" xil_pn:value="Virtex5" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Enable Message Filtering" xil_pn:value="true" xil_pn:valueState="non-default"/>
